@@ -63,6 +63,8 @@ function TasksPage() {
 
   const handleEdit = (task: Task) => {
     setEditingTask(task)
+    console.log('Editing task:', task)
+    console.log('Progress percentage:', task.progress_percentage)
     setFormData({
       area_id: task.area_id,
       goal_id: task.goal_id || '',
@@ -71,7 +73,7 @@ function TasksPage() {
       status: task.status,
       due_date: task.due_date || '',
       estimated_effort: task.estimated_effort || '',
-      progress_percentage: (task as any).progress_percentage || 0,
+      progress_percentage: task.progress_percentage ?? 0,
       tags: task.tags || []
     })
     setShowModal(true)
@@ -147,7 +149,8 @@ function TasksPage() {
 
       <ul className="list">
         {tasks?.map((task) => {
-          const taskProgress = (task as any).progress_percentage
+          const taskProgress = task.progress_percentage
+          console.log('Task:', task.title, 'Progress:', taskProgress)
           return (
             <li key={task.id} className="list-item">
               <div className="list-item-content">
@@ -286,7 +289,12 @@ function TasksPage() {
                     min="0"
                     max="100"
                     value={formData.progress_percentage}
-                    onChange={(e) => setFormData({ ...formData, progress_percentage: e.target.value ? parseInt(e.target.value) : 0 })}
+                    onChange={(e) => {
+                      const newValue = e.target.value ? parseInt(e.target.value) : 0;
+                      console.log('Progress input changed:', e.target.value, '-> parsed:', newValue);
+                      setFormData({ ...formData, progress_percentage: newValue });
+                      console.log('FormData updated, new progress:', newValue);
+                    }}
                   />
                 </div>
               </div>

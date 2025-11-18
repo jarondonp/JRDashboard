@@ -19,6 +19,11 @@ function DashboardPage() {
 
   const isLoading = loadingStats || loadingProgress || loadingDocs || loadingTasks;
 
+  // Calcular cumplimiento global de TODAS las metas (no solo del mes)
+  const globalCompletion = goals && goals.length > 0
+    ? Math.round(goals.reduce((sum, g) => sum + (g.computed_progress || 0), 0) / goals.length)
+    : 0;
+
   if (isLoading) {
     return (
       <div className="dashboard-page">
@@ -88,7 +93,7 @@ function DashboardPage() {
         <div className="dashboard-grid dashboard-grid--4">
           <MetricCard
             title="Cumplimiento Global"
-            value={`${monthlyStats?.goalCompletionRate || 0}%`}
+            value={`${globalCompletion}%`}
             subtitle="Progreso promedio de metas"
             icon="📊"
             color="blue"

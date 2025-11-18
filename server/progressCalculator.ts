@@ -8,19 +8,24 @@ import { goals, tasks } from '../shared/schema';
  * @returns Porcentaje de progreso (0-100)
  */
 export async function calculateGoalProgress(goalId: string): Promise<number> {
+  console.log('=== calculateGoalProgress for goal:', goalId);
   // Obtener todas las tareas de esta meta
   const goalTasks = await db.select().from(tasks).where(eq(tasks.goal_id, goalId));
+  console.log('Found tasks:', goalTasks.length);
 
   if (goalTasks.length === 0) {
+    console.log('No tasks found, returning 0');
     return 0;
   }
 
   // Calcular progreso promedio de todas las tareas
   const totalProgress = goalTasks.reduce((sum, task) => {
+    console.log(`Task ${task.title}: ${task.progress_percentage}%`);
     return sum + (task.progress_percentage || 0);
   }, 0);
 
   const averageProgress = Math.round(totalProgress / goalTasks.length);
+  console.log('Average progress:', averageProgress);
 
   return averageProgress;
 }
@@ -30,15 +35,20 @@ export async function calculateGoalProgress(goalId: string): Promise<number> {
  * @param goalId - ID de la meta
  */
 export async function updateGoalProgress(goalId: string): Promise<void> {
+  console.log('=== updateGoalProgress called for goal:', goalId);
   const progress = await calculateGoalProgress(goalId);
+  console.log('Calculated progress:', progress);
   
-  await db
+  const result = await db
     .update(goals)
     .set({ 
       computed_progress: progress,
       updated_at: new Date()
     })
-    .where(eq(goals.id, goalId));
+    .where(eq(goals.id, goalId))
+    .returning();
+  
+  console.log('Goal updated:', result[0]);
 }
 
 /**

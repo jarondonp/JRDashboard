@@ -21,10 +21,38 @@ export async function deleteArea(id: string) {
 
 // Goals
 export async function getGoals() {
-  return db.select().from(goals);
+  return db.select({
+    id: goals.id,
+    area_id: goals.area_id,
+    title: goals.title,
+    description: goals.description,
+    goal_type: goals.goal_type,
+    start_date: goals.start_date,
+    due_date: goals.due_date,
+    status: goals.status,
+    priority: goals.priority,
+    expected_outcome: goals.expected_outcome,
+    computed_progress: goals.computed_progress,
+    created_at: goals.created_at,
+    updated_at: goals.updated_at
+  }).from(goals);
 }
 export async function getGoalById(id: string) {
-  return db.select().from(goals).where({ id }).limit(1);
+  return db.select({
+    id: goals.id,
+    area_id: goals.area_id,
+    title: goals.title,
+    description: goals.description,
+    goal_type: goals.goal_type,
+    start_date: goals.start_date,
+    due_date: goals.due_date,
+    status: goals.status,
+    priority: goals.priority,
+    expected_outcome: goals.expected_outcome,
+    computed_progress: goals.computed_progress,
+    created_at: goals.created_at,
+    updated_at: goals.updated_at
+  }).from(goals).where(eq(goals.id, id)).limit(1);
 }
 export async function createGoal(data: any) {
   return db.insert(goals).values(data).returning();
@@ -38,16 +66,47 @@ export async function deleteGoal(id: string) {
 
 // Tasks
 export async function getTasks() {
-  return db.select().from(tasks);
+  const result = await db.select({
+    id: tasks.id,
+    area_id: tasks.area_id,
+    goal_id: tasks.goal_id,
+    title: tasks.title,
+    description: tasks.description,
+    status: tasks.status,
+    due_date: tasks.due_date,
+    estimated_effort: tasks.estimated_effort,
+    progress_percentage: tasks.progress_percentage,
+    tags: tasks.tags,
+    created_at: tasks.created_at,
+    updated_at: tasks.updated_at
+  }).from(tasks);
+  console.log('Storage getTasks - Sample task:', result[0]);
+  return result;
 }
 export async function getTaskById(id: string) {
-  return db.select().from(tasks).where({ id }).limit(1);
+  return db.select({
+    id: tasks.id,
+    area_id: tasks.area_id,
+    goal_id: tasks.goal_id,
+    title: tasks.title,
+    description: tasks.description,
+    status: tasks.status,
+    due_date: tasks.due_date,
+    estimated_effort: tasks.estimated_effort,
+    progress_percentage: tasks.progress_percentage,
+    tags: tasks.tags,
+    created_at: tasks.created_at,
+    updated_at: tasks.updated_at
+  }).from(tasks).where(eq(tasks.id, id)).limit(1);
 }
 export async function createTask(data: any) {
   return db.insert(tasks).values(data).returning();
 }
 export async function updateTask(id: string, data: any) {
-  return db.update(tasks).set(data).where(eq(tasks.id, id)).returning();
+  console.log('Storage updateTask - ID:', id, 'Data:', data);
+  const result = await db.update(tasks).set(data).where(eq(tasks.id, id)).returning();
+  console.log('Storage updateTask - Result:', result);
+  return result;
 }
 export async function deleteTask(id: string) {
   return db.delete(tasks).where(eq(tasks.id, id));
