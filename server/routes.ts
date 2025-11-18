@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import * as storage from './storage';
 import { insertAreaSchema, insertGoalSchema, insertTaskSchema, insertProgressLogSchema, insertDocumentSchema, insertReportSchema } from '../shared/schema';
+import { updateGoalProgress, updateTaskProgressByStatus } from './progressCalculator';
 
 const router = Router();
 
@@ -116,6 +117,12 @@ router.post('/tasks', async (req, res) => {
   try {
     const data = insertTaskSchema.parse(req.body);
     const result = await storage.createTask(data);
+    
+    // Actualizar progreso automáticamente si tiene goal_id
+    if (result[0].goal_id) {
+      await updateGoalProgress(result[0].goal_id);
+    }
+    
     res.status(201).json(result[0]);
   } catch (err) {
     res.status(400).json({ error: err.message });
@@ -124,7 +131,19 @@ router.post('/tasks', async (req, res) => {
 router.put('/tasks/:id', async (req, res) => {
   try {
     const data = insertTaskSchema.parse(req.body);
+    
+    // Actualizar progreso de la tarea basado en su estado
+    if (data.status) {
+      await updateTaskProgressByStatus(req.params.id, data.status);
+    }
+    
     const result = await storage.updateTask(req.params.id, data);
+    
+    // Actualizar progreso de la meta si tiene goal_id
+    if (result[0].goal_id) {
+      await updateGoalProgress(result[0].goal_id);
+    }
+    
     res.json(result[0]);
   } catch (err) {
     res.status(400).json({ error: err.message });
@@ -132,7 +151,17 @@ router.put('/tasks/:id', async (req, res) => {
 });
 router.delete('/tasks/:id', async (req, res) => {
   try {
+    // Obtener la tarea antes de eliminarla para saber su goal_id
+    const task = await storage.getTaskById(req.params.id);
+    const goalId = task[0]?.goal_id;
+    
     await storage.deleteTask(req.params.id);
+    
+    // Recalcular progreso de la meta si tenía goal_id
+    if (goalId) {
+      await updateGoalProgress(goalId);
+    }
+    
     res.status(204).end();
   } catch (err) {
     res.status(500).json({ error: err.message });

@@ -24,8 +24,10 @@ export function useMonthlyStats() {
       }) || [];
 
       const completedGoals = monthGoals.filter(g => g.status === 'completada' || g.status === 'completed');
+      
+      // Calcular tasa de completaci\u00f3n usando el progreso computado de las metas
       const goalCompletionRate = monthGoals.length > 0 
-        ? Math.round((completedGoals.length / monthGoals.length) * 100)
+        ? Math.round(monthGoals.reduce((sum, g) => sum + (g.computed_progress || 0), 0) / monthGoals.length)
         : 0;
 
       // Tareas abiertas del mes

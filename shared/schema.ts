@@ -59,6 +59,7 @@ export const tasks = pgTable('tasks', {
   status: text('status').notNull(),
   due_date: date('due_date'),
   estimated_effort: integer('estimated_effort'),
+  progress_percentage: integer('progress_percentage').default(0),
   tags: text('tags').array(),
   created_at: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updated_at: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
@@ -71,6 +72,7 @@ export const insertTaskSchema = z.object({
   status: z.string(),
   due_date: z.string().optional(),
   estimated_effort: z.number().optional(),
+  progress_percentage: z.number().optional(),
   tags: z.array(z.string()).optional(),
 });
 
