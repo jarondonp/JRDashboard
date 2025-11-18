@@ -3,6 +3,8 @@ Servicios HTTP (client/src/services)
 Resumen
 - `apiClient.ts`: helpers genéricos para llamadas a la API (`apiGet`, `apiPost`, `apiPut`, `apiDelete`).
 - `areasApi.ts`: funciones CRUD para `areas` (`fetchAreas`, `fetchArea`, `createArea`, `updateArea`, `deleteArea`).
+ - `goalsApi.ts`: funciones CRUD para `goals` (`fetchGoals`, `fetchGoal`, `createGoal`, `updateGoal`, `deleteGoal`).
+ - `tasksApi.ts`: funciones CRUD para `tasks` (`fetchTasks`, `fetchTask`, `createTask`, `updateTask`, `deleteTask`).
 
 Uso rápido (ejemplos)
 
