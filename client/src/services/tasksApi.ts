@@ -8,6 +8,7 @@ export type TaskInput = {
   status: string;
   due_date?: string;
   estimated_effort?: number;
+  progress_percentage?: number;
   tags?: string[];
 };
 
