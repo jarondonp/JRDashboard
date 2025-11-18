@@ -7,7 +7,7 @@ export async function getAreas() {
   return db.select().from(areas);
 }
 export async function getAreaById(id: string) {
-  return db.select().from(areas).where({ id }).limit(1);
+  return db.select().from(areas).where(eq(areas.id, id)).limit(1);
 }
 export async function createArea(data: any) {
   return db.insert(areas).values(data).returning();

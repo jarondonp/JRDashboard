@@ -20,7 +20,10 @@ export function useCreateProgressLog() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (data: Parameters<typeof progressApi.createProgressLog>[0]) => progressApi.createProgressLog(data),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['progressLogs'] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['progressLogs'] });
+      qc.invalidateQueries({ queryKey: ['monthly-stats'] });
+    },
   });
 }
 
@@ -28,7 +31,10 @@ export function useUpdateProgressLog() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: ({ id, data }: { id: string; data: any }) => progressApi.updateProgressLog(id, data),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['progressLogs'] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['progressLogs'] });
+      qc.invalidateQueries({ queryKey: ['monthly-stats'] });
+    },
   });
 }
 
@@ -36,6 +42,9 @@ export function useDeleteProgressLog() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => progressApi.deleteProgressLog(id),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['progressLogs'] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['progressLogs'] });
+      qc.invalidateQueries({ queryKey: ['monthly-stats'] });
+    },
   });
 }
