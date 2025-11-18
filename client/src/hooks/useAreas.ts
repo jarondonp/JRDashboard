@@ -1,0 +1,31 @@
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import * as areasApi from '../services/areasApi';
+
+export function useAreas() {
+  return useQuery(['areas'], () => areasApi.fetchAreas());
+}
+
+export function useArea(id?: string) {
+  return useQuery(['area', id], () => areasApi.fetchArea(id as string), { enabled: !!id });
+}
+
+export function useCreateArea() {
+  const qc = useQueryClient();
+  return useMutation((data: Parameters<typeof areasApi.createArea>[0]) => areasApi.createArea(data), {
+    onSuccess: () => qc.invalidateQueries(['areas']),
+  });
+}
+
+export function useUpdateArea() {
+  const qc = useQueryClient();
+  return useMutation(({ id, data }: { id: string; data: any }) => areasApi.updateArea(id, data), {
+    onSuccess: () => qc.invalidateQueries(['areas']),
+  });
+}
+
+export function useDeleteArea() {
+  const qc = useQueryClient();
+  return useMutation((id: string) => areasApi.deleteArea(id), {
+    onSuccess: () => qc.invalidateQueries(['areas']),
+  });
+}

@@ -42,5 +42,11 @@ curl -X POST http://localhost:5000/api/areas \
 
 Siguientes pasos recomendados
 - Ya implementadas: `goalsApi.ts`, `tasksApi.ts`, `progressApi.ts`, `documentsApi.ts`, `reportsApi.ts`.
-- Crear hooks con React Query (`useAreas`, `useCreateArea`) en `client/src/hooks` para integrarlos con componentes.
+- Hooks: se añadieron hooks de React Query en `client/src/hooks`:
+  - `useAreas`, `useCreateArea`, `useUpdateArea`, `useDeleteArea`
+  - `useGoals`, `useCreateGoal`, `useUpdateGoal`, `useDeleteGoal`
+  - `useTasks`, `useCreateTask`, `useUpdateTask`, `useDeleteTask`
+  - `useProgressLogs`, `useCreateProgressLog`, `useUpdateProgressLog`, `useDeleteProgressLog`
+  - `useDocuments`, `useCreateDocument`, `useUpdateDocument`, `useDeleteDocument`
+  - `useReports`, `useCreateReport`, `useUpdateReport`, `useDeleteReport`
 - Marcar `client/src/services` en el README principal del proyecto con instrucciones de ejecución.
