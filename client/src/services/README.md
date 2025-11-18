@@ -5,6 +5,9 @@ Resumen
 - `areasApi.ts`: funciones CRUD para `areas` (`fetchAreas`, `fetchArea`, `createArea`, `updateArea`, `deleteArea`).
  - `goalsApi.ts`: funciones CRUD para `goals` (`fetchGoals`, `fetchGoal`, `createGoal`, `updateGoal`, `deleteGoal`).
  - `tasksApi.ts`: funciones CRUD para `tasks` (`fetchTasks`, `fetchTask`, `createTask`, `updateTask`, `deleteTask`).
+ - `progressApi.ts`: funciones CRUD para `progress-logs` (`fetchProgressLogs`, `fetchProgressLog`, `createProgressLog`, `updateProgressLog`, `deleteProgressLog`).
+ - `documentsApi.ts`: funciones CRUD para `documents` (`fetchDocuments`, `fetchDocument`, `createDocument`, `updateDocument`, `deleteDocument`).
+ - `reportsApi.ts`: funciones CRUD para `reports` (`fetchReports`, `fetchReport`, `createReport`, `updateReport`, `deleteReport`).
 
 Uso rápido (ejemplos)
 
@@ -38,6 +41,6 @@ curl -X POST http://localhost:5000/api/areas \
 ```
 
 Siguientes pasos recomendados
-- Implementar `goalsApi.ts`, `tasksApi.ts`, `progressApi.ts`, `documentsApi.ts`, `reportsApi.ts` siguiendo el mismo patrón.
+- Ya implementadas: `goalsApi.ts`, `tasksApi.ts`, `progressApi.ts`, `documentsApi.ts`, `reportsApi.ts`.
 - Crear hooks con React Query (`useAreas`, `useCreateArea`) en `client/src/hooks` para integrarlos con componentes.
 - Marcar `client/src/services` en el README principal del proyecto con instrucciones de ejecución.
