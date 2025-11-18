@@ -1,0 +1,153 @@
+.list-card {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  overflow: hidden;
+}
+
+.list-card__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.5rem;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.list-card__title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #1e293b;
+  margin: 0;
+}
+
+.list-card__count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 24px;
+  height: 24px;
+  padding: 0 8px;
+  background: #e2e8f0;
+  color: #475569;
+  font-size: 0.75rem;
+  font-weight: 600;
+  border-radius: 12px;
+}
+
+.list-card__body {
+  padding: 0;
+}
+
+.list-card__empty {
+  padding: 2rem;
+  text-align: center;
+  color: #94a3b8;
+  font-size: 0.875rem;
+}
+
+.list-card__list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.list-card__item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 1.5rem;
+  border-bottom: 1px solid #f1f5f9;
+  transition: background 0.2s;
+}
+
+.list-card__item:last-child {
+  border-bottom: none;
+}
+
+.list-card__item:hover {
+  background: #f8fafc;
+}
+
+.list-card__item-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.list-card__item-title {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #1e293b;
+  margin-bottom: 0.25rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.list-card__item-subtitle {
+  font-size: 0.75rem;
+  color: #64748b;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.list-card__item-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-left: 1rem;
+}
+
+.list-card__badge {
+  display: inline-block;
+  padding: 0.25rem 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+
+.list-card__badge--blue {
+  background: #dbeafe;
+  color: #1e40af;
+}
+
+.list-card__badge--green {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.list-card__badge--yellow {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.list-card__badge--red {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.list-card__badge--purple {
+  background: #ede9fe;
+  color: #5b21b6;
+}
+
+.list-card__badge--gray {
+  background: #f1f5f9;
+  color: #475569;
+}
+
+.list-card__date {
+  font-size: 0.75rem;
+  color: #94a3b8;
+  white-space: nowrap;
+}
+
+.list-card__footer {
+  padding: 0.75rem 1.5rem;
+  text-align: center;
+  font-size: 0.75rem;
+  color: #64748b;
+  background: #f8fafc;
+  border-top: 1px solid #f1f5f9;
+}

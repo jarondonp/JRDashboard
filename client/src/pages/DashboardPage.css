@@ -1,0 +1,144 @@
+.dashboard-page {
+  padding: 0;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+/* Header */
+.dashboard-header {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: 3rem 2rem;
+  margin: -2rem -2rem 2rem -2rem;
+  border-radius: 0 0 24px 24px;
+}
+
+.dashboard-header__content {
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.dashboard-header__title {
+  font-size: 2.5rem;
+  font-weight: 700;
+  margin: 0 0 0.5rem 0;
+  letter-spacing: -0.5px;
+}
+
+.dashboard-header__subtitle {
+  font-size: 1.125rem;
+  margin: 0;
+  opacity: 0.95;
+  font-weight: 300;
+}
+
+/* Sections */
+.dashboard-section {
+  margin-bottom: 3rem;
+  padding: 0 2rem;
+}
+
+.dashboard-section__title {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: #1e293b;
+  margin: 0 0 1.5rem 0;
+}
+
+/* Grid Layouts */
+.dashboard-grid {
+  display: grid;
+  gap: 1.5rem;
+}
+
+.dashboard-grid--1 {
+  grid-template-columns: 1fr;
+}
+
+.dashboard-grid--2 {
+  grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+}
+
+.dashboard-grid--3 {
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+}
+
+.dashboard-grid--4 {
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+}
+
+/* Summary Section */
+.dashboard-summary {
+  background: white;
+  border-radius: 12px;
+  padding: 2rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 2rem;
+}
+
+.dashboard-summary__item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.dashboard-summary__label {
+  font-size: 0.875rem;
+  color: #64748b;
+  font-weight: 500;
+}
+
+.dashboard-summary__value {
+  font-size: 2rem;
+  font-weight: 700;
+  color: #1e293b;
+}
+
+/* Loading State */
+.loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 400px;
+  font-size: 1.125rem;
+  color: #64748b;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .dashboard-header {
+    padding: 2rem 1rem;
+    margin: -1rem -1rem 1.5rem -1rem;
+  }
+
+  .dashboard-header__title {
+    font-size: 1.75rem;
+  }
+
+  .dashboard-header__subtitle {
+    font-size: 0.875rem;
+  }
+
+  .dashboard-section {
+    padding: 0 1rem;
+    margin-bottom: 2rem;
+  }
+
+  .dashboard-section__title {
+    font-size: 1.25rem;
+  }
+
+  .dashboard-grid--2,
+  .dashboard-grid--3,
+  .dashboard-grid--4 {
+    grid-template-columns: 1fr;
+  }
+
+  .dashboard-summary {
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+    padding: 1.5rem;
+  }
+}
