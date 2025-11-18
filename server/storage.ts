@@ -1,4 +1,5 @@
 import { db } from './db';
+import { eq } from 'drizzle-orm';
 import { areas, goals, tasks, progress_logs, documents, reports } from '../shared/schema';
 
 // Areas
@@ -12,10 +13,10 @@ export async function createArea(data: any) {
   return db.insert(areas).values(data).returning();
 }
 export async function updateArea(id: string, data: any) {
-  return db.update(areas).set(data).where({ id }).returning();
+  return db.update(areas).set(data).where(eq(areas.id, id)).returning();
 }
 export async function deleteArea(id: string) {
-  return db.delete(areas).where({ id });
+  return db.delete(areas).where(eq(areas.id, id));
 }
 
 // Goals
@@ -29,10 +30,10 @@ export async function createGoal(data: any) {
   return db.insert(goals).values(data).returning();
 }
 export async function updateGoal(id: string, data: any) {
-  return db.update(goals).set(data).where({ id }).returning();
+  return db.update(goals).set(data).where(eq(goals.id, id)).returning();
 }
 export async function deleteGoal(id: string) {
-  return db.delete(goals).where({ id });
+  return db.delete(goals).where(eq(goals.id, id));
 }
 
 // Tasks
@@ -46,10 +47,10 @@ export async function createTask(data: any) {
   return db.insert(tasks).values(data).returning();
 }
 export async function updateTask(id: string, data: any) {
-  return db.update(tasks).set(data).where({ id }).returning();
+  return db.update(tasks).set(data).where(eq(tasks.id, id)).returning();
 }
 export async function deleteTask(id: string) {
-  return db.delete(tasks).where({ id });
+  return db.delete(tasks).where(eq(tasks.id, id));
 }
 
 // Progress Logs
@@ -63,10 +64,10 @@ export async function createProgressLog(data: any) {
   return db.insert(progress_logs).values(data).returning();
 }
 export async function updateProgressLog(id: string, data: any) {
-  return db.update(progress_logs).set(data).where({ id }).returning();
+  return db.update(progress_logs).set(data).where(eq(progress_logs.id, id)).returning();
 }
 export async function deleteProgressLog(id: string) {
-  return db.delete(progress_logs).where({ id });
+  return db.delete(progress_logs).where(eq(progress_logs.id, id));
 }
 
 // Documents
@@ -80,10 +81,10 @@ export async function createDocument(data: any) {
   return db.insert(documents).values(data).returning();
 }
 export async function updateDocument(id: string, data: any) {
-  return db.update(documents).set(data).where({ id }).returning();
+  return db.update(documents).set(data).where(eq(documents.id, id)).returning();
 }
 export async function deleteDocument(id: string) {
-  return db.delete(documents).where({ id });
+  return db.delete(documents).where(eq(documents.id, id));
 }
 
 // Reports
@@ -97,8 +98,8 @@ export async function createReport(data: any) {
   return db.insert(reports).values(data).returning();
 }
 export async function updateReport(id: string, data: any) {
-  return db.update(reports).set(data).where({ id }).returning();
+  return db.update(reports).set(data).where(eq(reports.id, id)).returning();
 }
 export async function deleteReport(id: string) {
-  return db.delete(reports).where({ id });
+  return db.delete(reports).where(eq(reports.id, id));
 }
