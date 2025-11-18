@@ -20,7 +20,10 @@ export function useCreateDocument() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (data: Parameters<typeof documentsApi.createDocument>[0]) => documentsApi.createDocument(data),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['documents'] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['documents'] });
+      qc.invalidateQueries({ queryKey: ['monthly-stats'] });
+    },
   });
 }
 
@@ -28,7 +31,10 @@ export function useUpdateDocument() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: ({ id, data }: { id: string; data: any }) => documentsApi.updateDocument(id, data),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['documents'] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['documents'] });
+      qc.invalidateQueries({ queryKey: ['monthly-stats'] });
+    },
   });
 }
 
@@ -36,6 +42,9 @@ export function useDeleteDocument() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => documentsApi.deleteDocument(id),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['documents'] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['documents'] });
+      qc.invalidateQueries({ queryKey: ['monthly-stats'] });
+    },
   });
 }
