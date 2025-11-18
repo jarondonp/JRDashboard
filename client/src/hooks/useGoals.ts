@@ -20,7 +20,10 @@ export function useCreateGoal() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (data: Parameters<typeof goalsApi.createGoal>[0]) => goalsApi.createGoal(data),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['goals'] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['goals'] });
+      qc.invalidateQueries({ queryKey: ['monthly-stats'] });
+    },
   });
 }
 
@@ -28,7 +31,10 @@ export function useUpdateGoal() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: ({ id, data }: { id: string; data: any }) => goalsApi.updateGoal(id, data),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['goals'] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['goals'] });
+      qc.invalidateQueries({ queryKey: ['monthly-stats'] });
+    },
   });
 }
 
@@ -36,6 +42,9 @@ export function useDeleteGoal() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => goalsApi.deleteGoal(id),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['goals'] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['goals'] });
+      qc.invalidateQueries({ queryKey: ['monthly-stats'] });
+    },
   });
 }

@@ -48,6 +48,8 @@ function TasksPage() {
         tags: formData.tags.length > 0 ? formData.tags : undefined
       }
       
+      console.log('Submitting task data:', submitData)
+      
       if (editingTask) {
         await updateMutation.mutateAsync({ id: editingTask.id, data: submitData })
       } else {

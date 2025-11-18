@@ -131,21 +131,21 @@ router.post('/tasks', async (req, res) => {
 router.put('/tasks/:id', async (req, res) => {
   try {
     const data = insertTaskSchema.parse(req.body);
+    console.log('Updating task:', req.params.id, 'with data:', data);
     
-    // Actualizar progreso de la tarea basado en su estado
-    if (data.status) {
-      await updateTaskProgressByStatus(req.params.id, data.status);
-    }
-    
+    // Primero actualizar la tarea con los datos del formulario
     const result = await storage.updateTask(req.params.id, data);
+    console.log('Task updated:', result[0]);
     
     // Actualizar progreso de la meta si tiene goal_id
     if (result[0].goal_id) {
+      console.log('Updating goal progress for:', result[0].goal_id);
       await updateGoalProgress(result[0].goal_id);
     }
     
     res.json(result[0]);
   } catch (err) {
+    console.error('Error updating task:', err);
     res.status(400).json({ error: err.message });
   }
 });
