@@ -41,11 +41,24 @@ function GoalsPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     try {
+      // Limpiar datos: convertir strings vacíos a undefined
+      const cleanData = {
+        area_id: formData.area_id,
+        title: formData.title,
+        description: formData.description || undefined,
+        goal_type: formData.goal_type || undefined,
+        start_date: formData.start_date || undefined,
+        due_date: formData.due_date || undefined,
+        status: formData.status,
+        priority: formData.priority,
+        expected_outcome: formData.expected_outcome || undefined,
+      };
+
       if (editingGoal) {
-        await updateMutation.mutateAsync({ id: editingGoal.id, data: formData })
+        await updateMutation.mutateAsync({ id: editingGoal.id, data: cleanData })
         showToast('Meta actualizada exitosamente', 'success')
       } else {
-        await createMutation.mutateAsync(formData)
+        await createMutation.mutateAsync(cleanData)
         showToast('Meta creada exitosamente', 'success')
       }
       resetForm()
