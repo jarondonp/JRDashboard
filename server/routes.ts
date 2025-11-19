@@ -303,4 +303,50 @@ router.delete('/reports/:id', async (req, res) => {
   }
 });
 
+// Area Specialized Dashboards (Phase 10)
+router.get('/areas/:areaId/dashboard', async (req, res) => {
+  try {
+    const result = await storage.getAreaDashboard(req.params.areaId);
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ error: 'Error fetching area dashboard' });
+  }
+});
+
+router.get('/areas/:areaId/goals', async (req, res) => {
+  try {
+    const result = await storage.getAreaGoals(req.params.areaId);
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ error: 'Error fetching area goals' });
+  }
+});
+
+router.get('/areas/:areaId/tasks', async (req, res) => {
+  try {
+    const result = await storage.getAreaTasks(req.params.areaId);
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ error: 'Error fetching area tasks' });
+  }
+});
+
+router.get('/areas/:areaId/progress', async (req, res) => {
+  try {
+    const result = await storage.getAreaProgress(req.params.areaId);
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ error: 'Error fetching area progress' });
+  }
+});
+
+router.get('/areas/:areaId/metrics', async (req, res) => {
+  try {
+    const result = await storage.getAreaMetrics(req.params.areaId);
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ error: 'Error fetching area metrics' });
+  }
+});
+
 export default router;

@@ -1,10 +1,12 @@
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useAreas, useCreateArea, useUpdateArea, useDeleteArea } from '../hooks'
 import { Button, Modal, ModalFooter, Card, CardHeader, CardBody, useToast } from '../components'
 import type { Area, AreaInput } from '../services/areasApi'
 
 function AreasPage() {
+  const navigate = useNavigate()
   const { data: areas, isLoading, error } = useAreas()
   const createMutation = useCreateArea()
   const updateMutation = useUpdateArea()
@@ -175,6 +177,12 @@ function AreasPage() {
                             <strong>Icono:</strong> {area.icon}
                           </p>
                         )}
+                        <button
+                          onClick={() => navigate(`/areas/${area.id}/dashboard`)}
+                          className="mt-4 w-full px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors text-sm font-medium"
+                        >
+                          📊 Ver Dashboard
+                        </button>
                       </div>
                     </CardBody>
                   </Card>

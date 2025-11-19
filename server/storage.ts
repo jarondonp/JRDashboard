@@ -162,3 +162,165 @@ export async function updateReport(id: string, data: any) {
 export async function deleteReport(id: string) {
   return db.delete(reports).where(eq(reports.id, id));
 }
+
+// Area Specialized Dashboards (Phase 10)
+export async function getAreaDashboard(areaId: string) {
+  try {
+    // Get area info
+    const areaData = await db.select().from(areas).where(eq(areas.id, areaId)).limit(1);
+    
+    if (!areaData.length) {
+      return { error: 'Area not found' };
+    }
+
+    const area = areaData[0];
+
+    // Get area goals with their progress
+    const areaGoalsData = await db
+      .select({
+        id: goals.id,
+        title: goals.title,
+        description: goals.description,
+        status: goals.status,
+        priority: goals.priority,
+        computed_progress: goals.computed_progress,
+        due_date: goals.due_date,
+      })
+      .from(goals)
+      .where(eq(goals.area_id, areaId));
+
+    // Get area tasks with their progress
+    const areaTasksData = await db
+      .select({
+        id: tasks.id,
+        title: tasks.title,
+        status: tasks.status,
+        progress_percentage: tasks.progress_percentage,
+        due_date: tasks.due_date,
+      })
+      .from(tasks)
+      .where(eq(tasks.area_id, areaId));
+
+    // Get area progress logs
+    const areaProgressData = await db
+      .select({
+        id: progress_logs.id,
+        title: progress_logs.title,
+        mood: progress_logs.mood,
+        impact_level: progress_logs.impact_level,
+        date: progress_logs.date,
+      })
+      .from(progress_logs)
+      .where(eq(progress_logs.area_id, areaId));
+
+    // Calculate metrics
+    const totalGoals = areaGoalsData.length;
+    const completedGoals = areaGoalsData.filter(g => g.status === 'completada').length;
+    const avgGoalProgress = totalGoals > 0 
+      ? Math.round(areaGoalsData.reduce((sum, g) => sum + (g.computed_progress || 0), 0) / totalGoals)
+      : 0;
+
+    const totalTasks = areaTasksData.length;
+    const completedTasks = areaTasksData.filter(t => t.status === 'completada').length;
+    const avgTaskProgress = totalTasks > 0
+      ? Math.round(areaTasksData.reduce((sum, t) => sum + (t.progress_percentage || 0), 0) / totalTasks)
+      : 0;
+
+    const avgMood = areaProgressData.length > 0
+      ? Math.round(areaProgressData.reduce((sum, p) => sum + (p.mood || 0), 0) / areaProgressData.length)
+      : 0;
+
+    return {
+      area,
+      metrics: {
+        totalGoals,
+        completedGoals,
+        goalCompletionRate: totalGoals > 0 ? Math.round((completedGoals / totalGoals) * 100) : 0,
+        avgGoalProgress,
+        totalTasks,
+        completedTasks,
+        taskCompletionRate: totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0,
+        avgTaskProgress,
+        avgMood,
+        progressLogsCount: areaProgressData.length,
+      },
+      goals: areaGoalsData,
+      tasks: areaTasksData,
+      progressLogs: areaProgressData,
+    };
+  } catch (err) {
+    throw err;
+  }
+}
+
+export async function getAreaGoals(areaId: string) {
+  return db
+    .select()
+    .from(goals)
+    .where(eq(goals.area_id, areaId));
+}
+
+export async function getAreaTasks(areaId: string) {
+  return db
+    .select()
+    .from(tasks)
+    .where(eq(tasks.area_id, areaId));
+}
+
+export async function getAreaProgress(areaId: string) {
+  return db
+    .select()
+    .from(progress_logs)
+    .where(eq(progress_logs.area_id, areaId));
+}
+
+export async function getAreaMetrics(areaId: string) {
+  try {
+    const goalsData = await db
+      .select({ status: goals.status, computed_progress: goals.computed_progress })
+      .from(goals)
+      .where(eq(goals.area_id, areaId));
+
+    const tasksData = await db
+      .select({ status: tasks.status, progress_percentage: tasks.progress_percentage })
+      .from(tasks)
+      .where(eq(tasks.area_id, areaId));
+
+    const progressData = await db
+      .select({ mood: progress_logs.mood, impact_level: progress_logs.impact_level })
+      .from(progress_logs)
+      .where(eq(progress_logs.area_id, areaId));
+
+    return {
+      goals: {
+        total: goalsData.length,
+        completed: goalsData.filter(g => g.status === 'completada').length,
+        inProgress: goalsData.filter(g => g.status === 'en_progreso').length,
+        pending: goalsData.filter(g => g.status === 'pendiente').length,
+        avgProgress: goalsData.length > 0
+          ? Math.round(goalsData.reduce((sum, g) => sum + (g.computed_progress || 0), 0) / goalsData.length)
+          : 0,
+      },
+      tasks: {
+        total: tasksData.length,
+        completed: tasksData.filter(t => t.status === 'completada').length,
+        inProgress: tasksData.filter(t => t.status === 'en_progreso').length,
+        pending: tasksData.filter(t => t.status === 'pendiente').length,
+        avgProgress: tasksData.length > 0
+          ? Math.round(tasksData.reduce((sum, t) => sum + (t.progress_percentage || 0), 0) / tasksData.length)
+          : 0,
+      },
+      wellness: {
+        logCount: progressData.length,
+        avgMood: progressData.length > 0
+          ? Math.round(progressData.reduce((sum, p) => sum + (p.mood || 0), 0) / progressData.length)
+          : 0,
+        avgImpact: progressData.length > 0
+          ? Math.round(progressData.reduce((sum, p) => sum + (p.impact_level || 0), 0) / progressData.length)
+          : 0,
+      },
+    };
+  } catch (err) {
+    throw err;
+  }
+}
