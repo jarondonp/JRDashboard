@@ -177,12 +177,20 @@ function AreasPage() {
                             <strong>Icono:</strong> {area.icon}
                           </p>
                         )}
-                        <button
-                          onClick={() => navigate(`/areas/${area.id}/dashboard`)}
-                          className="mt-4 w-full px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors text-sm font-medium"
-                        >
-                          📊 Ver Dashboard
-                        </button>
+                        <div className="flex gap-2 pt-2">
+                          <button
+                            onClick={() => navigate(`/areas/${area.id}/dashboard`)}
+                            className="flex-1 px-3 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors text-sm font-medium"
+                          >
+                            📊 Dashboard
+                          </button>
+                          <button
+                            onClick={() => navigate(`/areas/${area.id}/panel`)}
+                            className="flex-1 px-3 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors text-sm font-medium"
+                          >
+                            🎯 Panel
+                          </button>
+                        </div>
                       </div>
                     </CardBody>
                   </Card>
