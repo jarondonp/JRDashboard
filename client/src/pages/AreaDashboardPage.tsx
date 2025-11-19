@@ -1,7 +1,10 @@
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
+import { useMemo } from 'react';
 import { useAreaDashboard, useAreaMetrics } from '../hooks/useAreaDashboard';
+import { useDocuments } from '../hooks/useDocuments';
 import { Card, CardBody } from '../components/Card';
+import LineChart from '../components/charts/LineChart';
 
 export default function AreaDashboardPage() {
   const { areaId } = useParams<{ areaId: string }>();
@@ -9,6 +12,87 @@ export default function AreaDashboardPage() {
   
   const { data: dashboardData, isLoading: dashboardLoading, error: dashboardError } = useAreaDashboard(areaId || '');
   const { isLoading: metricsLoading } = useAreaMetrics(areaId || '');
+  const { data: allDocuments } = useDocuments();
+
+  // Timeline histórico (últimos 30 días de actividad)
+  const timelineData = useMemo(() => {
+    if (!dashboardData) return [];
+    
+    const { progressLogs, tasks, goals } = dashboardData;
+    const events: any[] = [];
+
+    // Progress logs como eventos
+    progressLogs.forEach((log: any) => {
+      events.push({
+        date: new Date(log.date),
+        type: 'progress',
+        title: log.title,
+        mood: log.mood,
+        impact: log.impact_level,
+      });
+    });
+
+    // Tareas completadas
+    tasks.filter((t: any) => t.status === 'completada').forEach((task: any) => {
+      events.push({
+        date: new Date(task.updated_at || task.created_at),
+        type: 'task_completed',
+        title: `Completada: ${task.title}`,
+      });
+    });
+
+    // Metas completadas
+    goals.filter((g: any) => g.status === 'completada').forEach((goal: any) => {
+      events.push({
+        date: new Date(goal.updated_at || goal.created_at),
+        type: 'goal_completed',
+        title: `🎯 Meta: ${goal.title}`,
+      });
+    });
+
+    return events.sort((a, b) => b.date.getTime() - a.date.getTime()).slice(0, 10);
+  }, [dashboardData]);
+
+  // Tendencia de progreso (últimos 7 registros)
+  const trendData = useMemo(() => {
+    if (!dashboardData) return [];
+    
+    const { progressLogs } = dashboardData;
+    return progressLogs
+      .slice(0, 7)
+      .reverse()
+      .map((log: any) => ({
+        fecha: new Date(log.date).toLocaleDateString('es-ES', { month: 'short', day: 'numeric' }),
+        mood: log.mood,
+        impacto: log.impact_level,
+      }));
+  }, [dashboardData]);
+
+  // Árbol de dependencias (metas → tareas)
+  const dependencyTree = useMemo(() => {
+    if (!dashboardData) return [];
+    
+    const { goals, tasks } = dashboardData;
+    return goals.map((goal: any) => ({
+      ...goal,
+      relatedTasks: tasks.filter((t: any) => t.goal_id === goal.id),
+    }));
+  }, [dashboardData]);
+
+  // Documentos críticos del área
+  const criticalDocuments = useMemo(() => {
+    if (!allDocuments || !areaId) return [];
+    
+    const areaDocs = allDocuments.filter((doc: any) => doc.area_id === areaId);
+    const today = new Date();
+    
+    return areaDocs.filter((doc: any) => {
+      if (!doc.review_date) return false;
+      const reviewDate = new Date(doc.review_date);
+      const daysUntilReview = Math.ceil((reviewDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+      return daysUntilReview <= 7; // Próximos 7 días
+    }).sort((a: any, b: any) => new Date(a.review_date).getTime() - new Date(b.review_date).getTime());
+  }, [allDocuments, areaId]);
 
   if (!areaId) {
     return <div className="p-6 text-center">Área no especificada</div>;
@@ -132,6 +216,210 @@ export default function AreaDashboardPage() {
             </CardBody>
           </Card>
         </motion.div>
+
+        {/* NUEVA SECCIÓN: Tendencia de Progreso */}
+        {trendData.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.15 }}
+            className="mb-8"
+          >
+            <h2 className="text-2xl font-bold text-gray-800 mb-4">📈 Tendencia de Mood e Impacto</h2>
+            <Card>
+              <CardBody>
+                <LineChart
+                  data={trendData}
+                  xKey="fecha"
+                  lines={[
+                    { yKey: 'mood', color: '#8b5cf6', name: 'Mood' },
+                    { yKey: 'impacto', color: '#10b981', name: 'Impacto' }
+                  ]}
+                  title="Últimos 7 Registros"
+                />
+                <div className="mt-4 p-3 bg-indigo-50 border-l-4 border-indigo-500 rounded">
+                  <p className="text-sm text-indigo-900">
+                    <strong>Insight:</strong> {
+                      trendData[trendData.length - 1].mood > trendData[0].mood
+                        ? 'Tu mood está mejorando en esta área - ¡sigue así!'
+                        : 'Tu mood ha disminuido ligeramente. Considera revisar cargas de trabajo.'
+                    }
+                  </p>
+                </div>
+              </CardBody>
+            </Card>
+          </motion.div>
+        )}
+
+        {/* NUEVA SECCIÓN: Timeline Histórico */}
+        {timelineData.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.18 }}
+            className="mb-8"
+          >
+            <h2 className="text-2xl font-bold text-gray-800 mb-4">🕐 Timeline de Actividad</h2>
+            <Card>
+              <CardBody>
+                <div className="space-y-3">
+                  {timelineData.map((event, idx) => (
+                    <motion.div
+                      key={idx}
+                      initial={{ opacity: 0, x: -20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: idx * 0.05 }}
+                      className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
+                    >
+                      <div className="flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center bg-indigo-100 text-indigo-600 font-bold text-sm">
+                        {event.type === 'goal_completed' ? '🎯' :
+                         event.type === 'task_completed' ? '✅' : '📝'}
+                      </div>
+                      <div className="flex-1">
+                        <h4 className="font-semibold text-gray-900">{event.title}</h4>
+                        <p className="text-xs text-gray-600 mt-1">
+                          {event.date.toLocaleDateString('es-ES', { 
+                            year: 'numeric', 
+                            month: 'long', 
+                            day: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit'
+                          })}
+                        </p>
+                        {event.mood && (
+                          <div className="flex gap-2 mt-2">
+                            <span className="text-xs bg-purple-100 text-purple-800 px-2 py-1 rounded">
+                              Mood: {event.mood}/5
+                            </span>
+                            {event.impact && (
+                              <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded">
+                                Impacto: {event.impact}/5
+                              </span>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </motion.div>
+                  ))}
+                </div>
+              </CardBody>
+            </Card>
+          </motion.div>
+        )}
+
+        {/* NUEVA SECCIÓN: Árbol de Dependencias (Metas → Tareas) */}
+        {dependencyTree.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.21 }}
+            className="mb-8"
+          >
+            <h2 className="text-2xl font-bold text-gray-800 mb-4">🔗 Metas y sus Tareas Relacionadas</h2>
+            <div className="space-y-4">
+              {dependencyTree.map((goal: any, idx: number) => (
+                <motion.div
+                  key={goal.id}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: idx * 0.05 }}
+                >
+                  <Card>
+                    <CardBody>
+                      <div className="flex items-center justify-between mb-3">
+                        <h3 className="font-bold text-gray-900 text-lg">🎯 {goal.title}</h3>
+                        <span className="text-sm font-semibold text-indigo-600">
+                          {goal.computed_progress}%
+                        </span>
+                      </div>
+                      <div className="bg-gray-200 rounded-full h-2 mb-4">
+                        <div
+                          className="bg-indigo-600 h-2 rounded-full transition-all"
+                          style={{ width: `${goal.computed_progress}%` }}
+                        />
+                      </div>
+                      {goal.relatedTasks.length > 0 ? (
+                        <div className="space-y-2 mt-3 pl-4 border-l-2 border-indigo-200">
+                          <p className="text-xs font-semibold text-gray-600 mb-2">
+                            {goal.relatedTasks.length} tarea(s) asociada(s)
+                          </p>
+                          {goal.relatedTasks.map((task: any) => (
+                            <div
+                              key={task.id}
+                              className="flex items-center justify-between p-2 bg-indigo-50 rounded"
+                            >
+                              <span className="text-sm text-gray-800">{task.title}</span>
+                              <span className={`text-xs px-2 py-1 rounded-full ${
+                                task.status === 'completada' ? 'bg-green-100 text-green-800' :
+                                task.status === 'en_progreso' ? 'bg-blue-100 text-blue-800' :
+                                'bg-gray-100 text-gray-800'
+                              }`}>
+                                {task.status}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-sm text-gray-500 italic pl-4">Sin tareas asociadas aún</p>
+                      )}
+                    </CardBody>
+                  </Card>
+                </motion.div>
+              ))}
+            </div>
+          </motion.div>
+        )}
+
+        {/* NUEVA SECCIÓN: Documentos Críticos del Área */}
+        {criticalDocuments.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.24 }}
+            className="mb-8"
+          >
+            <h2 className="text-2xl font-bold text-gray-800 mb-4">⚠️ Documentos que Requieren Revisión Próxima</h2>
+            <Card>
+              <CardBody>
+                <div className="space-y-2">
+                  {criticalDocuments.map((doc: any, idx: number) => {
+                    const reviewDate = new Date(doc.review_date);
+                    const today = new Date();
+                    const daysUntil = Math.ceil((reviewDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+                    
+                    return (
+                      <motion.div
+                        key={doc.id}
+                        initial={{ opacity: 0, x: -20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: idx * 0.05 }}
+                        className={`flex items-center justify-between p-3 rounded-lg border-l-4 ${
+                          daysUntil <= 3 ? 'bg-red-50 border-red-500' :
+                          daysUntil <= 7 ? 'bg-yellow-50 border-yellow-500' :
+                          'bg-blue-50 border-blue-500'
+                        }`}
+                      >
+                        <div>
+                          <h4 className="font-semibold text-gray-900">{doc.title}</h4>
+                          <p className="text-xs text-gray-600 mt-1">
+                            Tipo: {doc.document_type} | Revisión: {reviewDate.toLocaleDateString('es-ES')}
+                          </p>
+                        </div>
+                        <span className={`text-xs px-3 py-1 rounded-full font-semibold ${
+                          daysUntil <= 3 ? 'bg-red-100 text-red-800' :
+                          daysUntil <= 7 ? 'bg-yellow-100 text-yellow-800' :
+                          'bg-blue-100 text-blue-800'
+                        }`}>
+                          {daysUntil <= 0 ? '¡HOY!' : `${daysUntil} días`}
+                        </span>
+                      </motion.div>
+                    );
+                  })}
+                </div>
+              </CardBody>
+            </Card>
+          </motion.div>
+        )}
 
         {/* Metas del Área */}
         <motion.div
