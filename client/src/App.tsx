@@ -14,6 +14,7 @@ import FinancialPanelPage from './pages/FinancialPanelPage'
 import MigrationPanelPage from './pages/MigrationPanelPage'
 import ScholarshipsPanelPage from './pages/ScholarshipsPanelPage'
 import CommercialPanelPage from './pages/CommercialPanelPage'
+import AllAreasOverviewPage from './pages/AllAreasOverviewPage'
 import './App.css'
 
 function App() {
@@ -45,6 +46,7 @@ function App() {
           <div className="nav-section">
             <h3 className="nav-section-title">PANELES</h3>
             <ul>
+              <li><Link to="/overview">📁 Vista General</Link></li>
               <li><Link to="/panel/emotional">❤️ Salud y Bienestar</Link></li>
               <li><Link to="/panel/vocational">🌟 Identidad y Propósito</Link></li>
               <li><Link to="/panel/financial">💰 Financiero</Link></li>
@@ -71,6 +73,7 @@ function App() {
             <Route path="/panel/migration" element={<MigrationPanelPage />} />
             <Route path="/panel/scholarships" element={<ScholarshipsPanelPage />} />
             <Route path="/panel/commercial" element={<CommercialPanelPage />} />
+            <Route path="/overview" element={<AllAreasOverviewPage />} />
           </Routes>
         </main>
       </div>

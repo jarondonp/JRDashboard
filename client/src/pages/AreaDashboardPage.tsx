@@ -4,7 +4,7 @@ import { useMemo } from 'react';
 import { useAreaDashboard, useAreaMetrics } from '../hooks/useAreaDashboard';
 import { useDocuments } from '../hooks/useDocuments';
 import { Card, CardBody } from '../components/Card';
-import LineChart from '../components/charts/LineChart';
+import { LineChart } from '../components/charts/LineChart';
 
 export default function AreaDashboardPage() {
   const { areaId } = useParams<{ areaId: string }>();

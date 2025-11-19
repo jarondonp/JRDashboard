@@ -5,8 +5,8 @@ import { Card, CardBody } from '../../components/Card';
 import { AreaPanelHeader, AreaPanelSection, KPICard } from '../../components/AreaPanel';
 import { useAreaDashboard } from '../../hooks/useAreaDashboard';
 import { useAreas } from '../../hooks/useAreas';
-import BarChart from '../../components/charts/BarChart';
-import LineChart from '../../components/charts/LineChart';
+import { BarChart } from '../../components/charts/BarChart';
+import { LineChart } from '../../components/charts/LineChart';
 
 interface FinancialPanelProps {
   areaId: string;
