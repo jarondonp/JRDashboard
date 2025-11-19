@@ -1,5 +1,7 @@
 import { useState } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
 import { useProgressLogs, useCreateProgressLog, useUpdateProgressLog, useDeleteProgressLog, useAreas, useGoals } from '../hooks'
+import { Button, Modal, ModalFooter, Card, CardHeader, CardBody, useToast } from '../components'
 import type { ProgressLog } from '../services/progressApi'
 
 interface ProgressFormData {
@@ -20,6 +22,7 @@ function ProgressPage() {
   const createMutation = useCreateProgressLog()
   const updateMutation = useUpdateProgressLog()
   const deleteMutation = useDeleteProgressLog()
+  const { showToast } = useToast()
 
   const [showModal, setShowModal] = useState(false)
   const [editingLog, setEditingLog] = useState<ProgressLog | null>(null)
@@ -47,11 +50,14 @@ function ProgressPage() {
 
       if (editingLog) {
         await updateMutation.mutateAsync({ id: editingLog.id, data: submitData })
+        showToast('Avance actualizado exitosamente', 'success')
       } else {
         await createMutation.mutateAsync(submitData)
+        showToast('Avance registrado exitosamente', 'success')
       }
       resetForm()
     } catch (err) {
+      showToast('Error al guardar avance', 'error')
       console.error('Error al guardar avance:', err)
     }
   }
@@ -75,7 +81,9 @@ function ProgressPage() {
     if (window.confirm('¿Estás seguro de eliminar este registro de avance?')) {
       try {
         await deleteMutation.mutateAsync(id)
+        showToast('Avance eliminado', 'success')
       } catch (err) {
+        showToast('Error al eliminar avance', 'error')
         console.error('Error al eliminar avance:', err)
       }
     }
@@ -116,168 +124,262 @@ function ProgressPage() {
 
   const filteredGoals = goals?.filter(g => g.area_id === formData.area_id) || []
 
-  if (isLoading) return <div className="page"><div className="loading">Cargando avances...</div></div>
-  if (error) return <div className="page"><div className="error">Error: {error.message}</div></div>
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 p-8">
+        <div className="flex items-center justify-center h-64">
+          <motion.div
+            animate={{ rotate: 360 }}
+            transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+            className="w-12 h-12 border-4 border-indigo-600 border-t-transparent rounded-full"
+          />
+        </div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 p-8">
+        <Card>
+          <CardBody>
+            <p className="text-red-600">Error: {error.message}</p>
+          </CardBody>
+        </Card>
+      </div>
+    )
+  }
 
   return (
-    <div className="page">
-      <div className="page-header">
-        <h2>Avances</h2>
-        <button className="btn btn-primary" onClick={() => setShowModal(true)}>
-          + Nuevo Avance
-        </button>
+    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50">
+      {/* Header */}
+      <motion.div 
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-8 py-8 shadow-lg"
+      >
+        <div className="max-w-7xl mx-auto flex justify-between items-center">
+          <div>
+            <h1 className="text-3xl font-bold mb-1">📈 Avances</h1>
+            <p className="text-indigo-100">Registra tu progreso diario</p>
+          </div>
+          <Button variant="secondary" onClick={() => setShowModal(true)}>
+            + Nuevo Avance
+          </Button>
+        </div>
+      </motion.div>
+
+      {/* Progress Grid */}
+      <div className="max-w-7xl mx-auto px-8 py-8">
+        {logs && logs.length > 0 ? (
+          <motion.div 
+            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.2 }}
+          >
+            <AnimatePresence>
+              {logs.map((log, index) => (
+                <motion.div
+                  key={log.id}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.9 }}
+                  transition={{ delay: index * 0.05 }}
+                >
+                  <Card hover>
+                    <CardHeader>
+                      <div className="flex justify-between items-start">
+                        <h3 className="text-lg font-semibold text-gray-800 flex-1">{log.title}</h3>
+                        <div className="flex gap-2 ml-2">
+                          <button
+                            onClick={() => handleEdit(log)}
+                            className="text-indigo-600 hover:text-indigo-800 transition-colors"
+                          >
+                            ✏️
+                          </button>
+                          <button
+                            onClick={() => handleDelete(log.id)}
+                            className="text-red-600 hover:text-red-800 transition-colors"
+                          >
+                            🗑️
+                          </button>
+                        </div>
+                      </div>
+                    </CardHeader>
+                    <CardBody>
+                      <div className="space-y-3">
+                        <p className="text-sm text-gray-600">
+                          <strong>Área:</strong> {getAreaName(log.area_id)}
+                        </p>
+                        {log.goal_id && (
+                          <p className="text-sm text-gray-600">
+                            <strong>Meta:</strong> {getGoalTitle(log.goal_id)}
+                          </p>
+                        )}
+                        {log.note && (
+                          <p className="text-sm text-gray-700">{log.note}</p>
+                        )}
+                        
+                        <div className="flex flex-wrap gap-2">
+                          {log.mood && (
+                            <span className="px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                              Mood: {getMoodEmoji(log.mood)} {log.mood}/5
+                            </span>
+                          )}
+                          {log.impact_level && (
+                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${log.impact_level >= 4 ? 'bg-green-100 text-green-800' : log.impact_level >= 2 ? 'bg-yellow-100 text-yellow-800' : 'bg-blue-100 text-blue-800'}`}>
+                              Impacto: {log.impact_level}/5
+                            </span>
+                          )}
+                        </div>
+
+                        {log.date && (
+                          <div className="text-xs text-gray-500 pt-2 border-t">
+                            <p>Fecha: {new Date(log.date).toLocaleDateString()}</p>
+                          </div>
+                        )}
+                      </div>
+                    </CardBody>
+                  </Card>
+                </motion.div>
+              ))}
+            </AnimatePresence>
+          </motion.div>
+        ) : (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="text-center py-16"
+          >
+            <p className="text-gray-500 text-lg">No hay avances registrados</p>
+            <Button variant="primary" onClick={() => setShowModal(true)} className="mt-4">
+              Registrar primer avance
+            </Button>
+          </motion.div>
+        )}
       </div>
 
-      <ul className="list">
-        {logs?.map((log) => (
-          <li key={log.id} className="list-item">
-            <div className="list-item-content">
-              <h3>{log.title}</h3>
-              <p><strong>Área:</strong> {getAreaName(log.area_id)}</p>
-              {log.goal_id && <p><strong>Meta:</strong> {getGoalTitle(log.goal_id)}</p>}
-              {log.note && <p>{log.note}</p>}
-              <div style={{ display: 'flex', gap: '8px', marginTop: '8px', flexWrap: 'wrap' }}>
-                {log.mood && (
-                  <span className="badge badge-secondary">
-                    Mood: {getMoodEmoji(log.mood)} {log.mood}/5
-                  </span>
-                )}
-                {log.impact_level && (
-                  <span className={`badge ${log.impact_level >= 4 ? 'badge-success' : log.impact_level >= 2 ? 'badge-warning' : 'badge-info'}`}>
-                    Impacto: {log.impact_level}/5
-                  </span>
-                )}
-              </div>
-              <p style={{ marginTop: '8px', fontSize: '0.875rem', color: '#666' }}>
-                <strong>Fecha:</strong> {new Date(log.date).toLocaleDateString()}
-              </p>
+      {/* Modal */}
+      <Modal
+        isOpen={showModal}
+        onClose={resetForm}
+        title={editingLog ? 'Editar Avance' : 'Nuevo Avance'}
+        size="lg"
+      >
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Área *
+              </label>
+              <select
+                required
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                value={formData.area_id}
+                onChange={(e) => setFormData({ ...formData, area_id: e.target.value, goal_id: '' })}
+              >
+                <option value="">Seleccionar área</option>
+                {areas?.map((area) => (
+                  <option key={area.id} value={area.id}>{area.name}</option>
+                ))}
+              </select>
             </div>
-            <div className="list-item-actions">
-              <button className="btn btn-secondary" onClick={() => handleEdit(log)}>
-                Editar
-              </button>
-              <button className="btn btn-danger" onClick={() => handleDelete(log.id)}>
-                Eliminar
-              </button>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Meta (opcional)
+              </label>
+              <select
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                value={formData.goal_id}
+                onChange={(e) => setFormData({ ...formData, goal_id: e.target.value })}
+                disabled={!formData.area_id}
+              >
+                <option value="">Sin meta</option>
+                {filteredGoals.map((goal) => (
+                  <option key={goal.id} value={goal.id}>{goal.title}</option>
+                ))}
+              </select>
             </div>
-          </li>
-        ))}
-      </ul>
-
-      {showModal && (
-        <div className="modal-overlay" onClick={resetForm}>
-          <div className="modal" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <h3>{editingLog ? 'Editar Avance' : 'Nuevo Avance'}</h3>
-            </div>
-            <form className="form" onSubmit={handleSubmit}>
-              <div className="form-group">
-                <label>Área de Vida *</label>
-                <select
-                  value={formData.area_id}
-                  onChange={(e) => setFormData({ ...formData, area_id: e.target.value, goal_id: '' })}
-                  required
-                >
-                  <option value="">Selecciona un área</option>
-                  {areas?.map((area) => (
-                    <option key={area.id} value={area.id}>
-                      {area.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="form-group">
-                <label>Meta Relacionada (opcional)</label>
-                <select
-                  value={formData.goal_id}
-                  onChange={(e) => setFormData({ ...formData, goal_id: e.target.value })}
-                  disabled={!formData.area_id}
-                >
-                  <option value="">Sin meta asignada</option>
-                  {filteredGoals.map((goal) => (
-                    <option key={goal.id} value={goal.id}>
-                      {goal.title}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="form-group">
-                <label>Título del Avance *</label>
-                <input
-                  type="text"
-                  value={formData.title}
-                  onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                  required
-                  placeholder="Ej: Completé la primera semana de ejercicio"
-                />
-              </div>
-
-              <div className="form-group">
-                <label>Notas / Detalles</label>
-                <textarea
-                  value={formData.note}
-                  onChange={(e) => setFormData({ ...formData, note: e.target.value })}
-                  placeholder="Describe tu avance, logros, aprendizajes..."
-                  rows={4}
-                />
-              </div>
-
-              <div className="form-group">
-                <label>Fecha *</label>
-                <input
-                  type="date"
-                  value={formData.date}
-                  onChange={(e) => setFormData({ ...formData, date: e.target.value })}
-                  required
-                />
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-                <div className="form-group">
-                  <label>Nivel de Impacto (1-5)</label>
-                  <select
-                    value={formData.impact_level}
-                    onChange={(e) => setFormData({ ...formData, impact_level: e.target.value ? parseInt(e.target.value) : '' })}
-                  >
-                    <option value="">Sin evaluar</option>
-                    <option value="1">1 - Muy bajo</option>
-                    <option value="2">2 - Bajo</option>
-                    <option value="3">3 - Medio</option>
-                    <option value="4">4 - Alto</option>
-                    <option value="5">5 - Muy alto</option>
-                  </select>
-                </div>
-
-                <div className="form-group">
-                  <label>Estado de Ánimo (1-5)</label>
-                  <select
-                    value={formData.mood}
-                    onChange={(e) => setFormData({ ...formData, mood: e.target.value ? parseInt(e.target.value) : '' })}
-                  >
-                    <option value="">Sin evaluar</option>
-                    <option value="1">1 - 😞 Muy mal</option>
-                    <option value="2">2 - 😕 Mal</option>
-                    <option value="3">3 - 😐 Neutral</option>
-                    <option value="4">4 - 🙂 Bien</option>
-                    <option value="5">5 - 😄 Excelente</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="form-actions">
-                <button type="button" className="btn btn-secondary" onClick={resetForm}>
-                  Cancelar
-                </button>
-                <button type="submit" className="btn btn-primary">
-                  {editingLog ? 'Actualizar' : 'Crear'}
-                </button>
-              </div>
-            </form>
           </div>
-        </div>
-      )}
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Título *
+            </label>
+            <input
+              type="text"
+              required
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+              value={formData.title}
+              onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Nota
+            </label>
+            <textarea
+              rows={3}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+              value={formData.note}
+              onChange={(e) => setFormData({ ...formData, note: e.target.value })}
+            />
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Fecha *
+              </label>
+              <input
+                type="date"
+                required
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                value={formData.date}
+                onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Mood (1-5)
+              </label>
+              <input
+                type="number"
+                min="1"
+                max="5"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                value={formData.mood}
+                onChange={(e) => setFormData({ ...formData, mood: e.target.value ? parseInt(e.target.value) : '' })}
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Impacto (1-5)
+              </label>
+              <input
+                type="number"
+                min="1"
+                max="5"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                value={formData.impact_level}
+                onChange={(e) => setFormData({ ...formData, impact_level: e.target.value ? parseInt(e.target.value) : '' })}
+              />
+            </div>
+          </div>
+
+          <ModalFooter
+            onCancel={resetForm}
+            onSubmit={handleSubmit}
+            submitText={editingLog ? 'Actualizar' : 'Crear'}
+            isLoading={createMutation.isPending || updateMutation.isPending}
+          />
+        </form>
+      </Modal>
     </div>
   )
 }

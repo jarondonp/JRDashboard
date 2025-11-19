@@ -1,5 +1,7 @@
 import { useState } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
 import { useAreas, useCreateArea, useUpdateArea, useDeleteArea } from '../hooks'
+import { Button, Modal, ModalFooter, Card, CardHeader, CardBody, useToast } from '../components'
 import type { Area, AreaInput } from '../services/areasApi'
 
 function AreasPage() {
@@ -7,6 +9,7 @@ function AreasPage() {
   const createMutation = useCreateArea()
   const updateMutation = useUpdateArea()
   const deleteMutation = useDeleteArea()
+  const { showToast } = useToast()
 
   const [showModal, setShowModal] = useState(false)
   const [editingArea, setEditingArea] = useState<Area | null>(null)
@@ -23,11 +26,14 @@ function AreasPage() {
     try {
       if (editingArea) {
         await updateMutation.mutateAsync({ id: editingArea.id, data: formData })
+        showToast('Área actualizada exitosamente', 'success')
       } else {
         await createMutation.mutateAsync(formData)
+        showToast('Área creada exitosamente', 'success')
       }
       resetForm()
     } catch (err) {
+      showToast('Error al guardar área', 'error')
       console.error('Error al guardar área:', err)
     }
   }
@@ -48,6 +54,7 @@ function AreasPage() {
     if (window.confirm('¿Estás seguro de eliminar esta área?')) {
       try {
         await deleteMutation.mutateAsync(id)
+        showToast('Área eliminada', 'success')
       } catch (err) {
         console.error('Error al eliminar área:', err)
       }
@@ -66,105 +73,214 @@ function AreasPage() {
     })
   }
 
-  if (isLoading) return <div className="page"><div className="loading">Cargando áreas...</div></div>
-  if (error) return <div className="page"><div className="error">Error: {error.message}</div></div>
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 p-8">
+        <div className="flex items-center justify-center h-64">
+          <motion.div
+            animate={{ rotate: 360 }}
+            transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+            className="w-12 h-12 border-4 border-indigo-600 border-t-transparent rounded-full"
+          />
+        </div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 p-8">
+        <Card>
+          <CardBody>
+            <p className="text-red-600">Error: {error.message}</p>
+          </CardBody>
+        </Card>
+      </div>
+    )
+  }
 
   return (
-    <div className="page">
-      <div className="page-header">
-        <h2>Áreas de Vida</h2>
-        <button className="btn btn-primary" onClick={() => setShowModal(true)}>
-          + Nueva Área
-        </button>
+    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50">
+      {/* Header */}
+      <motion.div 
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-8 py-8 shadow-lg"
+      >
+        <div className="max-w-7xl mx-auto flex justify-between items-center">
+          <div>
+            <h1 className="text-3xl font-bold mb-1">🎨 Áreas de Vida</h1>
+            <p className="text-indigo-100">Organiza tu vida en diferentes áreas</p>
+          </div>
+          <Button variant="secondary" onClick={() => setShowModal(true)}>
+            + Nueva Área
+          </Button>
+        </div>
+      </motion.div>
+
+      {/* Areas Grid */}
+      <div className="max-w-7xl mx-auto px-8 py-8">
+        {areas && areas.length > 0 ? (
+          <motion.div 
+            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.2 }}
+          >
+            <AnimatePresence>
+              {areas.map((area, index) => (
+                <motion.div
+                  key={area.id}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.9 }}
+                  transition={{ delay: index * 0.05 }}
+                >
+                  <Card hover>
+                    <CardHeader>
+                      <div className="flex justify-between items-start">
+                        <div className="flex items-center gap-2 flex-1">
+                          <div 
+                            className="w-4 h-4 rounded-full" 
+                            style={{ backgroundColor: area.color }}
+                          />
+                          <h3 className="text-lg font-semibold text-gray-800">{area.name}</h3>
+                        </div>
+                        <div className="flex gap-2 ml-2">
+                          <button
+                            onClick={() => handleEdit(area)}
+                            className="text-indigo-600 hover:text-indigo-800 transition-colors"
+                          >
+                            ✏️
+                          </button>
+                          <button
+                            onClick={() => handleDelete(area.id)}
+                            className="text-red-600 hover:text-red-800 transition-colors"
+                          >
+                            🗑️
+                          </button>
+                        </div>
+                      </div>
+                    </CardHeader>
+                    <CardBody>
+                      <div className="space-y-3">
+                        <p className="text-sm text-gray-600">
+                          <strong>Tipo:</strong> {area.type}
+                        </p>
+                        {area.description && (
+                          <p className="text-sm text-gray-700">{area.description}</p>
+                        )}
+                        {area.icon && (
+                          <p className="text-sm text-gray-600">
+                            <strong>Icono:</strong> {area.icon}
+                          </p>
+                        )}
+                      </div>
+                    </CardBody>
+                  </Card>
+                </motion.div>
+              ))}
+            </AnimatePresence>
+          </motion.div>
+        ) : (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="text-center py-16"
+          >
+            <p className="text-gray-500 text-lg">No hay áreas registradas</p>
+            <Button variant="primary" onClick={() => setShowModal(true)} className="mt-4">
+              Crear primera área
+            </Button>
+          </motion.div>
+        )}
       </div>
 
-      <ul className="list">
-        {areas?.map((area) => (
-          <li key={area.id} className="list-item">
-            <div className="list-item-content">
-              <h3 style={{ color: area.color }}>{area.name}</h3>
-              <p><strong>Tipo:</strong> {area.type}</p>
-              {area.description && <p>{area.description}</p>}
-            </div>
-            <div className="list-item-actions">
-              <button className="btn btn-secondary" onClick={() => handleEdit(area)}>
-                Editar
-              </button>
-              <button className="btn btn-danger" onClick={() => handleDelete(area.id)}>
-                Eliminar
-              </button>
-            </div>
-          </li>
-        ))}
-      </ul>
-
-      {showModal && (
-        <div className="modal-overlay" onClick={resetForm}>
-          <div className="modal" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <h3>{editingArea ? 'Editar Área' : 'Nueva Área'}</h3>
-            </div>
-            <form className="form" onSubmit={handleSubmit}>
-              <div className="form-group">
-                <label>Nombre *</label>
-                <input
-                  type="text"
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  required
-                />
-              </div>
-              <div className="form-group">
-                <label>Tipo *</label>
-                <select
-                  value={formData.type}
-                  onChange={(e) => setFormData({ ...formData, type: e.target.value })}
-                  required
-                >
-                  <option value="Personal">Personal</option>
-                  <option value="Profesional">Profesional</option>
-                  <option value="Académico">Académico</option>
-                  <option value="Salud">Salud</option>
-                  <option value="Financiero">Financiero</option>
-                </select>
-              </div>
-              <div className="form-group">
-                <label>Color *</label>
-                <input
-                  type="color"
-                  value={formData.color}
-                  onChange={(e) => setFormData({ ...formData, color: e.target.value })}
-                  required
-                />
-              </div>
-              <div className="form-group">
-                <label>Descripción</label>
-                <textarea
-                  value={formData.description}
-                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                />
-              </div>
-              <div className="form-group">
-                <label>Ícono</label>
-                <input
-                  type="text"
-                  value={formData.icon}
-                  onChange={(e) => setFormData({ ...formData, icon: e.target.value })}
-                  placeholder="Emoji o código de ícono"
-                />
-              </div>
-              <div className="form-actions">
-                <button type="button" className="btn btn-secondary" onClick={resetForm}>
-                  Cancelar
-                </button>
-                <button type="submit" className="btn btn-primary">
-                  {editingArea ? 'Actualizar' : 'Crear'}
-                </button>
-              </div>
-            </form>
+      {/* Modal */}
+      <Modal
+        isOpen={showModal}
+        onClose={resetForm}
+        title={editingArea ? 'Editar Área' : 'Nueva Área'}
+        size="md"
+      >
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Nombre *
+            </label>
+            <input
+              type="text"
+              required
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+              value={formData.name}
+              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+            />
           </div>
-        </div>
-      )}
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Tipo *
+            </label>
+            <select
+              required
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+              value={formData.type}
+              onChange={(e) => setFormData({ ...formData, type: e.target.value })}
+            >
+              <option value="Personal">Personal</option>
+              <option value="Profesional">Profesional</option>
+              <option value="Académico">Académico</option>
+              <option value="Salud">Salud</option>
+              <option value="Financiero">Financiero</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Color *
+            </label>
+            <input
+              type="color"
+              required
+              className="w-full h-12 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+              value={formData.color}
+              onChange={(e) => setFormData({ ...formData, color: e.target.value })}
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Descripción
+            </label>
+            <textarea
+              rows={3}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+              value={formData.description}
+              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Icono (opcional)
+            </label>
+            <input
+              type="text"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+              value={formData.icon}
+              onChange={(e) => setFormData({ ...formData, icon: e.target.value })}
+              placeholder="Ej: 🎯, 💼, 📚"
+            />
+          </div>
+
+          <ModalFooter
+            onCancel={resetForm}
+            onSubmit={handleSubmit}
+            submitText={editingArea ? 'Actualizar' : 'Crear'}
+            isLoading={createMutation.isPending || updateMutation.isPending}
+          />
+        </form>
+      </Modal>
     </div>
   )
 }

@@ -1,5 +1,7 @@
 import { useState } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
 import { useGoals, useCreateGoal, useUpdateGoal, useDeleteGoal, useAreas } from '../hooks'
+import { Button, Modal, ModalFooter, Card, CardHeader, CardBody, useToast } from '../components'
 import type { Goal } from '../services/goalsApi'
 
 interface GoalFormData {
@@ -20,6 +22,7 @@ function GoalsPage() {
   const createMutation = useCreateGoal()
   const updateMutation = useUpdateGoal()
   const deleteMutation = useDeleteGoal()
+  const { showToast } = useToast()
 
   const [showModal, setShowModal] = useState(false)
   const [editingGoal, setEditingGoal] = useState<Goal | null>(null)
@@ -40,11 +43,14 @@ function GoalsPage() {
     try {
       if (editingGoal) {
         await updateMutation.mutateAsync({ id: editingGoal.id, data: formData })
+        showToast('Meta actualizada exitosamente', 'success')
       } else {
         await createMutation.mutateAsync(formData)
+        showToast('Meta creada exitosamente', 'success')
       }
       resetForm()
     } catch (err) {
+      showToast('Error al guardar meta', 'error')
       console.error('Error al guardar meta:', err)
     }
   }
@@ -69,7 +75,9 @@ function GoalsPage() {
     if (window.confirm('¿Estás seguro de eliminar esta meta?')) {
       try {
         await deleteMutation.mutateAsync(id)
+        showToast('Meta eliminada', 'success')
       } catch (err) {
+        showToast('Error al eliminar meta', 'error')
         console.error('Error al eliminar meta:', err)
       }
     }
@@ -91,21 +99,21 @@ function GoalsPage() {
     })
   }
 
-  const getStatusBadgeClass = (status: string) => {
+  const getStatusColor = (status: string) => {
     switch (status) {
-      case 'completada': return 'badge-success'
-      case 'en_progreso': return 'badge-warning'
-      case 'pendiente': return 'badge-info'
-      default: return 'badge-secondary'
+      case 'completada': return 'bg-green-100 text-green-800'
+      case 'en_progreso': return 'bg-yellow-100 text-yellow-800'
+      case 'pendiente': return 'bg-blue-100 text-blue-800'
+      default: return 'bg-gray-100 text-gray-800'
     }
   }
 
-  const getPriorityBadgeClass = (priority: string) => {
+  const getPriorityColor = (priority: string) => {
     switch (priority) {
-      case 'alta': return 'badge-danger'
-      case 'media': return 'badge-warning'
-      case 'baja': return 'badge-info'
-      default: return 'badge-secondary'
+      case 'alta': return 'bg-red-100 text-red-800'
+      case 'media': return 'bg-yellow-100 text-yellow-800'
+      case 'baja': return 'bg-blue-100 text-blue-800'
+      default: return 'bg-gray-100 text-gray-800'
     }
   }
 
@@ -113,198 +121,301 @@ function GoalsPage() {
     return areas?.find(a => a.id === areaId)?.name || 'Sin área'
   }
 
-  if (isLoading) return <div className="page"><div className="loading">Cargando metas...</div></div>
-  if (error) return <div className="page"><div className="error">Error: {error.message}</div></div>
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 p-8">
+        <div className="flex items-center justify-center h-64">
+          <motion.div
+            animate={{ rotate: 360 }}
+            transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+            className="w-12 h-12 border-4 border-indigo-600 border-t-transparent rounded-full"
+          />
+        </div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 p-8">
+        <Card>
+          <CardBody>
+            <p className="text-red-600">Error: {error.message}</p>
+          </CardBody>
+        </Card>
+      </div>
+    )
+  }
 
   return (
-    <div className="page">
-      <div className="page-header">
-        <h2>Metas</h2>
-        <button className="btn btn-primary" onClick={() => setShowModal(true)}>
-          + Nueva Meta
-        </button>
+    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50">
+      {/* Header */}
+      <motion.div 
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-8 py-8 shadow-lg"
+      >
+        <div className="max-w-7xl mx-auto flex justify-between items-center">
+          <div>
+            <h1 className="text-3xl font-bold mb-1">🎯 Metas</h1>
+            <p className="text-indigo-100">Gestiona tus objetivos y alcanza tus sueños</p>
+          </div>
+          <Button variant="secondary" onClick={() => setShowModal(true)}>
+            + Nueva Meta
+          </Button>
+        </div>
+      </motion.div>
+
+      {/* Goals Grid */}
+      <div className="max-w-7xl mx-auto px-8 py-8">
+        {goals && goals.length > 0 ? (
+          <motion.div 
+            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.2 }}
+          >
+            <AnimatePresence>
+              {goals.map((goal, index) => (
+                <motion.div
+                  key={goal.id}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.9 }}
+                  transition={{ delay: index * 0.05 }}
+                >
+                  <Card hover>
+                    <CardHeader>
+                      <div className="flex justify-between items-start">
+                        <h3 className="text-lg font-semibold text-gray-800 flex-1">{goal.title}</h3>
+                        <div className="flex gap-2 ml-2">
+                          <button
+                            onClick={() => handleEdit(goal)}
+                            className="text-indigo-600 hover:text-indigo-800 transition-colors"
+                          >
+                            ✏️
+                          </button>
+                          <button
+                            onClick={() => handleDelete(goal.id)}
+                            className="text-red-600 hover:text-red-800 transition-colors"
+                          >
+                            🗑️
+                          </button>
+                        </div>
+                      </div>
+                    </CardHeader>
+                    <CardBody>
+                      <div className="space-y-3">
+                        <p className="text-sm text-gray-600">
+                          <strong>Área:</strong> {getAreaName(goal.area_id)}
+                        </p>
+                        {goal.description && (
+                          <p className="text-sm text-gray-700">{goal.description}</p>
+                        )}
+                        
+                        <div className="flex flex-wrap gap-2">
+                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(goal.status)}`}>
+                            {goal.status}
+                          </span>
+                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${getPriorityColor(goal.priority)}`}>
+                            {goal.priority}
+                          </span>
+                          {goal.goal_type && (
+                            <span className="px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                              {goal.goal_type}
+                            </span>
+                          )}
+                        </div>
+
+                        {goal.computed_progress !== null && goal.computed_progress !== undefined && (
+                          <div className="mt-4">
+                            <div className="flex justify-between text-xs text-gray-600 mb-1">
+                              <span>Progreso</span>
+                              <span className="font-semibold">{goal.computed_progress}%</span>
+                            </div>
+                            <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
+                              <motion.div
+                                initial={{ width: 0 }}
+                                animate={{ width: `${goal.computed_progress}%` }}
+                                transition={{ duration: 0.5, delay: index * 0.05 }}
+                                className="h-full bg-gradient-to-r from-indigo-500 to-purple-500 rounded-full"
+                              />
+                            </div>
+                          </div>
+                        )}
+
+                        {(goal.start_date || goal.due_date) && (
+                          <div className="text-xs text-gray-500 space-y-1 pt-2 border-t">
+                            {goal.start_date && <p>Inicio: {goal.start_date}</p>}
+                            {goal.due_date && <p>Vence: {goal.due_date}</p>}
+                          </div>
+                        )}
+                      </div>
+                    </CardBody>
+                  </Card>
+                </motion.div>
+              ))}
+            </AnimatePresence>
+          </motion.div>
+        ) : (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="text-center py-16"
+          >
+            <p className="text-gray-500 text-lg">No hay metas registradas</p>
+            <Button variant="primary" onClick={() => setShowModal(true)} className="mt-4">
+              Crear primera meta
+            </Button>
+          </motion.div>
+        )}
       </div>
 
-      <ul className="list">
-        {goals?.map((goal) => (
-          <li key={goal.id} className="list-item">
-            <div className="list-item-content">
-              <h3>{goal.title}</h3>
-              <p><strong>Área:</strong> {getAreaName(goal.area_id)}</p>
-              {goal.description && <p>{goal.description}</p>}
-              <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
-                <span className={`badge ${getStatusBadgeClass(goal.status)}`}>
-                  {goal.status}
-                </span>
-                <span className={`badge ${getPriorityBadgeClass(goal.priority)}`}>
-                  {goal.priority}
-                </span>
-                {goal.goal_type && <span className="badge badge-secondary">{goal.goal_type}</span>}
-              </div>
-              {goal.computed_progress !== null && goal.computed_progress !== undefined && (
-                <div style={{ marginTop: '12px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
-                    <span style={{ fontSize: '0.875rem', color: '#666' }}>Progreso</span>
-                    <span style={{ fontSize: '0.875rem', fontWeight: '600' }}>{goal.computed_progress}%</span>
-                  </div>
-                  <div style={{ 
-                    height: '8px', 
-                    backgroundColor: '#e0e0e0', 
-                    borderRadius: '4px',
-                    overflow: 'hidden'
-                  }}>
-                    <div style={{ 
-                      height: '100%', 
-                      width: `${goal.computed_progress}%`,
-                      backgroundColor: goal.computed_progress === 100 ? '#10b981' : '#3b82f6',
-                      transition: 'width 0.3s ease'
-                    }} />
-                  </div>
-                </div>
-              )}
-              {goal.due_date && (
-                <p style={{ marginTop: '8px', fontSize: '0.875rem', color: '#666' }}>
-                  <strong>Fecha límite:</strong> {new Date(goal.due_date).toLocaleDateString()}
-                </p>
-              )}
+      {/* Modal */}
+      <Modal
+        isOpen={showModal}
+        onClose={resetForm}
+        title={editingGoal ? 'Editar Meta' : 'Nueva Meta'}
+        size="lg"
+      >
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Área *
+              </label>
+              <select
+                required
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                value={formData.area_id}
+                onChange={(e) => setFormData({ ...formData, area_id: e.target.value })}
+              >
+                <option value="">Seleccionar área</option>
+                {areas?.map((area) => (
+                  <option key={area.id} value={area.id}>{area.name}</option>
+                ))}
+              </select>
             </div>
-            <div className="list-item-actions">
-              <button className="btn btn-secondary" onClick={() => handleEdit(goal)}>
-                Editar
-              </button>
-              <button className="btn btn-danger" onClick={() => handleDelete(goal.id)}>
-                Eliminar
-              </button>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Tipo de Meta
+              </label>
+              <select
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                value={formData.goal_type}
+                onChange={(e) => setFormData({ ...formData, goal_type: e.target.value })}
+              >
+                <option value="Corto Plazo">Corto Plazo</option>
+                <option value="Mediano Plazo">Mediano Plazo</option>
+                <option value="Largo Plazo">Largo Plazo</option>
+              </select>
             </div>
-          </li>
-        ))}
-      </ul>
-
-      {showModal && (
-        <div className="modal-overlay" onClick={resetForm}>
-          <div className="modal" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <h3>{editingGoal ? 'Editar Meta' : 'Nueva Meta'}</h3>
-            </div>
-            <form className="form" onSubmit={handleSubmit}>
-              <div className="form-group">
-                <label>Área de Vida *</label>
-                <select
-                  value={formData.area_id}
-                  onChange={(e) => setFormData({ ...formData, area_id: e.target.value })}
-                  required
-                >
-                  <option value="">Selecciona un área</option>
-                  {areas?.map((area) => (
-                    <option key={area.id} value={area.id}>
-                      {area.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="form-group">
-                <label>Título *</label>
-                <input
-                  type="text"
-                  value={formData.title}
-                  onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                  required
-                  placeholder="Ej: Aprender React avanzado"
-                />
-              </div>
-
-              <div className="form-group">
-                <label>Descripción</label>
-                <textarea
-                  value={formData.description}
-                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  placeholder="Describe tu meta..."
-                />
-              </div>
-
-              <div className="form-group">
-                <label>Tipo de Meta</label>
-                <select
-                  value={formData.goal_type}
-                  onChange={(e) => setFormData({ ...formData, goal_type: e.target.value })}
-                >
-                  <option value="Corto Plazo">Corto Plazo</option>
-                  <option value="Mediano Plazo">Mediano Plazo</option>
-                  <option value="Largo Plazo">Largo Plazo</option>
-                </select>
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-                <div className="form-group">
-                  <label>Fecha Inicio</label>
-                  <input
-                    type="date"
-                    value={formData.start_date}
-                    onChange={(e) => setFormData({ ...formData, start_date: e.target.value })}
-                  />
-                </div>
-
-                <div className="form-group">
-                  <label>Fecha Límite</label>
-                  <input
-                    type="date"
-                    value={formData.due_date}
-                    onChange={(e) => setFormData({ ...formData, due_date: e.target.value })}
-                  />
-                </div>
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-                <div className="form-group">
-                  <label>Estado *</label>
-                  <select
-                    value={formData.status}
-                    onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-                    required
-                  >
-                    <option value="pendiente">Pendiente</option>
-                    <option value="en_progreso">En Progreso</option>
-                    <option value="completada">Completada</option>
-                    <option value="pausada">Pausada</option>
-                  </select>
-                </div>
-
-                <div className="form-group">
-                  <label>Prioridad *</label>
-                  <select
-                    value={formData.priority}
-                    onChange={(e) => setFormData({ ...formData, priority: e.target.value })}
-                    required
-                  >
-                    <option value="baja">Baja</option>
-                    <option value="media">Media</option>
-                    <option value="alta">Alta</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="form-group">
-                <label>Resultado Esperado</label>
-                <textarea
-                  value={formData.expected_outcome}
-                  onChange={(e) => setFormData({ ...formData, expected_outcome: e.target.value })}
-                  placeholder="¿Qué esperas lograr?"
-                />
-              </div>
-
-              <div className="form-actions">
-                <button type="button" className="btn btn-secondary" onClick={resetForm}>
-                  Cancelar
-                </button>
-                <button type="submit" className="btn btn-primary">
-                  {editingGoal ? 'Actualizar' : 'Crear'}
-                </button>
-              </div>
-            </form>
           </div>
-        </div>
-      )}
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Título *
+            </label>
+            <input
+              type="text"
+              required
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+              value={formData.title}
+              onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Descripción
+            </label>
+            <textarea
+              rows={3}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+              value={formData.description}
+              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+            />
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Prioridad
+              </label>
+              <select
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                value={formData.priority}
+                onChange={(e) => setFormData({ ...formData, priority: e.target.value })}
+              >
+                <option value="baja">Baja</option>
+                <option value="media">Media</option>
+                <option value="alta">Alta</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Estado
+              </label>
+              <select
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                value={formData.status}
+                onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+              >
+                <option value="pendiente">Pendiente</option>
+                <option value="en_progreso">En Progreso</option>
+                <option value="completada">Completada</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Fecha Inicio
+              </label>
+              <input
+                type="date"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                value={formData.start_date}
+                onChange={(e) => setFormData({ ...formData, start_date: e.target.value })}
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Fecha Vencimiento
+              </label>
+              <input
+                type="date"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                value={formData.due_date}
+                onChange={(e) => setFormData({ ...formData, due_date: e.target.value })}
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Resultado Esperado
+            </label>
+            <textarea
+              rows={2}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+              value={formData.expected_outcome}
+              onChange={(e) => setFormData({ ...formData, expected_outcome: e.target.value })}
+            />
+          </div>
+
+          <ModalFooter
+            onCancel={resetForm}
+            onSubmit={handleSubmit}
+            submitText={editingGoal ? 'Actualizar' : 'Crear'}
+            isLoading={createMutation.isPending || updateMutation.isPending}
+          />
+        </form>
+      </Modal>
     </div>
   )
 }

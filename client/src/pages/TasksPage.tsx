@@ -1,5 +1,7 @@
 import { useState } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
 import { useTasks, useCreateTask, useUpdateTask, useDeleteTask, useAreas, useGoals } from '../hooks'
+import { Button, Modal, ModalFooter, Card, CardHeader, CardBody, useToast } from '../components'
 import type { Task } from '../services/tasksApi'
 
 interface TaskFormData {
@@ -21,6 +23,7 @@ function TasksPage() {
   const createMutation = useCreateTask()
   const updateMutation = useUpdateTask()
   const deleteMutation = useDeleteTask()
+  const { showToast } = useToast()
 
   const [showModal, setShowModal] = useState(false)
   const [editingTask, setEditingTask] = useState<Task | null>(null)
@@ -52,11 +55,14 @@ function TasksPage() {
       
       if (editingTask) {
         await updateMutation.mutateAsync({ id: editingTask.id, data: submitData })
+        showToast('Tarea actualizada exitosamente', 'success')
       } else {
         await createMutation.mutateAsync(submitData)
+        showToast('Tarea creada exitosamente', 'success')
       }
       resetForm()
     } catch (err) {
+      showToast('Error al guardar tarea', 'error')
       console.error('Error al guardar tarea:', err)
     }
   }
@@ -83,7 +89,9 @@ function TasksPage() {
     if (window.confirm('¿Estás seguro de eliminar esta tarea?')) {
       try {
         await deleteMutation.mutateAsync(id)
+        showToast('Tarea eliminada', 'success')
       } catch (err) {
+        showToast('Error al eliminar tarea', 'error')
         console.error('Error al eliminar tarea:', err)
       }
     }
@@ -117,12 +125,12 @@ function TasksPage() {
     setFormData({ ...formData, tags: formData.tags.filter(t => t !== tag) })
   }
 
-  const getStatusBadgeClass = (status: string) => {
+  const getStatusColor = (status: string) => {
     switch (status) {
-      case 'completada': return 'badge-success'
-      case 'en_progreso': return 'badge-warning'
-      case 'pendiente': return 'badge-info'
-      default: return 'badge-secondary'
+      case 'completada': return 'bg-green-100 text-green-800'
+      case 'en_progreso': return 'bg-yellow-100 text-yellow-800'
+      case 'pendiente': return 'bg-blue-100 text-blue-800'
+      default: return 'bg-gray-100 text-gray-800'
     }
   }
 
@@ -137,225 +145,326 @@ function TasksPage() {
 
   const filteredGoals = goals?.filter(g => g.area_id === formData.area_id) || []
 
-  if (isLoading) return <div className="page"><div className="loading">Cargando tareas...</div></div>
-  if (error) return <div className="page"><div className="error">Error: {error.message}</div></div>
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 p-8">
+        <div className="flex items-center justify-center h-64">
+          <motion.div
+            animate={{ rotate: 360 }}
+            transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+            className="w-12 h-12 border-4 border-indigo-600 border-t-transparent rounded-full"
+          />
+        </div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 p-8">
+        <Card>
+          <CardBody>
+            <p className="text-red-600">Error: {error.message}</p>
+          </CardBody>
+        </Card>
+      </div>
+    )
+  }
 
   return (
-    <div className="page">
-      <div className="page-header">
-        <h2>Tareas</h2>
-        <button className="btn btn-primary" onClick={() => setShowModal(true)}>+ Nueva Tarea</button>
+    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50">
+      {/* Header */}
+      <motion.div 
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-8 py-8 shadow-lg"
+      >
+        <div className="max-w-7xl mx-auto flex justify-between items-center">
+          <div>
+            <h1 className="text-3xl font-bold mb-1">✅ Tareas</h1>
+            <p className="text-indigo-100">Gestiona tus tareas y actividades</p>
+          </div>
+          <Button variant="secondary" onClick={() => setShowModal(true)}>
+            + Nueva Tarea
+          </Button>
+        </div>
+      </motion.div>
+
+      {/* Tasks Grid */}
+      <div className="max-w-7xl mx-auto px-8 py-8">
+        {tasks && tasks.length > 0 ? (
+          <motion.div 
+            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.2 }}
+          >
+            <AnimatePresence>
+              {tasks.map((task, index) => {
+                const taskProgress = task.progress_percentage
+                return (
+                  <motion.div
+                    key={task.id}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, scale: 0.9 }}
+                    transition={{ delay: index * 0.05 }}
+                  >
+                    <Card hover>
+                      <CardHeader>
+                        <div className="flex justify-between items-start">
+                          <h3 className="text-lg font-semibold text-gray-800 flex-1">{task.title}</h3>
+                          <div className="flex gap-2 ml-2">
+                            <button
+                              onClick={() => handleEdit(task)}
+                              className="text-indigo-600 hover:text-indigo-800 transition-colors"
+                            >
+                              ✏️
+                            </button>
+                            <button
+                              onClick={() => handleDelete(task.id)}
+                              className="text-red-600 hover:text-red-800 transition-colors"
+                            >
+                              🗑️
+                            </button>
+                          </div>
+                        </div>
+                      </CardHeader>
+                      <CardBody>
+                        <div className="space-y-3">
+                          <p className="text-sm text-gray-600">
+                            <strong>Área:</strong> {getAreaName(task.area_id)}
+                          </p>
+                          {task.goal_id && (
+                            <p className="text-sm text-gray-600">
+                              <strong>Meta:</strong> {getGoalTitle(task.goal_id)}
+                            </p>
+                          )}
+                          {task.description && (
+                            <p className="text-sm text-gray-700">{task.description}</p>
+                          )}
+                          
+                          <div className="flex flex-wrap gap-2">
+                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(task.status)}`}>
+                              {task.status}
+                            </span>
+                            {task.tags?.map(tag => (
+                              <span key={tag} className="px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                                {tag}
+                              </span>
+                            ))}
+                          </div>
+
+                          {taskProgress !== null && taskProgress !== undefined && (
+                            <div className="mt-4">
+                              <div className="flex justify-between text-xs text-gray-600 mb-1">
+                                <span>Progreso</span>
+                                <span className="font-semibold">{taskProgress}%</span>
+                              </div>
+                              <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
+                                <motion.div
+                                  initial={{ width: 0 }}
+                                  animate={{ width: `${taskProgress}%` }}
+                                  transition={{ duration: 0.5, delay: index * 0.05 }}
+                                  className={`h-full rounded-full ${taskProgress === 100 ? 'bg-green-500' : 'bg-gradient-to-r from-indigo-500 to-purple-500'}`}
+                                />
+                              </div>
+                            </div>
+                          )}
+
+                          <div className="text-xs text-gray-500 space-y-1 pt-2 border-t">
+                            {task.due_date && <p>Vence: {new Date(task.due_date).toLocaleDateString()}</p>}
+                            {task.estimated_effort && <p>Esfuerzo: {task.estimated_effort}h</p>}
+                          </div>
+                        </div>
+                      </CardBody>
+                    </Card>
+                  </motion.div>
+                )
+              })}
+            </AnimatePresence>
+          </motion.div>
+        ) : (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="text-center py-16"
+          >
+            <p className="text-gray-500 text-lg">No hay tareas registradas</p>
+            <Button variant="primary" onClick={() => setShowModal(true)} className="mt-4">
+              Crear primera tarea
+            </Button>
+          </motion.div>
+        )}
       </div>
 
-      <ul className="list">
-        {tasks?.map((task) => {
-          const taskProgress = task.progress_percentage
-          console.log('Task:', task.title, 'Progress:', taskProgress)
-          return (
-            <li key={task.id} className="list-item">
-              <div className="list-item-content">
-                <h3>{task.title}</h3>
-                <p><strong>Área:</strong> {getAreaName(task.area_id)}</p>
-                {task.goal_id && <p><strong>Meta:</strong> {getGoalTitle(task.goal_id)}</p>}
-                {task.description && <p>{task.description}</p>}
-                <div style={{ display: 'flex', gap: '8px', marginTop: '8px', flexWrap: 'wrap' }}>
-                  <span className={`badge ${getStatusBadgeClass(task.status)}`}>
-                    {task.status}
-                  </span>
-                  {task.tags?.map(tag => (
-                    <span key={tag} className="badge badge-secondary">{tag}</span>
-                  ))}
-                </div>
-                {taskProgress !== null && taskProgress !== undefined && (
-                  <div style={{ marginTop: '12px' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
-                      <span style={{ fontSize: '0.875rem', color: '#666' }}>Progreso</span>
-                      <span style={{ fontSize: '0.875rem', fontWeight: '600' }}>{taskProgress}%</span>
-                    </div>
-                    <div style={{ 
-                      height: '6px', 
-                      backgroundColor: '#e0e0e0', 
-                      borderRadius: '3px',
-                      overflow: 'hidden'
-                    }}>
-                      <div style={{ 
-                        height: '100%', 
-                        width: `${taskProgress}%`,
-                        backgroundColor: taskProgress === 100 ? '#10b981' : '#3b82f6',
-                        transition: 'width 0.3s ease'
-                      }} />
-                    </div>
-                  </div>
-                )}
-                <div style={{ marginTop: '8px', fontSize: '0.875rem', color: '#666', display: 'flex', gap: '16px' }}>
-                  {task.due_date && (
-                    <span><strong>Vence:</strong> {new Date(task.due_date).toLocaleDateString()}</span>
-                  )}
-                  {task.estimated_effort && (
-                    <span><strong>Esfuerzo:</strong> {task.estimated_effort}h</span>
-                  )}
-                </div>
-              </div>
-              <div className="list-item-actions">
-                <button className="btn btn-secondary" onClick={() => handleEdit(task)}>
-                  Editar
-                </button>
-                <button className="btn btn-danger" onClick={() => handleDelete(task.id)}>
-                  Eliminar
-                </button>
-              </div>
-            </li>
-          )
-        })}
-      </ul>
-
-      {showModal && (
-        <div className="modal-overlay" onClick={resetForm}>
-          <div className="modal" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <h3>{editingTask ? 'Editar Tarea' : 'Nueva Tarea'}</h3>
+      {/* Modal */}
+      <Modal
+        isOpen={showModal}
+        onClose={resetForm}
+        title={editingTask ? 'Editar Tarea' : 'Nueva Tarea'}
+        size="lg"
+      >
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Área *
+              </label>
+              <select
+                required
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                value={formData.area_id}
+                onChange={(e) => setFormData({ ...formData, area_id: e.target.value, goal_id: '' })}
+              >
+                <option value="">Seleccionar área</option>
+                {areas?.map((area) => (
+                  <option key={area.id} value={area.id}>{area.name}</option>
+                ))}
+              </select>
             </div>
-            <form className="form" onSubmit={handleSubmit}>
-              <div className="form-group">
-                <label>Área de Vida *</label>
-                <select
-                  value={formData.area_id}
-                  onChange={(e) => setFormData({ ...formData, area_id: e.target.value, goal_id: '' })}
-                  required
-                >
-                  <option value="">Selecciona un área</option>
-                  {areas?.map((area) => (
-                    <option key={area.id} value={area.id}>
-                      {area.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
 
-              <div className="form-group">
-                <label>Meta (opcional)</label>
-                <select
-                  value={formData.goal_id}
-                  onChange={(e) => setFormData({ ...formData, goal_id: e.target.value })}
-                  disabled={!formData.area_id}
-                >
-                  <option value="">Sin meta asignada</option>
-                  {filteredGoals.map((goal) => (
-                    <option key={goal.id} value={goal.id}>
-                      {goal.title}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="form-group">
-                <label>Título *</label>
-                <input
-                  type="text"
-                  value={formData.title}
-                  onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                  required
-                  placeholder="Ej: Completar módulo 3 del curso"
-                />
-              </div>
-
-              <div className="form-group">
-                <label>Descripción</label>
-                <textarea
-                  value={formData.description}
-                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  placeholder="Describe la tarea..."
-                />
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-                <div className="form-group">
-                  <label>Estado *</label>
-                  <select
-                    value={formData.status}
-                    onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-                    required
-                  >
-                    <option value="pendiente">Pendiente</option>
-                    <option value="en_progreso">En Progreso</option>
-                    <option value="completada">Completada</option>
-                  </select>
-                </div>
-
-                <div className="form-group">
-                  <label>Progreso Manual (%)</label>
-                  <input
-                    type="number"
-                    min="0"
-                    max="100"
-                    value={formData.progress_percentage}
-                    onChange={(e) => {
-                      const newValue = e.target.value ? parseInt(e.target.value) : 0;
-                      console.log('Progress input changed:', e.target.value, '-> parsed:', newValue);
-                      setFormData({ ...formData, progress_percentage: newValue });
-                      console.log('FormData updated, new progress:', newValue);
-                    }}
-                  />
-                </div>
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-                <div className="form-group">
-                  <label>Fecha Límite</label>
-                  <input
-                    type="date"
-                    value={formData.due_date}
-                    onChange={(e) => setFormData({ ...formData, due_date: e.target.value })}
-                  />
-                </div>
-
-                <div className="form-group">
-                  <label>Esfuerzo Estimado (horas)</label>
-                  <input
-                    type="number"
-                    min="0"
-                    step="0.5"
-                    value={formData.estimated_effort}
-                    onChange={(e) => setFormData({ ...formData, estimated_effort: e.target.value ? parseFloat(e.target.value) : '' })}
-                  />
-                </div>
-              </div>
-
-              <div className="form-group">
-                <label>Etiquetas</label>
-                <div style={{ display: 'flex', gap: '8px', marginBottom: '8px', flexWrap: 'wrap' }}>
-                  {formData.tags.map(tag => (
-                    <span key={tag} className="badge badge-secondary" style={{ cursor: 'pointer' }} onClick={() => removeTag(tag)}>
-                      {tag} ×
-                    </span>
-                  ))}
-                </div>
-                <div style={{ display: 'flex', gap: '8px' }}>
-                  <input
-                    type="text"
-                    value={tagInput}
-                    onChange={(e) => setTagInput(e.target.value)}
-                    onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addTag())}
-                    placeholder="Agregar etiqueta..."
-                  />
-                  <button type="button" className="btn btn-secondary" onClick={addTag}>
-                    +
-                  </button>
-                </div>
-              </div>
-
-              <div className="form-actions">
-                <button type="button" className="btn btn-secondary" onClick={resetForm}>
-                  Cancelar
-                </button>
-                <button type="submit" className="btn btn-primary">
-                  {editingTask ? 'Actualizar' : 'Crear'}
-                </button>
-              </div>
-            </form>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Meta (opcional)
+              </label>
+              <select
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                value={formData.goal_id}
+                onChange={(e) => setFormData({ ...formData, goal_id: e.target.value })}
+                disabled={!formData.area_id}
+              >
+                <option value="">Sin meta</option>
+                {filteredGoals.map((goal) => (
+                  <option key={goal.id} value={goal.id}>{goal.title}</option>
+                ))}
+              </select>
+            </div>
           </div>
-        </div>
-      )}
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Título *
+            </label>
+            <input
+              type="text"
+              required
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+              value={formData.title}
+              onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Descripción
+            </label>
+            <textarea
+              rows={3}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+              value={formData.description}
+              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+            />
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Estado *
+              </label>
+              <select
+                required
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                value={formData.status}
+                onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+              >
+                <option value="pendiente">Pendiente</option>
+                <option value="en_progreso">En Progreso</option>
+                <option value="completada">Completada</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Progreso (%)
+              </label>
+              <input
+                type="number"
+                min="0"
+                max="100"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                value={formData.progress_percentage}
+                onChange={(e) => setFormData({ ...formData, progress_percentage: e.target.value ? parseInt(e.target.value) : 0 })}
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Fecha Límite
+              </label>
+              <input
+                type="date"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                value={formData.due_date}
+                onChange={(e) => setFormData({ ...formData, due_date: e.target.value })}
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Esfuerzo (horas)
+              </label>
+              <input
+                type="number"
+                min="0"
+                step="0.5"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                value={formData.estimated_effort}
+                onChange={(e) => setFormData({ ...formData, estimated_effort: e.target.value ? parseFloat(e.target.value) : '' })}
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Etiquetas
+            </label>
+            <div className="flex flex-wrap gap-2 mb-2">
+              {formData.tags.map(tag => (
+                <span 
+                  key={tag} 
+                  className="px-2 py-1 bg-gray-100 text-gray-800 rounded-full text-xs cursor-pointer hover:bg-gray-200"
+                  onClick={() => removeTag(tag)}
+                >
+                  {tag} ×
+                </span>
+              ))}
+            </div>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                value={tagInput}
+                onChange={(e) => setTagInput(e.target.value)}
+                onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addTag())}
+                placeholder="Agregar etiqueta..."
+              />
+              <Button type="button" variant="secondary" onClick={addTag}>
+                +
+              </Button>
+            </div>
+          </div>
+
+          <ModalFooter
+            onCancel={resetForm}
+            onSubmit={handleSubmit}
+            submitText={editingTask ? 'Actualizar' : 'Crear'}
+            isLoading={createMutation.isPending || updateMutation.isPending}
+          />
+        </form>
+      </Modal>
     </div>
   )
 }
