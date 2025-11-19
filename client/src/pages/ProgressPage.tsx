@@ -374,9 +374,9 @@ function ProgressPage() {
 
           <ModalFooter
             onCancel={resetForm}
-            onSubmit={handleSubmit}
-            submitText={editingLog ? 'Actualizar' : 'Crear'}
-            isLoading={createMutation.isPending || updateMutation.isPending}
+            submitLabel={editingLog ? 'Actualizar' : 'Crear'}
+            isSubmitting={createMutation.isPending || updateMutation.isPending}
+            submitType="submit"
           />
         </form>
       </Modal>

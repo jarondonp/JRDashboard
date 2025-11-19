@@ -391,9 +391,9 @@ function DocumentsPage() {
 
           <ModalFooter
             onCancel={resetForm}
-            onSubmit={handleSubmit}
-            submitText={editingDoc ? 'Actualizar' : 'Crear'}
-            isLoading={createMutation.isPending || updateMutation.isPending}
+            submitLabel={editingDoc ? 'Actualizar' : 'Crear'}
+            isSubmitting={createMutation.isPending || updateMutation.isPending}
+            submitType="submit"
           />
         </form>
       </Modal>

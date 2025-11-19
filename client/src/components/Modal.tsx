@@ -111,10 +111,11 @@ export function Modal({ isOpen, onClose, title, children, footer, size = 'md' }:
 // Default footer with Cancel and Submit buttons
 interface ModalFooterProps {
   onCancel: () => void;
-  onSubmit: () => void;
+  onSubmit?: () => void;
   submitLabel?: string;
   cancelLabel?: string;
   isSubmitting?: boolean;
+  submitType?: 'button' | 'submit';
 }
 
 export function ModalFooter({ 
@@ -122,14 +123,20 @@ export function ModalFooter({
   onSubmit, 
   submitLabel = 'Guardar', 
   cancelLabel = 'Cancelar',
-  isSubmitting = false 
+  isSubmitting = false,
+  submitType = 'button'
 }: ModalFooterProps) {
   return (
     <>
-      <Button variant="ghost" onClick={onCancel} disabled={isSubmitting}>
+      <Button variant="ghost" onClick={onCancel} disabled={isSubmitting} type="button">
         {cancelLabel}
       </Button>
-      <Button variant="primary" onClick={onSubmit} isLoading={isSubmitting}>
+      <Button 
+        variant="primary" 
+        onClick={submitType === 'button' ? onSubmit : undefined}
+        type={submitType}
+        isLoading={isSubmitting}
+      >
         {submitLabel}
       </Button>
     </>

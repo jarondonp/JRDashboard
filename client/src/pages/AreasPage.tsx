@@ -1,5 +1,4 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useAreas, useCreateArea, useUpdateArea, useDeleteArea } from '../hooks'
 import { Button, Modal, ModalFooter, Card, CardHeader, CardBody, useToast } from '../components'
@@ -276,9 +275,9 @@ function AreasPage() {
 
           <ModalFooter
             onCancel={resetForm}
-            onSubmit={handleSubmit}
-            submitText={editingArea ? 'Actualizar' : 'Crear'}
-            isLoading={createMutation.isPending || updateMutation.isPending}
+            submitLabel={editingArea ? 'Actualizar' : 'Crear'}
+            isSubmitting={createMutation.isPending || updateMutation.isPending}
+            submitType="submit"
           />
         </form>
       </Modal>

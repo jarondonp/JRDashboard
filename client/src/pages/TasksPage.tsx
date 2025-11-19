@@ -459,9 +459,9 @@ function TasksPage() {
 
           <ModalFooter
             onCancel={resetForm}
-            onSubmit={handleSubmit}
-            submitText={editingTask ? 'Actualizar' : 'Crear'}
-            isLoading={createMutation.isPending || updateMutation.isPending}
+            submitLabel={editingTask ? 'Actualizar' : 'Crear'}
+            isSubmitting={createMutation.isPending || updateMutation.isPending}
+            submitType="submit"
           />
         </form>
       </Modal>

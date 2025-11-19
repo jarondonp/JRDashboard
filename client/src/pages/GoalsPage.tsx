@@ -410,9 +410,9 @@ function GoalsPage() {
 
           <ModalFooter
             onCancel={resetForm}
-            onSubmit={handleSubmit}
-            submitText={editingGoal ? 'Actualizar' : 'Crear'}
-            isLoading={createMutation.isPending || updateMutation.isPending}
+            submitLabel={editingGoal ? 'Actualizar' : 'Crear'}
+            isSubmitting={createMutation.isPending || updateMutation.isPending}
+            submitType="submit"
           />
         </form>
       </Modal>
