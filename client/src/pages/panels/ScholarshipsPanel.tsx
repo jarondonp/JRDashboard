@@ -10,9 +10,10 @@ interface ScholarshipsPanelProps {
   areaName: string;
   color: string;
   icon: string;
+  subtitle?: string;
 }
 
-const ScholarshipsPanel: React.FC<ScholarshipsPanelProps> = ({ areaId, areaName, color, icon }) => {
+const ScholarshipsPanel: React.FC<ScholarshipsPanelProps> = ({ areaId, areaName, color, icon, subtitle }) => {
   const navigate = useNavigate();
   const { data: dashboard, isLoading } = useAreaDashboard(areaId);
 
@@ -48,6 +49,7 @@ const ScholarshipsPanel: React.FC<ScholarshipsPanelProps> = ({ areaId, areaName,
           color={color}
           icon={icon}
           panelType="scholarships"
+          subtitle={subtitle}
           onBack={() => navigate('/areas')}
         />
 

@@ -10,9 +10,10 @@ interface MigrationPanelProps {
   areaName: string;
   color: string;
   icon: string;
+  subtitle?: string;
 }
 
-const MigrationPanel: React.FC<MigrationPanelProps> = ({ areaId, areaName, color, icon }) => {
+const MigrationPanel: React.FC<MigrationPanelProps> = ({ areaId, areaName, color, icon, subtitle }) => {
   const navigate = useNavigate();
   const { data: dashboard, isLoading } = useAreaDashboard(areaId);
 
@@ -43,6 +44,7 @@ const MigrationPanel: React.FC<MigrationPanelProps> = ({ areaId, areaName, color
           color={color}
           icon={icon}
           panelType="migration"
+          subtitle={subtitle}
           onBack={() => navigate('/areas')}
         />
 

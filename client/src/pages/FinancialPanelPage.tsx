@@ -19,25 +19,34 @@ const FinancialPanelPage: React.FC = () => {
   }
 
   const financialKeywords = ['financial', 'financiero', 'dinero', 'presupuesto', 'economia', 'finance'];
-  const financialArea = areas?.find((a: any) =>
+  const matchingAreas = areas?.filter((a: any) =>
     financialKeywords.some(keyword => a.name.toLowerCase().includes(keyword))
-  );
+  ) || [];
 
-  if (!financialArea) {
+  if (matchingAreas.length === 0) {
     return (
       <div className="text-center py-12">
-        <p className="text-gray-600">No se encontró un área financiera configurada</p>
+        <p className="text-gray-600">No se encontró ningún área relacionada con finanzas</p>
       </div>
     );
   }
 
+  const primaryArea = matchingAreas[0];
+  
+  // Generar subtítulo con áreas monitoreadas
+  const areaNames = matchingAreas.map((a: any) => a.name).join(', ');
+  const subtitle = matchingAreas.length === 1 
+    ? `📊 ${matchingAreas.length} área monitoreada: ${areaNames}`
+    : `📊 ${matchingAreas.length} áreas monitoreadas: ${areaNames.length > 60 ? areaNames.substring(0, 60) + '...' : areaNames}`;
+
   return (
     <div>
       <FinancialPanel
-        areaId={financialArea.id}
-        areaName={financialArea.name}
-        color={financialArea.color}
-        icon={financialArea.icon}
+        areaId={primaryArea.id}
+        areaName="Panel Financiero y Presupuestos"
+        color="#FFC107"
+        icon="💰"
+        subtitle={subtitle}
       />
     </div>
   );

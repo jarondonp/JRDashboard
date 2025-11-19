@@ -54,8 +54,9 @@ const AreaPanelHeader: React.FC<{
   color: string;
   icon: string;
   panelType: PanelType;
+  subtitle?: string;
   onBack: () => void;
-}> = ({ areaName, color, icon, panelType, onBack }) => (
+}> = ({ areaName, color, icon, panelType, subtitle, onBack }) => (
   <motion.div
     initial={{ opacity: 0, y: -20 }}
     animate={{ opacity: 1, y: 0 }}
@@ -77,9 +78,11 @@ const AreaPanelHeader: React.FC<{
       </div>
       <div className="flex items-center gap-3">
         <span className="text-4xl">{icon}</span>
-        <div>
+        <div className="flex-1">
           <h1 className="text-3xl font-bold">{areaName}</h1>
-          <p className="text-white/80 text-sm">Panel especializado de {areaName.toLowerCase()}</p>
+          {subtitle && (
+            <p className="text-white/90 text-sm mt-1.5 font-medium">{subtitle}</p>
+          )}
         </div>
       </div>
     </div>

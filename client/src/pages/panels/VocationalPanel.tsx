@@ -10,9 +10,10 @@ interface VocationalPanelProps {
   areaName: string;
   color: string;
   icon: string;
+  subtitle?: string;
 }
 
-const VocationalPanel: React.FC<VocationalPanelProps> = ({ areaId, areaName, color, icon }) => {
+const VocationalPanel: React.FC<VocationalPanelProps> = ({ areaId, areaName, color, icon, subtitle }) => {
   const navigate = useNavigate();
   const { data: dashboard, isLoading } = useAreaDashboard(areaId);
 
@@ -43,6 +44,7 @@ const VocationalPanel: React.FC<VocationalPanelProps> = ({ areaId, areaName, col
           color={color}
           icon={icon}
           panelType="vocational"
+          subtitle={subtitle}
           onBack={() => navigate('/areas')}
         />
 

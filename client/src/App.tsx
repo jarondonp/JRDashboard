@@ -45,12 +45,12 @@ function App() {
           <div className="nav-section">
             <h3 className="nav-section-title">PANELES</h3>
             <ul>
-              <li><Link to="/panel/emotional">❤️ Panel Emocional</Link></li>
-              <li><Link to="/panel/vocational">💼 Panel Vocacional</Link></li>
-              <li><Link to="/panel/financial">💰 Panel Financiero</Link></li>
-              <li><Link to="/panel/migration">✈️ Panel Migración</Link></li>
-              <li><Link to="/panel/scholarships">🎓 Panel Becas</Link></li>
-              <li><Link to="/panel/commercial">📈 Panel Comercial</Link></li>
+              <li><Link to="/panel/emotional">❤️ Salud y Bienestar</Link></li>
+              <li><Link to="/panel/vocational">🌟 Identidad y Propósito</Link></li>
+              <li><Link to="/panel/financial">💰 Financiero</Link></li>
+              <li><Link to="/panel/migration">✈️ Migración</Link></li>
+              <li><Link to="/panel/scholarships">🎓 Becas</Link></li>
+              <li><Link to="/panel/commercial">💼 Profesional y Carrera</Link></li>
             </ul>
           </div>
         </nav>

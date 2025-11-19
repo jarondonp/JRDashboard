@@ -10,9 +10,10 @@ interface EmotionalPanelProps {
   areaName: string;
   color: string;
   icon: string;
+  subtitle?: string;
 }
 
-const EmotionalPanel: React.FC<EmotionalPanelProps> = ({ areaId, areaName, color, icon }) => {
+const EmotionalPanel: React.FC<EmotionalPanelProps> = ({ areaId, areaName, color, icon, subtitle }) => {
   const navigate = useNavigate();
   const { data: dashboard, isLoading } = useAreaDashboard(areaId);
 
@@ -64,6 +65,7 @@ const EmotionalPanel: React.FC<EmotionalPanelProps> = ({ areaId, areaName, color
           color={color}
           icon={icon}
           panelType="emotional"
+          subtitle={subtitle}
           onBack={() => navigate('/areas')}
         />
 

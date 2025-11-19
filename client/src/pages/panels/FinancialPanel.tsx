@@ -10,9 +10,10 @@ interface FinancialPanelProps {
   areaName: string;
   color: string;
   icon: string;
+  subtitle?: string;
 }
 
-const FinancialPanel: React.FC<FinancialPanelProps> = ({ areaId, areaName, color, icon }) => {
+const FinancialPanel: React.FC<FinancialPanelProps> = ({ areaId, areaName, color, icon, subtitle }) => {
   const navigate = useNavigate();
   const { data: dashboard, isLoading } = useAreaDashboard(areaId);
 
@@ -43,6 +44,7 @@ const FinancialPanel: React.FC<FinancialPanelProps> = ({ areaId, areaName, color
           color={color}
           icon={icon}
           panelType="financial"
+          subtitle={subtitle}
           onBack={() => navigate('/areas')}
         />
 

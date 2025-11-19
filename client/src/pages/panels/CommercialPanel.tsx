@@ -10,9 +10,10 @@ interface CommercialPanelProps {
   areaName: string;
   color: string;
   icon: string;
+  subtitle?: string;
 }
 
-const CommercialPanel: React.FC<CommercialPanelProps> = ({ areaId, areaName, color, icon }) => {
+const CommercialPanel: React.FC<CommercialPanelProps> = ({ areaId, areaName, color, icon, subtitle }) => {
   const navigate = useNavigate();
   const { data: dashboard, isLoading } = useAreaDashboard(areaId);
 
@@ -44,6 +45,7 @@ const CommercialPanel: React.FC<CommercialPanelProps> = ({ areaId, areaName, col
           color={color}
           icon={icon}
           panelType="commercial"
+          subtitle={subtitle}
           onBack={() => navigate('/areas')}
         />
 

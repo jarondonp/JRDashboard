@@ -18,26 +18,35 @@ const CommercialPanelPage: React.FC = () => {
     );
   }
 
-  const commercialKeywords = ['commercial', 'comercial', 'negocios', 'business', 'emprendimiento'];
-  const commercialArea = areas?.find((a: any) =>
-    commercialKeywords.some(keyword => a.name.toLowerCase().includes(keyword))
-  );
+  const professionalKeywords = ['commercial', 'comercial', 'negocios', 'business', 'emprendimiento', 'profesional', 'carrera', 'trabajo', 'career', 'empresa', 'technosolutions', 'empleo', 'job'];
+  const matchingAreas = areas?.filter((a: any) =>
+    professionalKeywords.some(keyword => a.name.toLowerCase().includes(keyword))
+  ) || [];
 
-  if (!commercialArea) {
+  if (matchingAreas.length === 0) {
     return (
       <div className="text-center py-12">
-        <p className="text-gray-600">No se encontró un área comercial configurada</p>
+        <p className="text-gray-600">No se encontró ningún área relacionada con desarrollo profesional y carrera</p>
       </div>
     );
   }
 
+  const primaryArea = matchingAreas[0];
+  
+  // Generar subtítulo con áreas monitoreadas
+  const areaNames = matchingAreas.map((a: any) => a.name).join(', ');
+  const subtitle = matchingAreas.length === 1 
+    ? `📊 ${matchingAreas.length} área monitoreada: ${areaNames}`
+    : `📊 ${matchingAreas.length} áreas monitoreadas: ${areaNames.length > 60 ? areaNames.substring(0, 60) + '...' : areaNames}`;
+
   return (
     <div>
       <CommercialPanel
-        areaId={commercialArea.id}
-        areaName={commercialArea.name}
-        color={commercialArea.color}
-        icon={commercialArea.icon}
+        areaId={primaryArea.id}
+        areaName="Panel Profesional y Carrera"
+        color="#FF5722"
+        icon="💼"
+        subtitle={subtitle}
       />
     </div>
   );

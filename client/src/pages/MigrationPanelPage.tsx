@@ -19,25 +19,34 @@ const MigrationPanelPage: React.FC = () => {
   }
 
   const migrationKeywords = ['migration', 'migracion', 'visa', 'viaje', 'relocation', 'trámite'];
-  const migrationArea = areas?.find((a: any) =>
+  const matchingAreas = areas?.filter((a: any) =>
     migrationKeywords.some(keyword => a.name.toLowerCase().includes(keyword))
-  );
+  ) || [];
 
-  if (!migrationArea) {
+  if (matchingAreas.length === 0) {
     return (
       <div className="text-center py-12">
-        <p className="text-gray-600">No se encontró un área de migración configurada</p>
+        <p className="text-gray-600">No se encontró ningún área relacionada con migración</p>
       </div>
     );
   }
 
+  const primaryArea = matchingAreas[0];
+  
+  // Generar subtítulo con áreas monitoreadas
+  const areaNames = matchingAreas.map((a: any) => a.name).join(', ');
+  const subtitle = matchingAreas.length === 1 
+    ? `📊 ${matchingAreas.length} área monitoreada: ${areaNames}`
+    : `📊 ${matchingAreas.length} áreas monitoreadas: ${areaNames.length > 60 ? areaNames.substring(0, 60) + '...' : areaNames}`;
+
   return (
     <div>
       <MigrationPanel
-        areaId={migrationArea.id}
-        areaName={migrationArea.name}
-        color={migrationArea.color}
-        icon={migrationArea.icon}
+        areaId={primaryArea.id}
+        areaName="Panel de Migración y Trámites"
+        color="#2196F3"
+        icon="✈️"
+        subtitle={subtitle}
       />
     </div>
   );
