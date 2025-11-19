@@ -8,6 +8,12 @@ import TasksPage from './pages/TasksPage'
 import ProgressPage from './pages/ProgressPage'
 import DocumentsPage from './pages/DocumentsPage'
 import ReportsPage from './pages/ReportsPage'
+import EmotionalPanelPage from './pages/EmotionalPanelPage'
+import VocationalPanelPage from './pages/VocationalPanelPage'
+import FinancialPanelPage from './pages/FinancialPanelPage'
+import MigrationPanelPage from './pages/MigrationPanelPage'
+import ScholarshipsPanelPage from './pages/ScholarshipsPanelPage'
+import CommercialPanelPage from './pages/CommercialPanelPage'
 import './App.css'
 
 function App() {
@@ -36,6 +42,17 @@ function App() {
               <li><Link to="/reports">📊 Reportes</Link></li>
             </ul>
           </div>
+          <div className="nav-section">
+            <h3 className="nav-section-title">PANELES</h3>
+            <ul>
+              <li><Link to="/panel/emotional">❤️ Panel Emocional</Link></li>
+              <li><Link to="/panel/vocational">💼 Panel Vocacional</Link></li>
+              <li><Link to="/panel/financial">💰 Panel Financiero</Link></li>
+              <li><Link to="/panel/migration">✈️ Panel Migración</Link></li>
+              <li><Link to="/panel/scholarships">🎓 Panel Becas</Link></li>
+              <li><Link to="/panel/commercial">📈 Panel Comercial</Link></li>
+            </ul>
+          </div>
         </nav>
         <main className="main">
           <Routes>
@@ -48,6 +65,12 @@ function App() {
             <Route path="/progress" element={<ProgressPage />} />
             <Route path="/documents" element={<DocumentsPage />} />
             <Route path="/reports" element={<ReportsPage />} />
+            <Route path="/panel/emotional" element={<EmotionalPanelPage />} />
+            <Route path="/panel/vocational" element={<VocationalPanelPage />} />
+            <Route path="/panel/financial" element={<FinancialPanelPage />} />
+            <Route path="/panel/migration" element={<MigrationPanelPage />} />
+            <Route path="/panel/scholarships" element={<ScholarshipsPanelPage />} />
+            <Route path="/panel/commercial" element={<CommercialPanelPage />} />
           </Routes>
         </main>
       </div>

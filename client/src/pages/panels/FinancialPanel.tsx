@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Card, CardBody } from '../../components/Card';
 import { AreaPanelHeader, AreaPanelSection, KPICard } from '../../components/AreaPanel';
-import { useAreaDashboard } from '../hooks/useAreaDashboard';
+import { useAreaDashboard } from '../../hooks/useAreaDashboard';
 
 interface FinancialPanelProps {
   areaId: string;
