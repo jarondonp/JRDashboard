@@ -18,7 +18,7 @@ const VocationalPanelPage: React.FC = () => {
     );
   }
 
-  const identityKeywords = ['vocational', 'vocacional', 'identidad', 'propósito', 'proposito', 'existencial', 'identity', 'purpose', 'razon de ser'];
+  const identityKeywords = ['vocational', 'vocacional', 'identidad', 'propósito', 'proposito', 'existencial', 'identity', 'purpose', 'razon de ser', 'razón'];
   const matchingAreas = areas?.filter((a: any) =>
     identityKeywords.some(keyword => a.name.toLowerCase().includes(keyword))
   ) || [];

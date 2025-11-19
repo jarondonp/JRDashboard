@@ -18,7 +18,7 @@ const FinancialPanelPage: React.FC = () => {
     );
   }
 
-  const financialKeywords = ['financial', 'financiero', 'dinero', 'presupuesto', 'economia', 'finance'];
+  const financialKeywords = ['financial', 'financiero', 'financiera', 'finanzas', 'dinero', 'presupuesto', 'economia', 'economía', 'finance', 'ahorro', 'inversion', 'inversión'];
   const matchingAreas = areas?.filter((a: any) =>
     financialKeywords.some(keyword => a.name.toLowerCase().includes(keyword))
   ) || [];

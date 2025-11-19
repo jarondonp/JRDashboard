@@ -70,10 +70,14 @@ router.get('/goals/:id', async (req, res) => {
 });
 router.post('/goals', async (req, res) => {
   try {
+    console.log('POST /goals - Raw body:', req.body);
     const data = insertGoalSchema.parse(req.body);
+    console.log('POST /goals - Parsed data:', data);
     const result = await storage.createGoal(data);
+    console.log('POST /goals - Result:', result);
     res.status(201).json(result[0]);
   } catch (err) {
+    console.error('POST /goals - Error:', err);
     res.status(400).json({ error: err.message });
   }
 });

@@ -33,7 +33,7 @@ function GoalsPage() {
     goal_type: 'Corto Plazo',
     start_date: '',
     due_date: '',
-    status: 'pendiente',
+    status: 'no_iniciada',
     priority: 'media',
     expected_outcome: ''
   })
@@ -41,17 +41,17 @@ function GoalsPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     try {
-      // Limpiar datos: convertir strings vacíos a undefined
+      // Limpiar datos: convertir strings vacíos a null (PostgreSQL requiere null, no undefined)
       const cleanData = {
         area_id: formData.area_id,
         title: formData.title,
-        description: formData.description || undefined,
-        goal_type: formData.goal_type || undefined,
-        start_date: formData.start_date || undefined,
-        due_date: formData.due_date || undefined,
+        description: formData.description || null,
+        goal_type: formData.goal_type || null,
+        start_date: formData.start_date || null,
+        due_date: formData.due_date || null,
         status: formData.status,
         priority: formData.priority,
-        expected_outcome: formData.expected_outcome || undefined,
+        expected_outcome: formData.expected_outcome || null,
       };
 
       if (editingGoal) {
@@ -106,7 +106,7 @@ function GoalsPage() {
       goal_type: 'Corto Plazo',
       start_date: '',
       due_date: '',
-      status: 'pendiente',
+      status: 'no_iniciada',
       priority: 'media',
       expected_outcome: ''
     })
@@ -116,7 +116,7 @@ function GoalsPage() {
     switch (status) {
       case 'completada': return 'bg-green-100 text-green-800'
       case 'en_progreso': return 'bg-yellow-100 text-yellow-800'
-      case 'pendiente': return 'bg-blue-100 text-blue-800'
+      case 'no_iniciada': return 'bg-blue-100 text-blue-800'
       default: return 'bg-gray-100 text-gray-800'
     }
   }
@@ -376,7 +376,7 @@ function GoalsPage() {
                 value={formData.status}
                 onChange={(e) => setFormData({ ...formData, status: e.target.value })}
               >
-                <option value="pendiente">Pendiente</option>
+                <option value="no_iniciada">No Iniciada</option>
                 <option value="en_progreso">En Progreso</option>
                 <option value="completada">Completada</option>
               </select>

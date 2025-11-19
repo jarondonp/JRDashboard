@@ -18,7 +18,7 @@ const CommercialPanelPage: React.FC = () => {
     );
   }
 
-  const professionalKeywords = ['commercial', 'comercial', 'negocios', 'business', 'emprendimiento', 'profesional', 'carrera', 'trabajo', 'career', 'empresa', 'technosolutions', 'empleo', 'job'];
+  const professionalKeywords = ['commercial', 'comercial', 'negocio', 'negocios', 'business', 'emprendimiento', 'profesional', 'carrera', 'trabajo', 'career', 'empresa', 'technosolutions', 'empleo', 'job', 'laboral'];
   const matchingAreas = areas?.filter((a: any) =>
     professionalKeywords.some(keyword => a.name.toLowerCase().includes(keyword))
   ) || [];

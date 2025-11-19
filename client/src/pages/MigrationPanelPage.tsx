@@ -18,7 +18,7 @@ const MigrationPanelPage: React.FC = () => {
     );
   }
 
-  const migrationKeywords = ['migration', 'migracion', 'visa', 'viaje', 'relocation', 'trámite'];
+  const migrationKeywords = ['migration', 'migracion', 'migración', 'visa', 'viaje', 'relocation', 'trámite', 'tramite', 'emigrar', 'emigración'];
   const matchingAreas = areas?.filter((a: any) =>
     migrationKeywords.some(keyword => a.name.toLowerCase().includes(keyword))
   ) || [];

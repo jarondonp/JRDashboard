@@ -39,13 +39,13 @@ export const goals = pgTable('goals', {
 export const insertGoalSchema = z.object({
   area_id: z.string(),
   title: z.string(),
-  description: z.string().optional(),
-  goal_type: z.string().optional(),
-  start_date: z.string().optional(),
-  due_date: z.string().optional(),
+  description: z.string().nullable().optional(),
+  goal_type: z.string().nullable().optional(),
+  start_date: z.string().nullable().optional(),
+  due_date: z.string().nullable().optional(),
   status: z.string(),
   priority: z.string(),
-  expected_outcome: z.string().optional(),
+  expected_outcome: z.string().nullable().optional(),
   computed_progress: z.number().optional(),
 });
 
@@ -66,13 +66,13 @@ export const tasks = pgTable('tasks', {
 });
 export const insertTaskSchema = z.object({
   area_id: z.string(),
-  goal_id: z.string().optional(),
+  goal_id: z.string().nullable().optional(),
   title: z.string(),
-  description: z.string().optional(),
+  description: z.string().nullable().optional(),
   status: z.string(),
-  due_date: z.string().optional(),
-  estimated_effort: z.number().optional(),
-  progress_percentage: z.number().optional(),
+  due_date: z.string().nullable().optional(),
+  estimated_effort: z.number().nullable().optional(),
+  progress_percentage: z.number().nullable().optional(),
   tags: z.array(z.string()).optional(),
 });
 

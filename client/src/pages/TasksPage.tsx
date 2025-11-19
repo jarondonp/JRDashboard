@@ -44,11 +44,15 @@ function TasksPage() {
     e.preventDefault()
     try {
       const submitData = {
-        ...formData,
-        goal_id: formData.goal_id || undefined,
-        estimated_effort: formData.estimated_effort || undefined,
+        area_id: formData.area_id,
+        goal_id: formData.goal_id || null,
+        title: formData.title,
+        description: formData.description || null,
+        status: formData.status,
+        due_date: formData.due_date || null,
+        estimated_effort: formData.estimated_effort ? Number(formData.estimated_effort) : null,
         progress_percentage: formData.progress_percentage || 0,
-        tags: formData.tags.length > 0 ? formData.tags : undefined
+        tags: formData.tags.length > 0 ? formData.tags : []
       }
       
       console.log('Submitting task data:', submitData)
@@ -130,6 +134,7 @@ function TasksPage() {
       case 'completada': return 'bg-green-100 text-green-800'
       case 'en_progreso': return 'bg-yellow-100 text-yellow-800'
       case 'pendiente': return 'bg-blue-100 text-blue-800'
+      case 'bloqueada': return 'bg-red-100 text-red-800'
       default: return 'bg-gray-100 text-gray-800'
     }
   }
@@ -381,6 +386,7 @@ function TasksPage() {
                 <option value="pendiente">Pendiente</option>
                 <option value="en_progreso">En Progreso</option>
                 <option value="completada">Completada</option>
+                <option value="bloqueada">Bloqueada</option>
               </select>
             </div>
 

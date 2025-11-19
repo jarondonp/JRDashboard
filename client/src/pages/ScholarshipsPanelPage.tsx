@@ -18,7 +18,7 @@ const ScholarshipsPanelPage: React.FC = () => {
     );
   }
 
-  const scholarshipsKeywords = ['scholarships', 'becas', 'educacion', 'estudios', 'school'];
+  const scholarshipsKeywords = ['scholarship', 'scholarships', 'beca', 'becas', 'educacion', 'educación', 'estudios', 'school', 'universidad', 'university'];
   const matchingAreas = areas?.filter((a: any) =>
     scholarshipsKeywords.some(keyword => a.name.toLowerCase().includes(keyword))
   ) || [];

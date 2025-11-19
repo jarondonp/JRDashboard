@@ -19,7 +19,7 @@ const EmotionalPanelPage: React.FC = () => {
   }
 
   // Find emotional areas based on keywords
-  const emotionalKeywords = ['emotional', 'emocional', 'salud', 'health', 'mental', 'bienestar'];
+  const emotionalKeywords = ['emotional', 'emocional', 'emocion', 'emoción', 'salud', 'health', 'mental', 'bienestar', 'wellness', 'estado de animo', 'mood'];
   const matchingAreas = areas?.filter((a: any) =>
     emotionalKeywords.some(keyword => a.name.toLowerCase().includes(keyword))
   ) || [];
