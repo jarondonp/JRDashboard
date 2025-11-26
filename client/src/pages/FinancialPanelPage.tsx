@@ -1,10 +1,16 @@
 import React from 'react';
-import { useAreas } from '../hooks';
-import FinancialPanel from './panels/FinancialPanel';
 import { motion } from 'framer-motion';
+import FinancialPanel from './panels/FinancialPanel';
+import { useCategoryDashboards } from '../hooks';
+import { AREA_CATEGORIES } from '../constants/areaCategories';
 
 const FinancialPanelPage: React.FC = () => {
-  const { data: areas, isLoading } = useAreas();
+  const {
+    isLoading,
+    dashboards,
+    aggregatedDashboard,
+    subtitle,
+  } = useCategoryDashboards('financial');
 
   if (isLoading) {
     return (
@@ -18,12 +24,7 @@ const FinancialPanelPage: React.FC = () => {
     );
   }
 
-  const financialKeywords = ['financial', 'financiero', 'financiera', 'finanzas', 'dinero', 'presupuesto', 'economia', 'economía', 'finance', 'ahorro', 'inversion', 'inversión'];
-  const matchingAreas = areas?.filter((a: any) =>
-    financialKeywords.some(keyword => a.name.toLowerCase().includes(keyword))
-  ) || [];
-
-  if (matchingAreas.length === 0) {
+  if (!dashboards.length) {
     return (
       <div className="text-center py-12">
         <p className="text-gray-600">No se encontró ningún área relacionada con finanzas</p>
@@ -31,21 +32,12 @@ const FinancialPanelPage: React.FC = () => {
     );
   }
 
-  const primaryArea = matchingAreas[0];
-  
-  // Generar subtítulo con áreas monitoreadas
-  const areaNames = matchingAreas.map((a: any) => a.name).join(', ');
-  const subtitle = matchingAreas.length === 1 
-    ? `📊 ${matchingAreas.length} área monitoreada: ${areaNames}`
-    : `📊 ${matchingAreas.length} áreas monitoreadas: ${areaNames.length > 60 ? areaNames.substring(0, 60) + '...' : areaNames}`;
-
   return (
     <div>
       <FinancialPanel
-        areaId={primaryArea.id}
-        areaName="Panel Financiero y Presupuestos"
-        color="#FFC107"
-        icon="💰"
+        category={AREA_CATEGORIES.financial}
+        dashboards={dashboards}
+        aggregatedDashboard={aggregatedDashboard}
         subtitle={subtitle}
       />
     </div>

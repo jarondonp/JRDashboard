@@ -8,6 +8,7 @@ const invalidateProgressRelatedQueries = (qc: QueryClient) => {
   qc.invalidateQueries({ queryKey: ['goals'] });
   qc.invalidateQueries({ queryKey: ['areas'] });
   qc.invalidateQueries({ queryKey: ['monthly-stats'] });
+  qc.invalidateQueries({ queryKey: ['areaDashboard'] });
 };
 
 export function useProgressLogs() {

@@ -1,56 +1,11 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAreas } from '../hooks';
 import { Card, CardBody } from '../components/Card';
 import { useGoals } from '../hooks/useGoals';
 import { useTasks } from '../hooks/useTasks';
-
-// Definición de categorías con sus keywords
-const CATEGORIES = {
-  financial: {
-    name: 'Financiero',
-    icon: '💰',
-    color: 'from-yellow-500 to-orange-500',
-    keywords: ['financial', 'financiero', 'financiera', 'finanzas', 'dinero', 'presupuesto', 'economia', 'economía', 'finance', 'ahorro', 'inversion', 'inversión'],
-    panelRoute: '/panel/financial'
-  },
-  scholarships: {
-    name: 'Becas y Educación',
-    icon: '🎓',
-    color: 'from-purple-500 to-pink-500',
-    keywords: ['scholarship', 'scholarships', 'beca', 'becas', 'educacion', 'educación', 'estudios', 'school', 'universidad', 'university'],
-    panelRoute: '/panel/scholarships'
-  },
-  migration: {
-    name: 'Migración',
-    icon: '✈️',
-    color: 'from-blue-500 to-cyan-500',
-    keywords: ['migration', 'migracion', 'migración', 'visa', 'viaje', 'relocation', 'trámite', 'tramite', 'emigrar', 'emigración'],
-    panelRoute: '/panel/migration'
-  },
-  commercial: {
-    name: 'Profesional y Carrera',
-    icon: '📈',
-    color: 'from-indigo-500 to-purple-500',
-    keywords: ['commercial', 'comercial', 'negocio', 'negocios', 'business', 'emprendimiento', 'profesional', 'carrera', 'trabajo', 'career', 'empresa', 'technosolutions', 'empleo', 'job', 'laboral'],
-    panelRoute: '/panel/commercial'
-  },
-  emotional: {
-    name: 'Salud y Bienestar',
-    icon: '❤️',
-    color: 'from-red-500 to-pink-500',
-    keywords: ['emotional', 'emocional', 'emocion', 'emoción', 'salud', 'health', 'mental', 'bienestar', 'wellness', 'estado de animo', 'mood'],
-    panelRoute: '/panel/emotional'
-  },
-  vocational: {
-    name: 'Identidad y Propósito',
-    icon: '⭐',
-    color: 'from-yellow-500 to-orange-500',
-    keywords: ['vocational', 'vocacional', 'identidad', 'propósito', 'proposito', 'existencial', 'identity', 'purpose', 'razon de ser', 'razón'],
-    panelRoute: '/panel/vocational'
-  }
-};
+import { AREA_CATEGORIES } from '../constants/areaCategories';
 
 const AllAreasOverviewPage: React.FC = () => {
   const navigate = useNavigate();
@@ -62,43 +17,36 @@ const AllAreasOverviewPage: React.FC = () => {
     new Set() // Todas colapsadas por defecto
   );
 
-  // Categorizar áreas
-  const categorizeAreas = () => {
-    if (!areas) return {};
-    
-    const categorized: Record<string, any[]> = {
-      financial: [],
-      scholarships: [],
-      migration: [],
-      commercial: [],
-      emotional: [],
-      vocational: [],
-      other: []
-    };
+  const categorizedAreas = useMemo(() => {
+    if (!areas) {
+      return {} as Record<string, any[]>;
+    }
+
+    const base: Record<string, any[]> = Object.keys(AREA_CATEGORIES).reduce(
+      (acc, key) => {
+        acc[key] = [];
+        return acc;
+      },
+      {} as Record<string, any[]>,
+    );
+    base.other = [];
 
     areas.forEach((area: any) => {
-      let assigned = false;
       const areaNameLower = area.name.toLowerCase();
+      const categoryEntry = Object.entries(AREA_CATEGORIES).find(([_, category]) =>
+        category.keywords.some((keyword) => areaNameLower.includes(keyword)),
+      );
 
-      // Buscar en cada categoría
-      for (const [key, category] of Object.entries(CATEGORIES)) {
-        if (category.keywords.some(keyword => areaNameLower.includes(keyword))) {
-          categorized[key].push(area);
-          assigned = true;
-          break;
-        }
-      }
-
-      // Si no coincide con ninguna categoría, va a "other"
-      if (!assigned) {
-        categorized.other.push(area);
+      if (categoryEntry) {
+        const [key] = categoryEntry;
+        base[key].push(area);
+      } else {
+        base.other.push(area);
       }
     });
 
-    return categorized;
-  };
-
-  const categorizedAreas = categorizeAreas();
+    return base;
+  }, [areas]);
 
   // Filtrar por búsqueda
   const filterAreasBySearch = (areasList: any[]) => {
@@ -186,7 +134,7 @@ const AllAreasOverviewPage: React.FC = () => {
                   Las áreas se agrupan automáticamente según las palabras en su nombre. Usa estas palabras clave al crear áreas:
                 </p>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                  {Object.entries(CATEGORIES).map(([key, cat]) => (
+                  {Object.entries(AREA_CATEGORIES).map(([key, cat]) => (
                     <div key={key} className="bg-gray-50 rounded-lg p-3">
                       <div className="flex items-center gap-2 mb-1">
                         <span className="text-lg">{cat.icon}</span>
@@ -214,7 +162,7 @@ const AllAreasOverviewPage: React.FC = () => {
       {/* Categories */}
       <div className="max-w-7xl mx-auto px-8 py-6 space-y-6">
         {/* Renderizar categorías predefinidas */}
-        {Object.entries(CATEGORIES).map(([categoryKey, category]) => {
+        {Object.entries(AREA_CATEGORIES).map(([categoryKey, category]) => {
           const categoryAreas = filterAreasBySearch(categorizedAreas[categoryKey] || []);
           const isExpanded = expandedCategories.has(categoryKey);
           const hasAreas = categoryAreas.length > 0;
@@ -279,7 +227,7 @@ const AllAreasOverviewPage: React.FC = () => {
                                 <Card hover>
                                   <CardBody>
                                     <div className="flex items-start gap-3">
-                                      <div className={`text-3xl bg-gradient-to-br ${category.color} bg-clip-text text-transparent`}>
+                                      <div className={`text-3xl bg-gradient-to-br ${category.gradient} bg-clip-text text-transparent`}>
                                         {category.icon}
                                       </div>
                                       <div className="flex-1 min-w-0">

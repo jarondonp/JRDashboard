@@ -23,6 +23,7 @@ export function useCreateGoal() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['goals'] });
       qc.invalidateQueries({ queryKey: ['monthly-stats'] });
+      qc.invalidateQueries({ queryKey: ['areaDashboard'] });
     },
   });
 }
@@ -34,6 +35,7 @@ export function useUpdateGoal() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['goals'] });
       qc.invalidateQueries({ queryKey: ['monthly-stats'] });
+      qc.invalidateQueries({ queryKey: ['areaDashboard'] });
     },
   });
 }
@@ -45,6 +47,7 @@ export function useDeleteGoal() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['goals'] });
       qc.invalidateQueries({ queryKey: ['monthly-stats'] });
+      qc.invalidateQueries({ queryKey: ['areaDashboard'] });
     },
   });
 }

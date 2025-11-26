@@ -23,6 +23,7 @@ export function useCreateDocument() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['documents'] });
       qc.invalidateQueries({ queryKey: ['monthly-stats'] });
+      qc.invalidateQueries({ queryKey: ['areaDashboard'] });
     },
   });
 }
@@ -34,6 +35,7 @@ export function useUpdateDocument() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['documents'] });
       qc.invalidateQueries({ queryKey: ['monthly-stats'] });
+      qc.invalidateQueries({ queryKey: ['areaDashboard'] });
     },
   });
 }
@@ -45,6 +47,7 @@ export function useDeleteDocument() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['documents'] });
       qc.invalidateQueries({ queryKey: ['monthly-stats'] });
+      qc.invalidateQueries({ queryKey: ['areaDashboard'] });
     },
   });
 }

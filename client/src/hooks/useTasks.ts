@@ -24,6 +24,7 @@ export function useCreateTask() {
       qc.invalidateQueries({ queryKey: ['tasks'] });
       qc.invalidateQueries({ queryKey: ['goals'] });
       qc.invalidateQueries({ queryKey: ['monthly-stats'] });
+      qc.invalidateQueries({ queryKey: ['areaDashboard'] });
     },
   });
 }
@@ -36,6 +37,7 @@ export function useUpdateTask() {
       qc.invalidateQueries({ queryKey: ['tasks'] });
       qc.invalidateQueries({ queryKey: ['goals'] });
       qc.invalidateQueries({ queryKey: ['monthly-stats'] });
+      qc.invalidateQueries({ queryKey: ['areaDashboard'] });
     },
   });
 }
@@ -48,6 +50,7 @@ export function useDeleteTask() {
       qc.invalidateQueries({ queryKey: ['tasks'] });
       qc.invalidateQueries({ queryKey: ['goals'] });
       qc.invalidateQueries({ queryKey: ['monthly-stats'] });
+      qc.invalidateQueries({ queryKey: ['areaDashboard'] });
     },
   });
 }

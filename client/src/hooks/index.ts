@@ -5,3 +5,5 @@ export * from './useProgress';
 export * from './useDocuments';
 export * from './useReports';
 export * from './useStats';
+export * from './useCategoryDashboards';
+export * from './usePanelScopeSelection';

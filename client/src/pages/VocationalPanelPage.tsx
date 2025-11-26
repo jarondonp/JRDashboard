@@ -1,10 +1,16 @@
 import React from 'react';
-import { useAreas } from '../hooks';
-import VocationalPanel from './panels/VocationalPanel';
 import { motion } from 'framer-motion';
+import VocationalPanel from './panels/VocationalPanel';
+import { useCategoryDashboards } from '../hooks';
+import { AREA_CATEGORIES } from '../constants/areaCategories';
 
 const VocationalPanelPage: React.FC = () => {
-  const { data: areas, isLoading } = useAreas();
+  const {
+    isLoading,
+    dashboards,
+    aggregatedDashboard,
+    subtitle,
+  } = useCategoryDashboards('vocational');
 
   if (isLoading) {
     return (
@@ -18,12 +24,7 @@ const VocationalPanelPage: React.FC = () => {
     );
   }
 
-  const identityKeywords = ['vocational', 'vocacional', 'identidad', 'propósito', 'proposito', 'existencial', 'identity', 'purpose', 'razon de ser', 'razón'];
-  const matchingAreas = areas?.filter((a: any) =>
-    identityKeywords.some(keyword => a.name.toLowerCase().includes(keyword))
-  ) || [];
-
-  if (matchingAreas.length === 0) {
+  if (!dashboards.length) {
     return (
       <div className="text-center py-12">
         <p className="text-gray-600">No se encontró ningún área relacionada con identidad y propósito</p>
@@ -31,21 +32,12 @@ const VocationalPanelPage: React.FC = () => {
     );
   }
 
-  const primaryArea = matchingAreas[0];
-  
-  // Generar subtítulo con áreas monitoreadas
-  const areaNames = matchingAreas.map((a: any) => a.name).join(', ');
-  const subtitle = matchingAreas.length === 1 
-    ? `📊 ${matchingAreas.length} área monitoreada: ${areaNames}`
-    : `📊 ${matchingAreas.length} áreas monitoreadas: ${areaNames.length > 60 ? areaNames.substring(0, 60) + '...' : areaNames}`;
-
   return (
     <div>
       <VocationalPanel
-        areaId={primaryArea.id}
-        areaName="Panel de Identidad y Propósito"
-        color="#9C27B0"
-        icon="🌟"
+        category={AREA_CATEGORIES.vocational}
+        dashboards={dashboards}
+        aggregatedDashboard={aggregatedDashboard}
         subtitle={subtitle}
       />
     </div>

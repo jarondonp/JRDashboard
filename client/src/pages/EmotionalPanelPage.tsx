@@ -1,10 +1,16 @@
 import React from 'react';
-import { useAreas } from '../hooks';
-import EmotionalPanel from './panels/EmotionalPanel';
 import { motion } from 'framer-motion';
+import EmotionalPanel from './panels/EmotionalPanel';
+import { useCategoryDashboards } from '../hooks';
+import { AREA_CATEGORIES } from '../constants/areaCategories';
 
 const EmotionalPanelPage: React.FC = () => {
-  const { data: areas, isLoading } = useAreas();
+  const {
+    isLoading,
+    dashboards,
+    aggregatedDashboard,
+    subtitle,
+  } = useCategoryDashboards('emotional');
 
   if (isLoading) {
     return (
@@ -18,13 +24,7 @@ const EmotionalPanelPage: React.FC = () => {
     );
   }
 
-  // Find emotional areas based on keywords
-  const emotionalKeywords = ['emotional', 'emocional', 'emocion', 'emoción', 'salud', 'health', 'mental', 'bienestar', 'wellness', 'estado de animo', 'mood'];
-  const matchingAreas = areas?.filter((a: any) =>
-    emotionalKeywords.some(keyword => a.name.toLowerCase().includes(keyword))
-  ) || [];
-
-  if (matchingAreas.length === 0) {
+  if (!dashboards.length) {
     return (
       <div className="text-center py-12">
         <p className="text-gray-600">No se encontró ningún área relacionada con bienestar emocional</p>
@@ -32,22 +32,12 @@ const EmotionalPanelPage: React.FC = () => {
     );
   }
 
-  // Usar la primera área encontrada para los datos
-  const primaryArea = matchingAreas[0];
-  
-  // Generar subtítulo con áreas monitoreadas
-  const areaNames = matchingAreas.map((a: any) => a.name).join(', ');
-  const subtitle = matchingAreas.length === 1 
-    ? `📊 ${matchingAreas.length} área monitoreada: ${areaNames}`
-    : `📊 ${matchingAreas.length} áreas monitoreadas: ${areaNames.length > 60 ? areaNames.substring(0, 60) + '...' : areaNames}`;
-
   return (
     <div>
       <EmotionalPanel
-        areaId={primaryArea.id}
-        areaName="Panel de Salud y Bienestar"
-        color="#4CAF50"
-        icon="❤️"
+        category={AREA_CATEGORIES.emotional}
+        dashboards={dashboards}
+        aggregatedDashboard={aggregatedDashboard}
         subtitle={subtitle}
       />
     </div>

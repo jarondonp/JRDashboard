@@ -1,12 +1,14 @@
 import React from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAreas } from '../hooks/useAreas';
+import { useCategoryDashboards } from '../hooks/useCategoryDashboards';
 import EmotionalPanel from './panels/EmotionalPanel';
 import VocationalPanel from './panels/VocationalPanel';
 import FinancialPanel from './panels/FinancialPanel';
 import MigrationPanel from './panels/MigrationPanel';
 import ScholarshipsPanel from './panels/ScholarshipsPanel';
 import CommercialPanel from './panels/CommercialPanel';
+import { AREA_CATEGORIES } from '../constants/areaCategories';
 
 // Mapping de áreas a tipos de paneles y iconos
 const AREA_PANEL_MAPPING: Record<string, {
@@ -83,23 +85,54 @@ const AreaPanelPage: React.FC = () => {
   // Detectar el tipo de panel basado en el nombre del área
   const areaNameLower = area.name.toLowerCase();
   const panelConfig = AREA_PANEL_MAPPING[areaNameLower] || AREA_PANEL_MAPPING['vocational'];
-  const { panelType, icon } = panelConfig;
+  const { panelType } = panelConfig;
 
-  const panelProps = {
-    areaId: area.id,
-    areaName: area.name,
-    color: area.color || '#8b5cf6',
-    icon: icon,
+  const categoryConfig = AREA_CATEGORIES[panelType];
+  const {
+    isLoading: loadingDashboards,
+    dashboards,
+    aggregatedDashboard,
+    subtitle: categorySubtitle,
+  } = useCategoryDashboards(panelType);
+
+  if (loadingDashboards) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="w-8 h-8 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  if (!dashboards.length) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen">
+        <p className="text-gray-600 mb-4">No hay datos disponibles para esta categoría.</p>
+        <button
+          onClick={() => navigate('/areas')}
+          className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
+        >
+          Volver a Áreas
+        </button>
+      </div>
+    );
+  }
+
+  const commonProps = {
+    category: categoryConfig,
+    dashboards,
+    aggregatedDashboard,
+    subtitle: categorySubtitle,
+    initialAreaId: area.id,
   };
 
   return (
     <>
-      {panelType === 'emotional' && <EmotionalPanel {...panelProps} />}
-      {panelType === 'vocational' && <VocationalPanel {...panelProps} />}
-      {panelType === 'financial' && <FinancialPanel {...panelProps} />}
-      {panelType === 'migration' && <MigrationPanel {...panelProps} />}
-      {panelType === 'scholarships' && <ScholarshipsPanel {...panelProps} />}
-      {panelType === 'commercial' && <CommercialPanel {...panelProps} />}
+      {panelType === 'emotional' && <EmotionalPanel {...commonProps} />}
+      {panelType === 'vocational' && <VocationalPanel {...commonProps} />}
+      {panelType === 'financial' && <FinancialPanel {...commonProps} />}
+      {panelType === 'migration' && <MigrationPanel {...commonProps} />}
+      {panelType === 'scholarships' && <ScholarshipsPanel {...commonProps} />}
+      {panelType === 'commercial' && <CommercialPanel {...commonProps} />}
     </>
   );
 };

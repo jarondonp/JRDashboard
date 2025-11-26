@@ -1,10 +1,16 @@
 import React from 'react';
-import { useAreas } from '../hooks';
-import MigrationPanel from './panels/MigrationPanel';
 import { motion } from 'framer-motion';
+import MigrationPanel from './panels/MigrationPanel';
+import { useCategoryDashboards } from '../hooks';
+import { AREA_CATEGORIES } from '../constants/areaCategories';
 
 const MigrationPanelPage: React.FC = () => {
-  const { data: areas, isLoading } = useAreas();
+  const {
+    isLoading,
+    dashboards,
+    aggregatedDashboard,
+    subtitle,
+  } = useCategoryDashboards('migration');
 
   if (isLoading) {
     return (
@@ -18,12 +24,7 @@ const MigrationPanelPage: React.FC = () => {
     );
   }
 
-  const migrationKeywords = ['migration', 'migracion', 'migración', 'visa', 'viaje', 'relocation', 'trámite', 'tramite', 'emigrar', 'emigración'];
-  const matchingAreas = areas?.filter((a: any) =>
-    migrationKeywords.some(keyword => a.name.toLowerCase().includes(keyword))
-  ) || [];
-
-  if (matchingAreas.length === 0) {
+  if (!dashboards.length) {
     return (
       <div className="text-center py-12">
         <p className="text-gray-600">No se encontró ningún área relacionada con migración</p>
@@ -31,21 +32,12 @@ const MigrationPanelPage: React.FC = () => {
     );
   }
 
-  const primaryArea = matchingAreas[0];
-  
-  // Generar subtítulo con áreas monitoreadas
-  const areaNames = matchingAreas.map((a: any) => a.name).join(', ');
-  const subtitle = matchingAreas.length === 1 
-    ? `📊 ${matchingAreas.length} área monitoreada: ${areaNames}`
-    : `📊 ${matchingAreas.length} áreas monitoreadas: ${areaNames.length > 60 ? areaNames.substring(0, 60) + '...' : areaNames}`;
-
   return (
     <div>
       <MigrationPanel
-        areaId={primaryArea.id}
-        areaName="Panel de Migración y Trámites"
-        color="#2196F3"
-        icon="✈️"
+        category={AREA_CATEGORIES.migration}
+        dashboards={dashboards}
+        aggregatedDashboard={aggregatedDashboard}
         subtitle={subtitle}
       />
     </div>
