@@ -177,8 +177,8 @@ function DocumentsPage() {
       {/* Documents Grid */}
       <div className="max-w-7xl mx-auto px-8 py-8">
         {documents && documents.length > 0 ? (
-          <motion.div 
-            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
+          <motion.div
+            className="grid gap-6 grid-cols-[repeat(auto-fit,minmax(300px,_1fr))] auto-rows-[1fr]"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.2 }}
@@ -192,7 +192,7 @@ function DocumentsPage() {
                   exit={{ opacity: 0, scale: 0.9 }}
                   transition={{ delay: index * 0.05 }}
                 >
-                  <Card hover>
+                      <Card hover className="h-full" minHeightClass="min-h-[230px]">
                     <CardHeader>
                       <div className="flex justify-between items-start">
                         <h3 className="text-lg font-semibold text-gray-800 flex-1">{doc.title}</h3>

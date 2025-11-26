@@ -1,7 +1,16 @@
 import { useState, useMemo, type FormEvent } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { useTasks, useCreateTask, useUpdateTask, useDeleteTask, useAreas, useGoals, useProgressLogs } from '../hooks'
-import { Button, Modal, ModalFooter, Card, CardHeader, CardBody, useToast } from '../components'
+import {
+  useTasks,
+  useCreateTask,
+  useUpdateTask,
+  useDeleteTask,
+  useAreas,
+  useGoals,
+  useProgressLogs,
+  useCardLayout,
+} from '../hooks'
+import { Button, Modal, ModalFooter, Card, CardHeader, CardBody, useToast, CardLayoutToolbar } from '../components'
 import type { Task } from '../services/tasksApi'
 
 interface TaskFormData {
@@ -76,6 +85,9 @@ function TasksPage() {
     tags: []
   })
   const [tagInput, setTagInput] = useState('')
+  const [searchTerm, setSearchTerm] = useState('')
+  const [sortBy, setSortBy] = useState<'progress' | 'due_date' | 'title'>('progress')
+  const { density, setDensity } = useCardLayout('tasks')
 
   const handleSubmit = async (e?: FormEvent) => {
     e?.preventDefault()
@@ -187,6 +199,46 @@ function TasksPage() {
 
   const filteredGoals = goals?.filter(g => g.area_id === formData.area_id) || []
 
+  const filteredTasksList = useMemo(() => {
+    if (!tasks) return []
+    const normalizedSearch = searchTerm.trim().toLowerCase()
+    if (!normalizedSearch) return [...tasks]
+
+    return tasks.filter((task) => {
+      const title = task.title.toLowerCase()
+      const description = (task.description || '').toLowerCase()
+      const status = task.status.toLowerCase()
+      const areaName = getAreaName(task.area_id).toLowerCase()
+      const goalTitle = task.goal_id ? (getGoalTitle(task.goal_id) || '').toLowerCase() : ''
+      const tags = (task.tags || []).join(' ').toLowerCase()
+
+      return [title, description, status, areaName, goalTitle, tags].some((value) =>
+        value.includes(normalizedSearch),
+      )
+    })
+  }, [tasks, searchTerm, areas, goals])
+
+  const sortedTasksList = useMemo(() => {
+    return [...filteredTasksList].sort((a, b) => {
+      if (sortBy === 'title') {
+        return a.title.localeCompare(b.title)
+      }
+      if (sortBy === 'due_date') {
+        const aDate = a.due_date ? new Date(a.due_date).getTime() : Number.POSITIVE_INFINITY
+        const bDate = b.due_date ? new Date(b.due_date).getTime() : Number.POSITIVE_INFINITY
+        return aDate - bDate
+      }
+      const aProgress = a.progress_percentage ?? 0
+      const bProgress = b.progress_percentage ?? 0
+      return bProgress - aProgress
+    })
+  }, [filteredTasksList, sortBy])
+
+  const gridClass =
+    density === 'compact'
+      ? 'grid gap-4 grid-cols-[repeat(auto-fit,minmax(260px,_1fr))] auto-rows-[1fr]'
+      : 'grid gap-6 grid-cols-[repeat(auto-fit,minmax(300px,_1fr))] auto-rows-[1fr]'
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 p-8">
@@ -234,17 +286,31 @@ function TasksPage() {
 
       {/* Tasks Grid */}
       <div className="max-w-7xl mx-auto px-8 py-8">
-        {tasks && tasks.length > 0 ? (
-          <motion.div 
-            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
+        <CardLayoutToolbar
+          searchValue={searchTerm}
+          onSearchChange={setSearchTerm}
+          searchPlaceholder="Buscar por título, área, meta o tag"
+          sortOptions={[
+            { value: 'progress', label: 'Ordenar por progreso' },
+            { value: 'due_date', label: 'Ordenar por fecha límite' },
+            { value: 'title', label: 'Ordenar alfabéticamente' },
+          ]}
+          sortValue={sortBy}
+          onSortChange={(value) => setSortBy(value as 'progress' | 'due_date' | 'title')}
+          density={density}
+          onDensityChange={setDensity}
+        />
+        {sortedTasksList.length > 0 ? (
+          <motion.div
+            className={`${gridClass} mt-6`}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.2 }}
           >
             <AnimatePresence>
-              {tasks.map((task, index) => {
+              {sortedTasksList.map((task, index) => {
                 const taskProgress = task.progress_percentage
-                const latestLog = latestLogsByTask[task.id]
+                const latestLog = latestLogsByTask[task.id!]
                 return (
                   <motion.div
                     key={task.id}
@@ -253,7 +319,7 @@ function TasksPage() {
                     exit={{ opacity: 0, scale: 0.9 }}
                     transition={{ delay: index * 0.05 }}
                   >
-                    <Card hover>
+                    <Card hover className="h-full" minHeightClass="min-h-[260px]">
                       <CardHeader>
                         <div className="flex justify-between items-start">
                           <h3 className="text-lg font-semibold text-gray-800 flex-1">{task.title}</h3>
@@ -265,7 +331,7 @@ function TasksPage() {
                               ✏️
                             </button>
                             <button
-                              onClick={() => handleDelete(task.id)}
+                              onClick={() => handleDelete(task.id!)}
                               className="text-red-600 hover:text-red-800 transition-colors"
                             >
                               🗑️
@@ -298,7 +364,7 @@ function TasksPage() {
                             ))}
                           </div>
 
-                          {taskProgress !== null && taskProgress !== undefined && (
+                          {typeof taskProgress === 'number' && (
                             <div className="mt-4">
                               <div className="flex justify-between text-xs text-gray-600 mb-1">
                                 <span>Progreso</span>
@@ -344,9 +410,13 @@ function TasksPage() {
             animate={{ opacity: 1 }}
             className="text-center py-16"
           >
-            <p className="text-gray-500 text-lg">No hay tareas registradas</p>
+            <p className="text-gray-500 text-lg">
+              {tasks && tasks.length > 0
+                ? 'No se encontraron tareas con estos filtros'
+                : 'No hay tareas registradas'}
+            </p>
             <Button variant="primary" onClick={() => setShowModal(true)} className="mt-4">
-              Crear primera tarea
+              Crear nueva tarea
             </Button>
           </motion.div>
         )}

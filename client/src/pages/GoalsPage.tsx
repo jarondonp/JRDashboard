@@ -1,7 +1,16 @@
 import { useState, useMemo, type FormEvent } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { useGoals, useCreateGoal, useUpdateGoal, useDeleteGoal, useAreas, useTasks, useProgressLogs } from '../hooks'
-import { Button, Modal, ModalFooter, Card, CardHeader, CardBody, useToast } from '../components'
+import {
+  useGoals,
+  useCreateGoal,
+  useUpdateGoal,
+  useDeleteGoal,
+  useAreas,
+  useTasks,
+  useProgressLogs,
+  useCardLayout,
+} from '../hooks'
+import { Button, Modal, ModalFooter, Card, CardHeader, CardBody, useToast, CardLayoutToolbar } from '../components'
 import type { Goal } from '../services/goalsApi'
 
 interface GoalFormData {
@@ -39,6 +48,9 @@ function GoalsPage() {
     priority: 'media',
     expected_outcome: ''
   })
+  const [searchTerm, setSearchTerm] = useState('')
+  const [sortBy, setSortBy] = useState<'progress' | 'due_date' | 'title'>('progress')
+  const { density, setDensity } = useCardLayout('goals')
 
   const handleSubmit = async (e?: FormEvent) => {
     e?.preventDefault()
@@ -215,6 +227,44 @@ function GoalsPage() {
     ) as Record<string, { title: string; date?: string; progress?: number; taskTitle?: string }>
   }, [progressLogs, taskLookup])
 
+  const filteredGoals = useMemo(() => {
+    if (!goals) return []
+    const normalizedSearch = searchTerm.trim().toLowerCase()
+    if (!normalizedSearch) return [...goals]
+
+    return goals.filter((goal) => {
+      const title = goal.title.toLowerCase()
+      const description = (goal.description || '').toLowerCase()
+      const areaName = getAreaName(goal.area_id).toLowerCase()
+      return (
+        title.includes(normalizedSearch) ||
+        description.includes(normalizedSearch) ||
+        areaName.includes(normalizedSearch)
+      )
+    })
+  }, [goals, searchTerm, areas])
+
+  const sortedGoals = useMemo(() => {
+    return [...filteredGoals].sort((a, b) => {
+      if (sortBy === 'title') {
+        return a.title.localeCompare(b.title)
+      }
+      if (sortBy === 'due_date') {
+        const aDate = a.due_date ? new Date(a.due_date).getTime() : Number.POSITIVE_INFINITY
+        const bDate = b.due_date ? new Date(b.due_date).getTime() : Number.POSITIVE_INFINITY
+        return aDate - bDate
+      }
+      const aProgress = a.computed_progress ?? 0
+      const bProgress = b.computed_progress ?? 0
+      return bProgress - aProgress
+    })
+  }, [filteredGoals, sortBy])
+
+  const gridClass =
+    density === 'compact'
+      ? 'grid gap-4 grid-cols-[repeat(auto-fit,minmax(260px,_1fr))] auto-rows-[1fr]'
+      : 'grid gap-6 grid-cols-[repeat(auto-fit,minmax(300px,_1fr))] auto-rows-[1fr]'
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 p-8">
@@ -262,17 +312,32 @@ function GoalsPage() {
 
       {/* Goals Grid */}
       <div className="max-w-7xl mx-auto px-8 py-8">
-        {goals && goals.length > 0 ? (
-          <motion.div 
-            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
+        <CardLayoutToolbar
+          searchValue={searchTerm}
+          onSearchChange={setSearchTerm}
+          searchPlaceholder="Buscar por título, área o descripción"
+          sortOptions={[
+            { value: 'progress', label: 'Ordenar por progreso' },
+            { value: 'due_date', label: 'Ordenar por fecha límite' },
+            { value: 'title', label: 'Ordenar alfabéticamente' },
+          ]}
+          sortValue={sortBy}
+          onSortChange={(value) => setSortBy(value as 'progress' | 'due_date' | 'title')}
+          density={density}
+          onDensityChange={setDensity}
+        />
+
+        {sortedGoals.length > 0 ? (
+          <motion.div
+            className={`${gridClass} mt-6`}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.2 }}
           >
             <AnimatePresence>
-              {goals.map((goal, index) => {
-                const latestUpdate = latestUpdatesByGoal[goal.id]
-                const goalStats = goalTaskStats[goal.id]
+              {sortedGoals.map((goal, index) => {
+                const latestUpdate = latestUpdatesByGoal[goal.id!]
+                const goalStats = goalTaskStats[goal.id!]
                 return (
                   <motion.div
                     key={goal.id}
@@ -281,96 +346,96 @@ function GoalsPage() {
                     exit={{ opacity: 0, scale: 0.9 }}
                     transition={{ delay: index * 0.05 }}
                   >
-                  <Card hover>
-                    <CardHeader>
-                      <div className="flex justify-between items-start">
-                        <h3 className="text-lg font-semibold text-gray-800 flex-1">{goal.title}</h3>
-                        <div className="flex gap-2 ml-2">
-                          <button
-                            onClick={() => handleEdit(goal)}
-                            className="text-indigo-600 hover:text-indigo-800 transition-colors"
-                          >
-                            ✏️
-                          </button>
-                          <button
-                            onClick={() => handleDelete(goal.id)}
-                            className="text-red-600 hover:text-red-800 transition-colors"
-                          >
-                            🗑️
-                          </button>
-                        </div>
-                      </div>
-                    </CardHeader>
-                    <CardBody>
-                      <div className="space-y-3">
-                        <p className="text-sm text-gray-600">
-                          <strong>Área:</strong> {getAreaName(goal.area_id)}
-                        </p>
-                        {goal.description && (
-                          <p className="text-sm text-gray-700">{goal.description}</p>
-                        )}
-                        
-                        <div className="flex flex-wrap gap-2">
-                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(goal.status)}`}>
-                            {goal.status}
-                          </span>
-                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${getPriorityColor(goal.priority)}`}>
-                            {goal.priority}
-                          </span>
-                          {goal.goal_type && (
-                            <span className="px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
-                              {goal.goal_type}
-                            </span>
-                          )}
-                        </div>
-
-                        {goal.computed_progress !== null && goal.computed_progress !== undefined && (
-                          <div className="mt-4">
-                            <div className="flex justify-between text-xs text-gray-600 mb-1">
-                              <span>Progreso</span>
-                              <span className="font-semibold">{goal.computed_progress}%</span>
-                            </div>
-                            <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
-                              <motion.div
-                                initial={{ width: 0 }}
-                                animate={{ width: `${goal.computed_progress}%` }}
-                                transition={{ duration: 0.5, delay: index * 0.05 }}
-                                className="h-full bg-gradient-to-r from-indigo-500 to-purple-500 rounded-full"
-                              />
-                            </div>
+                    <Card hover className="h-full" minHeightClass="min-h-[260px]">
+                      <CardHeader>
+                        <div className="flex justify-between items-start">
+                          <h3 className="text-lg font-semibold text-gray-800 flex-1">{goal.title}</h3>
+                          <div className="flex gap-2 ml-2">
+                            <button
+                              onClick={() => handleEdit(goal)}
+                              className="text-indigo-600 hover:text-indigo-800 transition-colors"
+                            >
+                              ✏️
+                            </button>
+                            <button
+                              onClick={() => handleDelete(goal.id)}
+                              className="text-red-600 hover:text-red-800 transition-colors"
+                            >
+                              🗑️
+                            </button>
                           </div>
-                        )}
-
-                        <div className="text-xs text-gray-500 space-y-1 pt-2 border-t">
-                          {latestUpdate ? (
-                            <>
-                              <p>
-                                Último avance: {formatDate(latestUpdate.date)}
-                                {latestUpdate.taskTitle ? ` · ${latestUpdate.taskTitle}` : ''}
-                              </p>
-                              {typeof latestUpdate.progress === 'number' && (
-                                <p>Progreso registrado: {latestUpdate.progress}%</p>
-                              )}
-                              <p className="text-gray-600 italic">"{latestUpdate.title}"</p>
-                            </>
-                          ) : (
-                            <p className="text-gray-400">Aún no hay avances registrados para esta meta.</p>
-                          )}
-                          {goalStats ? (
-                            <p>
-                              {goalStats.completed}/{goalStats.total} tareas completadas ·{' '}
-                              {goalStats.withoutProgress} sin avance
-                            </p>
-                          ) : (
-                            <p>No hay tareas asociadas a esta meta.</p>
-                          )}
-                          {goal.start_date && <p>Inicio: {goal.start_date}</p>}
-                          {goal.due_date && <p>Vence: {goal.due_date}</p>}
                         </div>
-                      </div>
-                    </CardBody>
-                  </Card>
-                </motion.div>
+                      </CardHeader>
+                      <CardBody>
+                        <div className="space-y-3">
+                          <p className="text-sm text-gray-600">
+                            <strong>Área:</strong> {getAreaName(goal.area_id)}
+                          </p>
+                          {goal.description && (
+                            <p className="text-sm text-gray-700">{goal.description}</p>
+                          )}
+
+                          <div className="flex flex-wrap gap-2">
+                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(goal.status)}`}>
+                              {goal.status}
+                            </span>
+                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${getPriorityColor(goal.priority)}`}>
+                              {goal.priority}
+                            </span>
+                            {goal.goal_type && (
+                              <span className="px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                                {goal.goal_type}
+                              </span>
+                            )}
+                          </div>
+
+                          {typeof goal.computed_progress === 'number' && (
+                            <div className="mt-4">
+                              <div className="flex justify-between text-xs text-gray-600 mb-1">
+                                <span>Progreso</span>
+                                <span className="font-semibold">{goal.computed_progress}%</span>
+                              </div>
+                              <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
+                                <motion.div
+                                  initial={{ width: 0 }}
+                                  animate={{ width: `${goal.computed_progress}%` }}
+                                  transition={{ duration: 0.5, delay: index * 0.05 }}
+                                  className="h-full bg-gradient-to-r from-indigo-500 to-purple-500 rounded-full"
+                                />
+                              </div>
+                            </div>
+                          )}
+
+                          <div className="text-xs text-gray-500 space-y-1 pt-2 border-t">
+                            {latestUpdate ? (
+                              <>
+                                <p>
+                                  Último avance: {formatDate(latestUpdate.date)}
+                                  {latestUpdate.taskTitle ? ` · ${latestUpdate.taskTitle}` : ''}
+                                </p>
+                                {typeof latestUpdate.progress === 'number' && (
+                                  <p>Progreso registrado: {latestUpdate.progress}%</p>
+                                )}
+                                <p className="text-gray-600 italic">"{latestUpdate.title}"</p>
+                              </>
+                            ) : (
+                              <p className="text-gray-400">Aún no hay avances registrados para esta meta.</p>
+                            )}
+                            {goalStats ? (
+                              <p>
+                                {goalStats.completed}/{goalStats.total} tareas completadas ·{' '}
+                                {goalStats.withoutProgress} sin avance
+                              </p>
+                            ) : (
+                              <p>No hay tareas asociadas a esta meta.</p>
+                            )}
+                            {goal.start_date && <p>Inicio: {goal.start_date}</p>}
+                            {goal.due_date && <p>Vence: {goal.due_date}</p>}
+                          </div>
+                        </div>
+                      </CardBody>
+                    </Card>
+                  </motion.div>
                 )
               })}
             </AnimatePresence>
@@ -381,9 +446,13 @@ function GoalsPage() {
             animate={{ opacity: 1 }}
             className="text-center py-16"
           >
-            <p className="text-gray-500 text-lg">No hay metas registradas</p>
+            <p className="text-gray-500 text-lg">
+              {goals && goals.length > 0
+                ? 'No se encontraron metas con estos filtros'
+                : 'No hay metas registradas'}
+            </p>
             <Button variant="primary" onClick={() => setShowModal(true)} className="mt-4">
-              Crear primera meta
+              Crear nueva meta
             </Button>
           </motion.div>
         )}

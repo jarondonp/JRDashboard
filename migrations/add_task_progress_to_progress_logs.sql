@@ -2,6 +2,13 @@
 ALTER TABLE progress_logs
 ADD COLUMN IF NOT EXISTS task_progress INTEGER;
 
+-- Allow optional goal/task links for standalone logs
+ALTER TABLE progress_logs
+ALTER COLUMN goal_id DROP NOT NULL;
+
+ALTER TABLE progress_logs
+ALTER COLUMN task_id DROP NOT NULL;
+
 -- Ensure task_progress stays within the 0-100 range when provided
 DO $$
 BEGIN

@@ -7,3 +7,4 @@ export * from './useReports';
 export * from './useStats';
 export * from './useCategoryDashboards';
 export * from './usePanelScopeSelection';
+export * from './useCardLayout';

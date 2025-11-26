@@ -28,6 +28,44 @@ async function runMigration() {
     `);
     console.log('✓ Progreso actualizado para tareas pendientes');
 
+    // --- Add task_progress column to progress_logs ---
+    await db.execute(sql`
+      ALTER TABLE progress_logs
+      ADD COLUMN IF NOT EXISTS task_progress INTEGER
+    `);
+    console.log('✓ Columna task_progress agregada a progress_logs');
+
+    // Permitir null en goal_id y task_id para logs independientes
+    await db.execute(sql`
+      ALTER TABLE progress_logs
+      ALTER COLUMN goal_id DROP NOT NULL
+    `);
+    console.log('✓ Columna goal_id permite NULL');
+
+    await db.execute(sql`
+      ALTER TABLE progress_logs
+      ALTER COLUMN task_id DROP NOT NULL
+    `);
+    console.log('✓ Columna task_id permite NULL');
+
+    // Asegurar restricción de rango para task_progress
+    await db.execute(sql`
+      DO $$
+      BEGIN
+        IF NOT EXISTS (
+          SELECT 1
+          FROM information_schema.table_constraints
+          WHERE table_name = 'progress_logs'
+            AND constraint_name = 'progress_logs_task_progress_check'
+        ) THEN
+          ALTER TABLE progress_logs
+          ADD CONSTRAINT progress_logs_task_progress_check
+          CHECK (task_progress BETWEEN 0 AND 100);
+        END IF;
+      END $$;
+    `);
+    console.log('✓ Restricción CHECK para task_progress verificada');
+
     console.log('\n¡Migración completada con éxito!');
     process.exit(0);
   } catch (error) {

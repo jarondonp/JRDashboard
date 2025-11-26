@@ -1,7 +1,7 @@
-import { useState, type FormEvent } from 'react'
+import { useMemo, useState, type FormEvent } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { useAreas, useCreateArea, useUpdateArea, useDeleteArea } from '../hooks'
-import { Button, Modal, ModalFooter, Card, CardHeader, CardBody, useToast } from '../components'
+import { useAreas, useCreateArea, useUpdateArea, useDeleteArea, useCardLayout } from '../hooks'
+import { Button, Modal, ModalFooter, Card, CardHeader, CardBody, useToast, CardLayoutToolbar } from '../components'
 import type { Area, AreaInput } from '../services/areasApi'
 
 function AreasPage() {
@@ -20,6 +20,9 @@ function AreasPage() {
     description: '',
     icon: ''
   })
+  const [searchTerm, setSearchTerm] = useState('')
+  const [sortBy, setSortBy] = useState<'name' | 'type'>('name')
+  const { density, setDensity } = useCardLayout('areas')
 
   const handleSubmit = async (e?: FormEvent) => {
     e?.preventDefault()
@@ -73,6 +76,35 @@ function AreasPage() {
     })
   }
 
+  const filteredAreas = useMemo(() => {
+    if (!areas) return []
+    const normalizedSearch = searchTerm.trim().toLowerCase()
+    if (!normalizedSearch) return [...areas]
+    return areas.filter((area) => {
+      const name = area.name.toLowerCase()
+      const description = (area.description || '').toLowerCase()
+      return (
+        name.includes(normalizedSearch) ||
+        description.includes(normalizedSearch) ||
+        area.type.toLowerCase().includes(normalizedSearch)
+      )
+    })
+  }, [areas, searchTerm])
+
+  const sortedAreas = useMemo(() => {
+    return [...filteredAreas].sort((a, b) => {
+      if (sortBy === 'type') {
+        return a.type.localeCompare(b.type)
+      }
+      return a.name.localeCompare(b.name)
+    })
+  }, [filteredAreas, sortBy])
+
+  const gridClass =
+    density === 'compact'
+      ? 'grid gap-4 grid-cols-[repeat(auto-fit,minmax(240px,_1fr))] auto-rows-[1fr]'
+      : 'grid gap-6 grid-cols-[repeat(auto-fit,minmax(280px,_1fr))] auto-rows-[1fr]'
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 p-8">
@@ -120,15 +152,29 @@ function AreasPage() {
 
       {/* Areas Grid */}
       <div className="max-w-7xl mx-auto px-8 py-8">
-        {areas && areas.length > 0 ? (
+        <CardLayoutToolbar
+          searchValue={searchTerm}
+          onSearchChange={setSearchTerm}
+          searchPlaceholder="Buscar por nombre, tipo o descripción"
+          sortOptions={[
+            { value: 'name', label: 'Ordenar por nombre' },
+            { value: 'type', label: 'Ordenar por tipo' },
+          ]}
+          sortValue={sortBy}
+          onSortChange={(value) => setSortBy(value as 'name' | 'type')}
+          density={density}
+          onDensityChange={setDensity}
+        />
+
+        {sortedAreas.length > 0 ? (
           <motion.div 
-            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
+            className={`${gridClass} mt-6`}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.2 }}
           >
             <AnimatePresence>
-              {areas.map((area, index) => (
+              {sortedAreas.map((area, index) => (
                 <motion.div
                   key={area.id}
                   initial={{ opacity: 0, y: 20 }}
@@ -136,7 +182,7 @@ function AreasPage() {
                   exit={{ opacity: 0, scale: 0.9 }}
                   transition={{ delay: index * 0.05 }}
                 >
-                  <Card hover>
+                  <Card hover className="h-full" minHeightClass="min-h-[230px]">
                     <CardHeader>
                       <div className="flex justify-between items-start">
                         <div className="flex items-center gap-2 flex-1">
@@ -183,16 +229,22 @@ function AreasPage() {
             </AnimatePresence>
           </motion.div>
         ) : (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="text-center py-16"
-          >
-            <p className="text-gray-500 text-lg">No hay áreas registradas</p>
-            <Button variant="primary" onClick={() => setShowModal(true)} className="mt-4">
-              Crear primera área
-            </Button>
-          </motion.div>
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="text-center py-16"
+            >
+              <p className="text-gray-500 text-lg">
+                {areas && areas.length > 0
+                  ? 'No se encontraron áreas con esos criterios'
+                  : 'No hay áreas registradas'}
+              </p>
+              <Button variant="primary" onClick={() => setShowModal(true)} className="mt-4">
+                Crear nueva área
+              </Button>
+            </motion.div>
+          </>
         )}
       </div>
 

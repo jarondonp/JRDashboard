@@ -133,7 +133,7 @@ const AllAreasOverviewPage: React.FC = () => {
                 <p className="text-sm text-gray-600 mb-3">
                   Las áreas se agrupan automáticamente según las palabras en su nombre. Usa estas palabras clave al crear áreas:
                 </p>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                <div className="grid gap-3 grid-cols-[repeat(auto-fit,minmax(220px,_1fr))] auto-rows-[1fr]">
                   {Object.entries(AREA_CATEGORIES).map(([key, cat]) => (
                     <div key={key} className="bg-gray-50 rounded-lg p-3">
                       <div className="flex items-center gap-2 mb-1">
@@ -212,7 +212,7 @@ const AllAreasOverviewPage: React.FC = () => {
                   >
                     <div className="mt-4">
                       {hasAreas ? (
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        <div className="grid gap-4 grid-cols-[repeat(auto-fit,minmax(260px,_1fr))] auto-rows-[1fr]">
                           {categoryAreas.map((area: any, idx: number) => {
                             const stats = getAreaStats(area.id);
                             return (
@@ -307,7 +307,7 @@ const AllAreasOverviewPage: React.FC = () => {
                           Puedes acceder a ellas aquí o renombrarlas con palabras clave para categorizarlas automáticamente.
                         </p>
                       </div>
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      <div className="grid gap-4 grid-cols-[repeat(auto-fit,minmax(260px,_1fr))] auto-rows-[1fr]">
                         {filterAreasBySearch(categorizedAreas.other || []).map((area: any, idx: number) => {
                           const stats = getAreaStats(area.id);
                           return (
@@ -319,7 +319,11 @@ const AllAreasOverviewPage: React.FC = () => {
                               className="cursor-pointer"
                               onClick={() => navigate(`/areas/${area.id}/dashboard`)}
                             >
-                              <Card hover>
+                              <Card
+                                hover
+                                className="h-full"
+                                minHeightClass="min-h-[200px]"
+                              >
                                 <CardBody>
                                   <div className="flex items-start gap-3">
                                     <div className="text-3xl">

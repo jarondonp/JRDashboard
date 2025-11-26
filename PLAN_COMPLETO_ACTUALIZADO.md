@@ -3,7 +3,7 @@
 **Proyecto:** Migración completa de React App a PostgreSQL (Neon) con REST API  
 **Stack:** React + Vite + TanStack Query + Express + Drizzle ORM + PostgreSQL  
 **Branch actual:** master  
-**Branch en curso:** master (sin rama activa, seguimiento de fases futuras pendiente)  
+**Branch en curso:** `feature/phase-11-advanced-views` ➜ Fase 11 - Vistas avanzadas y filtros  
 **Fecha:** Noviembre 2025  
 **Última actualización:** Fase 10.5 (seguimiento granular) validada y lista para merge
 
@@ -816,6 +816,12 @@ module.exports = {
 ## ⏳ FASE 11: Vistas Avanzadas y Filtros (Pendiente - 0%)
 
 **Objetivo:** Vistas especializadas para casos de uso específicos
+
+### **11.0 Uniformidad y organización visual**
+- [x] Definir dimensiones consistentes para tarjetas en vistas principales (Áreas, Metas, Tareas, Documentos, Avances).
+- [x] Implementar un sistema de grid responsive con espaciamiento uniforme para evitar “saltos” visuales.
+- [x] Incorporar opciones de ordenamiento y búsqueda contextual para reducir el caos cuando hay muchas tarjetas.
+- [x] Habilitar modos de densidad (compacto vs. cómodo) que el usuario pueda alternar.
 
 ### **11.1 Timeline General**
 - [ ] Crear `TimelinePage.tsx` (`/timeline`)
