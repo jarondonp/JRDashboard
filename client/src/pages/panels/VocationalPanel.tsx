@@ -172,7 +172,7 @@ const VocationalPanel: React.FC<VocationalPanelProps> = ({ areaId, areaName, col
                       <div className="flex-1">
                         <p className="font-semibold text-gray-900">{task.title}</p>
                         <div className="flex gap-2 mt-1">
-                          {task.tags && task.tags.map(tag => (
+                          {task.tags && task.tags.map((tag: string) => (
                             <span key={tag} className="text-xs bg-blue-100 text-blue-800 px-2 py-0.5 rounded">
                               {tag}
                             </span>

@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, type FormEvent } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useGoals, useCreateGoal, useUpdateGoal, useDeleteGoal, useAreas, useTasks, useProgressLogs } from '../hooks'
 import { Button, Modal, ModalFooter, Card, CardHeader, CardBody, useToast } from '../components'
@@ -40,8 +40,8 @@ function GoalsPage() {
     expected_outcome: ''
   })
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
+  const handleSubmit = async (e?: FormEvent) => {
+    e?.preventDefault()
     try {
       // Limpiar datos: convertir strings vacíos a null (PostgreSQL requiere null, no undefined)
       const cleanData = {
@@ -528,12 +528,9 @@ function GoalsPage() {
 
           <ModalFooter
             onCancel={resetForm}
-            submitLabel={editingGoal ? 'Actualizar' : 'Crear'}
-            isSubmitting={createMutation.isPending || updateMutation.isPending}
-<<<<<<< Updated upstream
-            submitType="submit"
-=======
->>>>>>> Stashed changes
+            onSubmit={handleSubmit}
+            submitText={editingGoal ? 'Actualizar' : 'Crear'}
+            isLoading={createMutation.isPending || updateMutation.isPending}
           />
         </form>
       </Modal>

@@ -3,14 +3,14 @@ import { apiGet, apiPost, apiPut, apiDelete } from './apiClient';
 export type GoalInput = {
   area_id: string;
   title: string;
-  description?: string;
-  goal_type?: string;
-  start_date?: string;
-  due_date?: string;
+  description?: string | null;
+  goal_type?: string | null;
+  start_date?: string | null;
+  due_date?: string | null;
   status: string;
   priority: string;
-  expected_outcome?: string;
-  computed_progress?: number;
+  expected_outcome?: string | null;
+  computed_progress?: number | null;
 };
 
 export type Goal = GoalInput & {

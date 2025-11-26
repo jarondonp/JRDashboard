@@ -6,7 +6,6 @@ import { AreaPanelHeader, AreaPanelSection, KPICard } from '../../components/Are
 import { useAreaDashboard } from '../../hooks/useAreaDashboard';
 import { useAreas } from '../../hooks/useAreas';
 import { BarChart } from '../../components/charts/BarChart';
-import { LineChart } from '../../components/charts/LineChart';
 
 interface FinancialPanelProps {
   areaId: string;
@@ -159,9 +158,9 @@ const FinancialPanel: React.FC<FinancialPanelProps> = ({ areaId, areaName, color
                   <BarChart
                     data={comparisonData}
                     xKey="name"
-                    yKey="progreso"
-                    title="Progreso por Área Financiera"
-                    color="#10b981"
+                    bars={[
+                      { key: 'progreso', name: 'Progreso', color: '#10b981' }
+                    ]}
                   />
                 </div>
                 <div className="mt-4 p-3 bg-blue-50 border-l-4 border-blue-500 rounded">

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, type FormEvent } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useDocuments, useCreateDocument, useUpdateDocument, useDeleteDocument, useAreas, useGoals } from '../hooks'
 import { Button, Modal, ModalFooter, Card, CardHeader, CardBody, useToast } from '../components'
@@ -35,8 +35,8 @@ function DocumentsPage() {
     review_date: ''
   })
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
+  const handleSubmit = async (e?: FormEvent) => {
+    e?.preventDefault()
     try {
       const submitData = {
         ...formData,
@@ -391,12 +391,9 @@ function DocumentsPage() {
 
           <ModalFooter
             onCancel={resetForm}
-            submitLabel={editingDoc ? 'Actualizar' : 'Crear'}
-            isSubmitting={createMutation.isPending || updateMutation.isPending}
-<<<<<<< Updated upstream
-            submitType="submit"
-=======
->>>>>>> Stashed changes
+            onSubmit={handleSubmit}
+            submitText={editingDoc ? 'Actualizar' : 'Crear'}
+            isLoading={createMutation.isPending || updateMutation.isPending}
           />
         </form>
       </Modal>

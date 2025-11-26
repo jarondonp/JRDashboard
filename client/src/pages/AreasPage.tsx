@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, type FormEvent } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useAreas, useCreateArea, useUpdateArea, useDeleteArea } from '../hooks'
 import { Button, Modal, ModalFooter, Card, CardHeader, CardBody, useToast } from '../components'
@@ -21,8 +21,8 @@ function AreasPage() {
     icon: ''
   })
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
+  const handleSubmit = async (e?: FormEvent) => {
+    e?.preventDefault()
     try {
       if (editingArea) {
         await updateMutation.mutateAsync({ id: editingArea.id, data: formData })
@@ -275,12 +275,9 @@ function AreasPage() {
 
           <ModalFooter
             onCancel={resetForm}
-            submitLabel={editingArea ? 'Actualizar' : 'Crear'}
-            isSubmitting={createMutation.isPending || updateMutation.isPending}
-<<<<<<< Updated upstream
-            submitType="submit"
-=======
->>>>>>> Stashed changes
+            onSubmit={handleSubmit}
+            submitText={editingArea ? 'Actualizar' : 'Crear'}
+            isLoading={createMutation.isPending || updateMutation.isPending}
           />
         </form>
       </Modal>

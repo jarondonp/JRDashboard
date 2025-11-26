@@ -232,10 +232,9 @@ export default function AreaDashboardPage() {
                   data={trendData}
                   xKey="fecha"
                   lines={[
-                    { yKey: 'mood', color: '#8b5cf6', name: 'Mood' },
-                    { yKey: 'impacto', color: '#10b981', name: 'Impacto' }
+                    { key: 'mood', color: '#8b5cf6', name: 'Mood' },
+                    { key: 'impacto', color: '#10b981', name: 'Impacto' }
                   ]}
-                  title="Últimos 7 Registros"
                 />
                 <div className="mt-4 p-3 bg-indigo-50 border-l-4 border-indigo-500 rounded">
                   <p className="text-sm text-indigo-900">

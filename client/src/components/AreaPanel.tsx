@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Card, CardBody, CardHeader } from './Card';
+import { Card, CardBody } from './Card';
 
 export type PanelType = 'emotional' | 'vocational' | 'financial' | 'migration' | 'scholarships' | 'commercial';
 
@@ -110,14 +110,7 @@ const AreaPanelSection: React.FC<{
 );
 
 // Componente contenedor principal
-const AreaPanelContainer: React.FC<AreaPanelProps> = ({
-  areaId,
-  areaName,
-  color,
-  icon,
-  panelType,
-  children
-}) => (
+const AreaPanelContainer: React.FC<AreaPanelProps> = ({ children }) => (
   <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 p-6">
     <div className="max-w-6xl mx-auto">
       {children}

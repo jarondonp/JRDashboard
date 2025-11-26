@@ -1,9 +1,9 @@
 import { useQuery } from '@tanstack/react-query';
-import { getAreaDashboard, getAreaMetrics, AreaDashboardData, AreaMetrics } from '../services/areasDashboardApi';
+import { getAreaDashboard, getAreaMetrics } from '../services/areasDashboardApi';
 
 export function useAreaDashboard(areaId: string) {
   return useQuery({
-    queryKey: ['areaD ashboard', areaId],
+    queryKey: ['areaDashboard', areaId],
     queryFn: () => getAreaDashboard(areaId),
     enabled: !!areaId,
     staleTime: 5 * 60 * 1000,

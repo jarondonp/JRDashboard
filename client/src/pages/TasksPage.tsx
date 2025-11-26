@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, type FormEvent } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useTasks, useCreateTask, useUpdateTask, useDeleteTask, useAreas, useGoals, useProgressLogs } from '../hooks'
 import { Button, Modal, ModalFooter, Card, CardHeader, CardBody, useToast } from '../components'
@@ -77,8 +77,8 @@ function TasksPage() {
   })
   const [tagInput, setTagInput] = useState('')
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
+  const handleSubmit = async (e?: FormEvent) => {
+    e?.preventDefault()
     try {
       const submitData = {
         area_id: formData.area_id,
@@ -517,12 +517,9 @@ function TasksPage() {
 
           <ModalFooter
             onCancel={resetForm}
-            submitLabel={editingTask ? 'Actualizar' : 'Crear'}
-            isSubmitting={createMutation.isPending || updateMutation.isPending}
-<<<<<<< Updated upstream
-            submitType="submit"
-=======
->>>>>>> Stashed changes
+            onSubmit={handleSubmit}
+            submitText={editingTask ? 'Actualizar' : 'Crear'}
+            isLoading={createMutation.isPending || updateMutation.isPending}
           />
         </form>
       </Modal>

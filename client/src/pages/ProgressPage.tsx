@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, type FormEvent } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   useProgressLogs,
@@ -48,7 +48,7 @@ function ProgressPage() {
     mood: ''
   })
 
-  const handleSubmit = async (e?: React.FormEvent) => {
+  const handleSubmit = async (e?: FormEvent) => {
     e?.preventDefault()
     try {
       const submitData = {
@@ -477,12 +477,9 @@ function ProgressPage() {
 
           <ModalFooter
             onCancel={resetForm}
-            submitLabel={editingLog ? 'Actualizar' : 'Crear'}
-            isSubmitting={createMutation.isPending || updateMutation.isPending}
-<<<<<<< Updated upstream
-            submitType="submit"
-=======
->>>>>>> Stashed changes
+            onSubmit={handleSubmit}
+            submitText={editingLog ? 'Actualizar' : 'Crear'}
+            isLoading={createMutation.isPending || updateMutation.isPending}
           />
         </form>
       </Modal>

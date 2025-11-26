@@ -8,15 +8,6 @@ import MigrationPanel from './panels/MigrationPanel';
 import ScholarshipsPanel from './panels/ScholarshipsPanel';
 import CommercialPanel from './panels/CommercialPanel';
 
-interface AreaWithPanelType {
-  id: string;
-  name: string;
-  color: string;
-  description?: string;
-  panelType?: 'emotional' | 'vocational' | 'financial' | 'migration' | 'scholarships' | 'commercial';
-  icon?: string;
-}
-
 // Mapping de áreas a tipos de paneles y iconos
 const AREA_PANEL_MAPPING: Record<string, {
   panelType: 'emotional' | 'vocational' | 'financial' | 'migration' | 'scholarships' | 'commercial';

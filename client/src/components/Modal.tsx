@@ -1,4 +1,4 @@
-import { ReactNode, useEffect } from 'react';
+import { ReactNode, useEffect, type FormEvent } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from './Button';
 
@@ -111,53 +111,27 @@ export function Modal({ isOpen, onClose, title, children, footer, size = 'md' }:
 // Default footer with Cancel and Submit buttons
 interface ModalFooterProps {
   onCancel: () => void;
-  onSubmit?: () => void;
-  submitLabel?: string;
-  cancelLabel?: string;
-  isSubmitting?: boolean;
-<<<<<<< Updated upstream
-  submitType?: 'button' | 'submit';
-=======
-  submitType?: 'submit' | 'button';
->>>>>>> Stashed changes
+  onSubmit: (e?: FormEvent) => void | Promise<void>;
+  submitText?: string;
+  cancelText?: string;
+  isLoading?: boolean;
 }
 
 export function ModalFooter({
   onCancel,
   onSubmit,
-  submitLabel = 'Guardar',
-  cancelLabel = 'Cancelar',
-  isSubmitting = false,
-<<<<<<< Updated upstream
-  submitType = 'button'
-=======
-  submitType = 'submit',
->>>>>>> Stashed changes
+  submitText = 'Guardar',
+  cancelText = 'Cancelar',
+  isLoading = false,
 }: ModalFooterProps) {
-  const isButton = submitType === 'button';
-
   return (
-    <>
-      <Button variant="ghost" onClick={onCancel} disabled={isSubmitting} type="button">
-        {cancelLabel}
+    <div className="flex justify-end space-x-3 mt-6">
+      <Button variant="ghost" onClick={onCancel} disabled={isLoading}>
+        {cancelText}
       </Button>
-<<<<<<< Updated upstream
-      <Button 
-        variant="primary" 
-        onClick={submitType === 'button' ? onSubmit : undefined}
-        type={submitType}
-        isLoading={isSubmitting}
-=======
-      <Button
-        variant="primary"
-        type={submitType}
-        onClick={isButton ? onSubmit : undefined}
-        isLoading={isSubmitting}
-        disabled={isSubmitting}
->>>>>>> Stashed changes
-      >
-        {submitLabel}
+      <Button variant="primary" onClick={onSubmit} isLoading={isLoading} type="button">
+        {submitText}
       </Button>
-    </>
+    </div>
   );
 }

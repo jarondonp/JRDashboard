@@ -2,13 +2,13 @@ import { apiGet, apiPost, apiPut, apiDelete } from './apiClient';
 
 export type TaskInput = {
   area_id: string;
-  goal_id?: string;
+  goal_id?: string | null;
   title: string;
-  description?: string;
+  description?: string | null;
   status: string;
-  due_date?: string;
-  estimated_effort?: number;
-  progress_percentage?: number;
+  due_date?: string | null;
+  estimated_effort?: number | null;
+  progress_percentage?: number | null;
   tags?: string[];
 };
 
