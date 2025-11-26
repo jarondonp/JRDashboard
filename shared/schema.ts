@@ -82,6 +82,7 @@ export const progress_logs = pgTable('progress_logs', {
   area_id: uuid('area_id').notNull(),
   goal_id: uuid('goal_id'),
   task_id: uuid('task_id'),
+  task_progress: integer('task_progress'),
   title: text('title').notNull(),
   note: text('note'),
   date: date('date').notNull(),
@@ -92,8 +93,9 @@ export const progress_logs = pgTable('progress_logs', {
 });
 export const insertProgressLogSchema = z.object({
   area_id: z.string(),
-  goal_id: z.string().optional(),
-  task_id: z.string().optional(),
+  goal_id: z.string().nullable().optional(),
+  task_id: z.string().nullable().optional(),
+  task_progress: z.number().min(0).max(100).optional(),
   title: z.string(),
   note: z.string().optional(),
   date: z.string(),

@@ -277,7 +277,10 @@ function AreasPage() {
             onCancel={resetForm}
             submitLabel={editingArea ? 'Actualizar' : 'Crear'}
             isSubmitting={createMutation.isPending || updateMutation.isPending}
+<<<<<<< Updated upstream
             submitType="submit"
+=======
+>>>>>>> Stashed changes
           />
         </form>
       </Modal>

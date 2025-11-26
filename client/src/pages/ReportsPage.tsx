@@ -84,8 +84,6 @@ export default function ReportsPage() {
                 <KPICard
                   title="Tasa de Cumplimiento"
                   value={`${executiveReport.kpis.completionRate}%`}
-                  trend="up"
-                  trendValue={5}
                   color="green"
                 />
                 <KPICard
@@ -101,19 +99,21 @@ export default function ReportsPage() {
                 <KPICard
                   title="Horas Estimadas"
                   value={`${executiveReport.kpis.totalHours}h`}
-                  color="orange"
+                  color="yellow"
                 />
                 <KPICard
                   title="Mood Promedio"
                   value={executiveReport.kpis.avgMood.toFixed(1)}
-                  trend={executiveReport.kpis.avgMood >= 3.5 ? 'up' : 'down'}
-                  trendValue={Math.round(((executiveReport.kpis.avgMood - 3) / 3) * 100)}
+                  trend={{
+                    value: Math.abs(Math.round(((executiveReport.kpis.avgMood - 3) / 3) * 100)),
+                    isPositive: executiveReport.kpis.avgMood >= 3.5,
+                  }}
                   color={executiveReport.kpis.avgMood >= 3.5 ? 'green' : 'yellow'}
                 />
                 <KPICard
                   title="Avances del Mes"
                   value={executiveReport.topAchievements.length.toString()}
-                  color="indigo"
+                  color="purple"
                 />
               </div>
 
@@ -124,9 +124,10 @@ export default function ReportsPage() {
                   <h3 className="text-lg font-semibold mb-4 text-gray-800">Progreso Diario (últimos 30 días)</h3>
                   <LineChart
                     data={executiveReport.dailyProgress}
+                    xKey="date"
                     lines={[
-                      { dataKey: 'avances', name: 'Avances', color: '#8b5cf6' },
-                      { dataKey: 'mood', name: 'Mood', color: '#10b981' }
+                      { key: 'avances', name: 'Avances', color: '#8b5cf6' },
+                      { key: 'mood', name: 'Mood', color: '#10b981' }
                     ]}
                     height={300}
                   />
@@ -139,7 +140,7 @@ export default function ReportsPage() {
                     data={executiveReport.areaPerformance}
                     xKey="area"
                     bars={[
-                      { dataKey: 'progreso', name: 'Progreso %', color: '#3b82f6' }
+                      { key: 'progreso', name: 'Progreso %', color: '#3b82f6' }
                     ]}
                     height={300}
                   />
@@ -210,9 +211,8 @@ export default function ReportsPage() {
                   <RadarChart
                     data={areaReport.radarData}
                     dataKey="progreso"
-                    categoryKey="area"
+                    color="#8b5cf6"
                     height={400}
-                    fill="#8b5cf6"
                   />
                 </div>
 
@@ -226,9 +226,9 @@ export default function ReportsPage() {
                     data={areaReport.tasksByArea}
                     xKey="area"
                     bars={[
-                      { dataKey: 'completadas', name: 'Completadas', color: '#10b981' },
-                      { dataKey: 'en_progreso', name: 'En Progreso', color: '#f59e0b' },
-                      { dataKey: 'pendientes', name: 'Pendientes', color: '#ef4444' }
+                      { key: 'completadas', name: 'Completadas', color: '#10b981' },
+                      { key: 'en_progreso', name: 'En Progreso', color: '#f59e0b' },
+                      { key: 'pendientes', name: 'Pendientes', color: '#ef4444' }
                     ]}
                     height={400}
                   />
@@ -286,19 +286,17 @@ export default function ReportsPage() {
                 <KPICard
                   title="Mood Promedio"
                   value={moodReport.stats.avgMood.toFixed(1)}
-                  trend={moodReport.stats.avgMood >= 3.5 ? 'up' : 'down'}
                   color={moodReport.stats.avgMood >= 4 ? 'green' : moodReport.stats.avgMood >= 3 ? 'yellow' : 'red'}
                 />
                 <KPICard
-                  title="Mejor Día"
-                  value={moodReport.stats.bestDay.date}
-                  subtitle={`Mood: ${moodReport.stats.bestDay.mood}`}
+                  title={`Mejor Día (${moodReport.stats.bestDay.date})`}
+                  value={`${moodReport.stats.bestDay.mood}/5`}
                   color="green"
                 />
                 <KPICard
                   title="Total Registros"
                   value={moodReport.stats.totalLogs.toString()}
-                  color="indigo"
+                  color="purple"
                 />
               </div>
 
@@ -312,9 +310,10 @@ export default function ReportsPage() {
                   </p>
                   <LineChart
                     data={moodReport.moodVsProductivity}
+                    xKey="date"
                     lines={[
-                      { dataKey: 'mood', name: 'Mood', color: '#10b981' },
-                      { dataKey: 'tareas', name: 'Tareas', color: '#3b82f6' }
+                      { key: 'mood', name: 'Mood', color: '#10b981' },
+                      { key: 'tareas', name: 'Tareas', color: '#3b82f6' }
                     ]}
                     height={300}
                   />
@@ -330,7 +329,7 @@ export default function ReportsPage() {
                     data={moodReport.weeklyMood}
                     xKey="semana"
                     bars={[
-                      { dataKey: 'mood', name: 'Mood Promedio', color: '#8b5cf6' }
+                      { key: 'mood', name: 'Mood Promedio', color: '#8b5cf6' }
                     ]}
                     height={300}
                   />

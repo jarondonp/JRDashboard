@@ -1,6 +1,14 @@
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { useProgressLogs, useCreateProgressLog, useUpdateProgressLog, useDeleteProgressLog, useAreas, useGoals } from '../hooks'
+import {
+  useProgressLogs,
+  useCreateProgressLog,
+  useUpdateProgressLog,
+  useDeleteProgressLog,
+  useAreas,
+  useGoals,
+  useTasks,
+} from '../hooks'
 import { Button, Modal, ModalFooter, Card, CardHeader, CardBody, useToast } from '../components'
 import type { ProgressLog } from '../services/progressApi'
 
@@ -8,6 +16,7 @@ interface ProgressFormData {
   area_id: string
   goal_id: string
   task_id: string
+  task_progress: number | ''
   title: string
   note: string
   date: string
@@ -19,6 +28,7 @@ function ProgressPage() {
   const { data: logs, isLoading, error } = useProgressLogs()
   const { data: areas } = useAreas()
   const { data: goals } = useGoals()
+  const { data: tasks } = useTasks()
   const createMutation = useCreateProgressLog()
   const updateMutation = useUpdateProgressLog()
   const deleteMutation = useDeleteProgressLog()
@@ -30,6 +40,7 @@ function ProgressPage() {
     area_id: '',
     goal_id: '',
     task_id: '',
+    task_progress: '',
     title: '',
     note: '',
     date: new Date().toISOString().split('T')[0],
@@ -37,13 +48,14 @@ function ProgressPage() {
     mood: ''
   })
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
+  const handleSubmit = async (e?: React.FormEvent) => {
+    e?.preventDefault()
     try {
       const submitData = {
         ...formData,
         goal_id: formData.goal_id || undefined,
         task_id: formData.task_id || undefined,
+        task_progress: formData.task_progress === '' ? undefined : Number(formData.task_progress),
         impact_level: formData.impact_level || undefined,
         mood: formData.mood || undefined
       }
@@ -68,6 +80,7 @@ function ProgressPage() {
       area_id: log.area_id,
       goal_id: log.goal_id || '',
       task_id: log.task_id || '',
+      task_progress: log.task_progress ?? '',
       title: log.title,
       note: log.note || '',
       date: log.date || new Date().toISOString().split('T')[0],
@@ -96,6 +109,7 @@ function ProgressPage() {
       area_id: '',
       goal_id: '',
       task_id: '',
+      task_progress: '',
       title: '',
       note: '',
       date: new Date().toISOString().split('T')[0],
@@ -113,6 +127,11 @@ function ProgressPage() {
     return goals?.find(g => g.id === goalId)?.title || 'Meta desconocida'
   }
 
+  const getTaskTitle = (taskId?: string) => {
+    if (!taskId) return null
+    return tasks?.find(t => t.id === taskId)?.title || 'Tarea desconocida'
+  }
+
   const getMoodEmoji = (mood?: number) => {
     if (!mood) return ''
     if (mood === 5) return '😄'
@@ -123,6 +142,14 @@ function ProgressPage() {
   }
 
   const filteredGoals = goals?.filter(g => g.area_id === formData.area_id) || []
+  const filteredTasks =
+    tasks?.filter(task => {
+      if (task.area_id !== formData.area_id) return false
+      if (formData.goal_id) {
+        return (task.goal_id || '') === formData.goal_id
+      }
+      return true
+    }) || []
 
   if (isLoading) {
     return (
@@ -217,6 +244,11 @@ function ProgressPage() {
                             <strong>Meta:</strong> {getGoalTitle(log.goal_id)}
                           </p>
                         )}
+                        {log.task_id && (
+                          <p className="text-sm text-gray-600">
+                            <strong>Tarea:</strong> {getTaskTitle(log.task_id)}
+                          </p>
+                        )}
                         {log.note && (
                           <p className="text-sm text-gray-700">{log.note}</p>
                         )}
@@ -230,6 +262,11 @@ function ProgressPage() {
                           {log.impact_level && (
                             <span className={`px-2 py-1 rounded-full text-xs font-medium ${log.impact_level >= 4 ? 'bg-green-100 text-green-800' : log.impact_level >= 2 ? 'bg-yellow-100 text-yellow-800' : 'bg-blue-100 text-blue-800'}`}>
                               Impacto: {log.impact_level}/5
+                            </span>
+                          )}
+                          {typeof log.task_progress === 'number' && (
+                            <span className="px-2 py-1 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800">
+                              Progreso tarea: {log.task_progress}%
                             </span>
                           )}
                         </div>
@@ -277,7 +314,15 @@ function ProgressPage() {
                 required
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                 value={formData.area_id}
-                onChange={(e) => setFormData({ ...formData, area_id: e.target.value, goal_id: '' })}
+                onChange={(e) =>
+                  setFormData({
+                    ...formData,
+                    area_id: e.target.value,
+                    goal_id: '',
+                    task_id: '',
+                    task_progress: '',
+                  })
+                }
               >
                 <option value="">Seleccionar área</option>
                 {areas?.map((area) => (
@@ -293,7 +338,14 @@ function ProgressPage() {
               <select
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                 value={formData.goal_id}
-                onChange={(e) => setFormData({ ...formData, goal_id: e.target.value })}
+                onChange={(e) =>
+                  setFormData({
+                    ...formData,
+                    goal_id: e.target.value,
+                    task_id: '',
+                    task_progress: '',
+                  })
+                }
                 disabled={!formData.area_id}
               >
                 <option value="">Sin meta</option>
@@ -302,6 +354,32 @@ function ProgressPage() {
                 ))}
               </select>
             </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Tarea (opcional)
+            </label>
+            <select
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+              value={formData.task_id}
+              onChange={(e) => setFormData({ ...formData, task_id: e.target.value, task_progress: '' })}
+              disabled={!formData.area_id}
+            >
+              <option value="">Sin tarea</option>
+              {filteredTasks.map((task) => (
+                <option key={task.id} value={task.id}>
+                  {task.title}
+                </option>
+              ))}
+            </select>
+            {formData.area_id && filteredTasks.length === 0 && (
+              <p className="mt-1 text-xs text-gray-500">
+                {formData.goal_id
+                  ? 'No hay tareas vinculadas a esta meta. Puedes crear nuevas desde la sección de Tareas.'
+                  : 'No hay tareas registradas para el área seleccionada.'}
+              </p>
+            )}
           </div>
 
           <div>
@@ -329,7 +407,7 @@ function ProgressPage() {
             />
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Fecha *
@@ -370,13 +448,41 @@ function ProgressPage() {
                 onChange={(e) => setFormData({ ...formData, impact_level: e.target.value ? parseInt(e.target.value) : '' })}
               />
             </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center justify-between">
+                <span>Progreso de la tarea (%)</span>
+                <span className="text-xs text-gray-400">{formData.task_id ? '0-100' : 'Selecciona una tarea'}</span>
+              </label>
+              <input
+                type="number"
+                min="0"
+                max="100"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                value={formData.task_progress}
+                onChange={(e) => {
+                  const raw = e.target.value
+                  if (raw === '') {
+                    setFormData({ ...formData, task_progress: '' })
+                    return
+                  }
+                  const parsed = Math.min(100, Math.max(0, parseInt(raw, 10)))
+                  setFormData({ ...formData, task_progress: Number.isNaN(parsed) ? '' : parsed })
+                }}
+                disabled={!formData.task_id}
+                placeholder={formData.task_id ? 'Ingresa un valor entre 0 y 100' : 'Selecciona una tarea para habilitar'}
+              />
+            </div>
           </div>
 
           <ModalFooter
             onCancel={resetForm}
             submitLabel={editingLog ? 'Actualizar' : 'Crear'}
             isSubmitting={createMutation.isPending || updateMutation.isPending}
+<<<<<<< Updated upstream
             submitType="submit"
+=======
+>>>>>>> Stashed changes
           />
         </form>
       </Modal>

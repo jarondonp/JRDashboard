@@ -1,6 +1,6 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { useTasks, useCreateTask, useUpdateTask, useDeleteTask, useAreas, useGoals } from '../hooks'
+import { useTasks, useCreateTask, useUpdateTask, useDeleteTask, useAreas, useGoals, useProgressLogs } from '../hooks'
 import { Button, Modal, ModalFooter, Card, CardHeader, CardBody, useToast } from '../components'
 import type { Task } from '../services/tasksApi'
 
@@ -20,10 +20,47 @@ function TasksPage() {
   const { data: tasks, isLoading, error } = useTasks()
   const { data: areas } = useAreas()
   const { data: goals } = useGoals()
+  const { data: progressLogs } = useProgressLogs()
   const createMutation = useCreateTask()
   const updateMutation = useUpdateTask()
   const deleteMutation = useDeleteTask()
   const { showToast } = useToast()
+
+  const formatDate = (value?: string | null) => {
+    if (!value) return 'Sin fecha'
+    const date = new Date(value)
+    return Number.isNaN(date.getTime()) ? value : date.toLocaleDateString()
+  }
+
+  const latestLogsByTask = useMemo(() => {
+    if (!progressLogs) return {} as Record<string, { title: string; date?: string; task_progress?: number }>
+
+    type InternalLogInfo = { title: string; date?: string; task_progress?: number; timestamp: number }
+    const entries: Record<string, InternalLogInfo> = {}
+
+    progressLogs.forEach((log) => {
+      if (!log.task_id) return
+      const baseDate = log.date || log.created_at || ''
+      const timestamp = baseDate ? new Date(baseDate).getTime() : 0
+      const existing = entries[log.task_id]
+
+      if (!existing || timestamp >= existing.timestamp) {
+        entries[log.task_id] = {
+          title: log.title,
+          date: baseDate,
+          task_progress: log.task_progress ?? undefined,
+          timestamp,
+        }
+      }
+    })
+
+    return Object.fromEntries(
+      Object.entries(entries).map(([taskId, { title, date, task_progress }]) => [
+        taskId,
+        { title, date, task_progress },
+      ]),
+    ) as Record<string, { title: string; date?: string; task_progress?: number }>
+  }, [progressLogs])
 
   const [showModal, setShowModal] = useState(false)
   const [editingTask, setEditingTask] = useState<Task | null>(null)
@@ -207,6 +244,7 @@ function TasksPage() {
             <AnimatePresence>
               {tasks.map((task, index) => {
                 const taskProgress = task.progress_percentage
+                const latestLog = latestLogsByTask[task.id]
                 return (
                   <motion.div
                     key={task.id}
@@ -278,6 +316,17 @@ function TasksPage() {
                           )}
 
                           <div className="text-xs text-gray-500 space-y-1 pt-2 border-t">
+                            {latestLog ? (
+                              <>
+                                <p>
+                                  Último avance: {formatDate(latestLog.date)}
+                                  {typeof latestLog.task_progress === 'number' && ` · ${latestLog.task_progress}%`}
+                                </p>
+                                <p className="text-gray-600 italic">"{latestLog.title}"</p>
+                              </>
+                            ) : (
+                              <p className="text-gray-400">Aún no hay avances registrados para esta tarea.</p>
+                            )}
                             {task.due_date && <p>Vence: {new Date(task.due_date).toLocaleDateString()}</p>}
                             {task.estimated_effort && <p>Esfuerzo: {task.estimated_effort}h</p>}
                           </div>
@@ -402,6 +451,9 @@ function TasksPage() {
                 value={formData.progress_percentage}
                 onChange={(e) => setFormData({ ...formData, progress_percentage: e.target.value ? parseInt(e.target.value) : 0 })}
               />
+              <p className="mt-1 text-xs text-gray-500">
+                Este valor se actualiza automáticamente cuando registras avances en la sección de progreso.
+              </p>
             </div>
           </div>
 
@@ -467,7 +519,10 @@ function TasksPage() {
             onCancel={resetForm}
             submitLabel={editingTask ? 'Actualizar' : 'Crear'}
             isSubmitting={createMutation.isPending || updateMutation.isPending}
+<<<<<<< Updated upstream
             submitType="submit"
+=======
+>>>>>>> Stashed changes
           />
         </form>
       </Modal>

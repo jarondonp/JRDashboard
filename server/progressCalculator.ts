@@ -1,6 +1,6 @@
 import { db } from './db';
-import { eq } from 'drizzle-orm';
-import { goals, tasks } from '../shared/schema';
+import { desc, eq } from 'drizzle-orm';
+import { goals, tasks, progress_logs } from '../shared/schema';
 
 /**
  * Calcula el progreso de una meta basado en sus tareas
@@ -94,5 +94,46 @@ export async function updateTaskProgressByStatus(taskId: string, status: string)
   const task = await db.select().from(tasks).where(eq(tasks.id, taskId)).limit(1);
   if (task.length > 0 && task[0].goal_id) {
     await updateGoalProgress(task[0].goal_id);
+  }
+}
+
+/**
+ * Recalcula el progreso de una tarea basado en los progress_logs registrados
+ * @param taskId - ID de la tarea
+ */
+export async function recalculateTaskProgress(taskId: string): Promise<void> {
+  console.log('=== recalculateTaskProgress called for task:', taskId);
+
+  const logs = await db
+    .select({
+      task_progress: progress_logs.task_progress,
+      date: progress_logs.date,
+      created_at: progress_logs.created_at,
+    })
+    .from(progress_logs)
+    .where(eq(progress_logs.task_id, taskId))
+    .orderBy(desc(progress_logs.date), desc(progress_logs.created_at));
+
+  const latestWithProgress = logs.find(
+    (log) => log.task_progress !== null && log.task_progress !== undefined,
+  );
+
+  const computedProgress =
+    latestWithProgress && latestWithProgress.task_progress !== undefined && latestWithProgress.task_progress !== null
+      ? latestWithProgress.task_progress
+      : 0;
+
+  const updatedTask = await db
+    .update(tasks)
+    .set({
+      progress_percentage: computedProgress,
+      updated_at: new Date(),
+    })
+    .where(eq(tasks.id, taskId))
+    .returning({ goal_id: tasks.goal_id });
+
+  const goalId = updatedTask[0]?.goal_id;
+  if (goalId) {
+    await updateGoalProgress(goalId);
   }
 }

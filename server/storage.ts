@@ -113,11 +113,26 @@ export async function deleteTask(id: string) {
 }
 
 // Progress Logs
+const progressLogFields = {
+  id: progress_logs.id,
+  area_id: progress_logs.area_id,
+  goal_id: progress_logs.goal_id,
+  task_id: progress_logs.task_id,
+  task_progress: progress_logs.task_progress,
+  title: progress_logs.title,
+  note: progress_logs.note,
+  date: progress_logs.date,
+  impact_level: progress_logs.impact_level,
+  mood: progress_logs.mood,
+  created_at: progress_logs.created_at,
+  updated_at: progress_logs.updated_at,
+};
+
 export async function getProgressLogs() {
-  return db.select().from(progress_logs);
+  return db.select(progressLogFields).from(progress_logs);
 }
 export async function getProgressLogById(id: string) {
-  return db.select().from(progress_logs).where({ id }).limit(1);
+  return db.select(progressLogFields).from(progress_logs).where(eq(progress_logs.id, id)).limit(1);
 }
 export async function createProgressLog(data: any) {
   return db.insert(progress_logs).values(data).returning();

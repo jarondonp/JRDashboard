@@ -1,9 +1,72 @@
 import { Router } from 'express';
+import { ZodError, type z } from 'zod';
 import * as storage from './storage';
 import { insertAreaSchema, insertGoalSchema, insertTaskSchema, insertProgressLogSchema, insertDocumentSchema, insertReportSchema } from '../shared/schema';
-import { updateGoalProgress, updateTaskProgressByStatus } from './progressCalculator';
+import { updateGoalProgress, updateTaskProgressByStatus, recalculateTaskProgress } from './progressCalculator';
 
 const router = Router();
+
+type ProgressLogPayload = z.infer<typeof insertProgressLogSchema>;
+
+class ProgressLogValidationError extends Error {}
+
+const sanitizeId = (value?: string | null): string | undefined => {
+  if (value === undefined || value === null) return undefined;
+  const trimmed = value.trim();
+  return trimmed.length ? trimmed : undefined;
+};
+
+const normalizeProgressLogInput = async (data: ProgressLogPayload) => {
+  const area = await storage.getAreaById(data.area_id);
+  if (!area.length) {
+    throw new ProgressLogValidationError('Área no encontrada.');
+  }
+
+  let goalId = sanitizeId(data.goal_id);
+  let taskId = sanitizeId(data.task_id);
+
+  if (goalId) {
+    const goal = await storage.getGoalById(goalId);
+    if (!goal.length) {
+      throw new ProgressLogValidationError('La meta indicada no existe.');
+    }
+    if (goal[0].area_id !== data.area_id) {
+      throw new ProgressLogValidationError('La meta indicada no pertenece al área seleccionada.');
+    }
+  }
+
+  if (taskId) {
+    const task = await storage.getTaskById(taskId);
+    if (!task.length) {
+      throw new ProgressLogValidationError('La tarea indicada no existe.');
+    }
+    if (task[0].area_id !== data.area_id) {
+      throw new ProgressLogValidationError('La tarea indicada no pertenece al área seleccionada.');
+    }
+    if (goalId && task[0].goal_id && task[0].goal_id !== goalId) {
+      throw new ProgressLogValidationError('La tarea indicada no pertenece a la meta seleccionada.');
+    }
+    if (!goalId && task[0].goal_id) {
+      goalId = task[0].goal_id;
+    }
+  }
+
+  if (data.task_progress !== undefined && data.task_progress !== null && !taskId) {
+    throw new ProgressLogValidationError('Debe seleccionar una tarea para registrar progreso.');
+  }
+
+  const taskProgress =
+    data.task_progress !== undefined && data.task_progress !== null
+      ? Math.max(0, Math.min(100, Math.round(data.task_progress)))
+      : undefined;
+
+  return {
+    ...data,
+    goal_id: goalId ?? null,
+    task_id: taskId ?? null,
+    task_progress: taskProgress,
+  };
+};
 
 // Areas
 router.get('/areas', async (req, res) => {
@@ -192,27 +255,79 @@ router.get('/progress-logs/:id', async (req, res) => {
 });
 router.post('/progress-logs', async (req, res) => {
   try {
-    const data = insertProgressLogSchema.parse(req.body);
-    const result = await storage.createProgressLog(data);
-    res.status(201).json(result[0]);
+    const payload = insertProgressLogSchema.parse(req.body);
+    const normalized = await normalizeProgressLogInput(payload);
+    const result = await storage.createProgressLog(normalized);
+    const createdLog = result[0];
+
+    if (createdLog?.task_id) {
+      await recalculateTaskProgress(createdLog.task_id);
+    }
+
+    res.status(201).json(createdLog);
   } catch (err) {
-    res.status(400).json({ error: err.message });
+    if (err instanceof ProgressLogValidationError) {
+      return res.status(400).json({ error: err.message });
+    }
+    if (err instanceof ZodError) {
+      return res.status(400).json({ error: err.errors?.[0]?.message || 'Datos inválidos' });
+    }
+    console.error('Error creating progress log:', err);
+    res.status(500).json({ error: 'Error creating progress log' });
   }
 });
 router.put('/progress-logs/:id', async (req, res) => {
   try {
-    const data = insertProgressLogSchema.parse(req.body);
-    const result = await storage.updateProgressLog(req.params.id, data);
-    res.json(result[0]);
+    const existing = await storage.getProgressLogById(req.params.id);
+    if (!existing.length) {
+      return res.status(404).json({ error: 'Progress log not found' });
+    }
+
+    const payload = insertProgressLogSchema.parse(req.body);
+    const normalized = await normalizeProgressLogInput(payload);
+    const result = await storage.updateProgressLog(req.params.id, normalized);
+    const updatedLog = result[0];
+
+    const taskIdsToRecalculate = new Set<string>();
+    const previousTaskId = sanitizeId(existing[0].task_id as string | null | undefined);
+    if (previousTaskId) taskIdsToRecalculate.add(previousTaskId);
+    const newTaskId = sanitizeId(updatedLog?.task_id as string | null | undefined);
+    if (newTaskId) taskIdsToRecalculate.add(newTaskId);
+
+    for (const taskId of taskIdsToRecalculate) {
+      await recalculateTaskProgress(taskId);
+    }
+
+    res.json(updatedLog);
   } catch (err) {
-    res.status(400).json({ error: err.message });
+    if (err instanceof ProgressLogValidationError) {
+      return res.status(400).json({ error: err.message });
+    }
+    if (err instanceof ZodError) {
+      return res.status(400).json({ error: err.errors?.[0]?.message || 'Datos inválidos' });
+    }
+    console.error('Error updating progress log:', err);
+    res.status(500).json({ error: 'Error updating progress log' });
   }
 });
 router.delete('/progress-logs/:id', async (req, res) => {
   try {
+    const existing = await storage.getProgressLogById(req.params.id);
+    if (!existing.length) {
+      return res.status(404).json({ error: 'Progress log not found' });
+    }
+
+    const previousTaskId = sanitizeId(existing[0].task_id as string | null | undefined);
+
     await storage.deleteProgressLog(req.params.id);
+
+    if (previousTaskId) {
+      await recalculateTaskProgress(previousTaskId);
+    }
+
     res.status(204).end();
   } catch (err) {
+    console.error('Error deleting progress log:', err);
     res.status(500).json({ error: err.message });
   }
 });

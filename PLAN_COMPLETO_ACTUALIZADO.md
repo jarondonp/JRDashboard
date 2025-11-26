@@ -1,9 +1,11 @@
 # 🎯 PLAN COMPLETO - MindsetApp Dashboard 360°
 
-**Proyecto:** Sistema de Gestión Integral de Áreas de Vida y Metas  
-**Stack:** React + TypeScript + Vite (Frontend) | Express + Node.js (Backend) | JSON Storage (DB)  
-**Branch actual:** `feature/specialized-area-dashboards` ✓ pushed to origin  
-**Última actualización:** Phase 10 complete - Specialized Area Panels
+**Proyecto:** Migración completa de React App a PostgreSQL (Neon) con REST API  
+**Stack:** React + Vite + TanStack Query + Express + Drizzle ORM + PostgreSQL  
+**Branch actual:** master  
+**Branch en curso:** `feature/task-progress-tracking` ➜ Fase 10.5 - Seguimiento granular de tareas  
+**Fecha:** Noviembre 2025  
+**Última actualización:** Fase 10 integrada en master (Paneles especializados por área)
 
 ---
 
@@ -19,8 +21,10 @@
 | ✅ Fase 6 | ProgressPage CRUD | Completado | 100% |
 | ✅ Fase 7 | DocumentsPage CRUD | Completado | 100% |
 | ✅ Fase 8 | ReportsPage - Analytics Fase 1 | Completado | 100% |
-| ✅ Fase 9 | UI/UX Professional Redesign | Completado | 100% |
-| ✅ Fase 10 | Paneles Especializados por Área | ✅ COMPLETADO | **100%** |
+<<<<<<< Updated upstream
+| ✅ Fase 9 | UI/UX Professional Redesign | **COMPLETADO** | 100% |
+| ✅ Fase 10 | Paneles Especializados por Área | Completado | 100% |
+| 🚧 Fase 10.5 | Seguimiento granular de tareas | En curso | 0% |
 | ⏳ Fase 11 | Vistas Avanzadas y Filtros | Pendiente | 0% |
 | ⏳ Fase 12 | ReportsPage - Analytics Fase 2 | Pendiente | 0% |
 | ⏳ Fase 13 | ReportsPage - Analytics Fase 3 | Pendiente | 0% |
@@ -1603,6 +1607,57 @@ GET  /api/areas/:areaId/analytics   - Analytics específicos del área
 - [ ] Breadcrumb: Home > Areas > [Area Name] > Dashboard
 
 **Duración estimada:** 2-3 días
+
+---
+
+## 🚧 FASE 10.5: Seguimiento Granular de Tareas (EN CURSO)
+
+**Objetivo:** Capturar avances específicos sobre tareas individuales y sincronizarlos automáticamente con el progreso de las metas y las áreas para mantener indicadores coherentes en toda la plataforma.
+
+### Alcance funcional
+- Registro de avances con selección de área, meta y tarea, incluyendo fecha, descripción y porcentaje alcanzado.
+- Posibilidad de indicar impacto (1-5) y mood (1-5) para alimentar paneles emocionales y de productividad.
+- Actualización automática del progreso de la tarea y recalculo inmediato de metas y KPIs de área.
+- Historial visible por tarea para auditar qué se hizo, cuándo y con qué resultado.
+
+### Entregables clave
+- Extensión del modelo de datos (`progress_logs`) con campos de progreso y validaciones cruzadas tarea/meta/área.
+- Lógica de backend para recalcular tareas y metas al crear, editar o eliminar un avance.
+- Actualización de servicios y hooks de frontend para invalidar queries en cascada (logs → tareas → metas → dashboards).
+- Rediseño del formulario de `ProgressPage` con selector de tareas y controles de porcentaje/impacto/mood.
+- Ajustes en `TasksPage`, `GoalsPage`, `AreaPanel` y dashboards para mostrar los nuevos valores y estados (“tarea sin avances”, “último avance”, etc.).
+- Documentación funcional y técnica del flujo.
+
+### KPIs y vistas impactadas
+- Barras de progreso en tareas y metas.
+- KPIs de área relacionados con cumplimiento, avances recientes, impacto y mood.
+- Secciones de dashboards (ej. “Progreso Reciente”, paneles especializados, Reports) que dependen del progreso acumulado.
+- Insights automáticos que usan datos de impacto/mood y deltas de avance.
+
+### Coordinación con otras fases
+- Mantiene intacto el alcance de la Fase 11 (“Vistas Avanzadas y Filtros”); se documenta como sub-fase 10.5 para evitar confusiones.
+- Sienta bases para la analítica futura (Fases 12-14) al entregar datos más precisos de progreso.
+
+### Rama de trabajo
+- `feature/task-progress-tracking` (derivada de `master`).  
+  - Objetivo: implementar la Fase 10.5.  
+  - Estado: Completado (noviembre 2025).  
+  - Responsable: Equipo de Integración / Front-Backend.
+
+### Etapas de implementación
+- [x] 1. Extensión del modelo de datos y migraciones
+- [x] 2. Lógica de backend y recalculo automático
+- [x] 3. Servicios y hooks del frontend
+- [x] 4. Registro de avances en la UI
+- [x] 5. Refresco de vistas y dashboards
+- [x] 6. QA, documentación y retroalimentación
+
+### QA & Validación
+- ✅ `client`: `npm run build` (TS + bundler) completado sin errores.
+- ✅ Flujo `ProgressPage`: creación/edición de avances con y sin tarea vinculada respetando validaciones.
+- ✅ Flujo `TasksPage`: barra de progreso y resumen muestran el último avance registrado.
+- ✅ Flujo `GoalsPage`: KPIs y últimos avances reflejan el progreso consolidado de las tareas.
+- ✅ Dashboard/Reports actualizan métricas y gráficos con los datos granulares de tareas.
 
 ---
 

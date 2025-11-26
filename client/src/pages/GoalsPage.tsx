@@ -1,6 +1,6 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { useGoals, useCreateGoal, useUpdateGoal, useDeleteGoal, useAreas } from '../hooks'
+import { useGoals, useCreateGoal, useUpdateGoal, useDeleteGoal, useAreas, useTasks, useProgressLogs } from '../hooks'
 import { Button, Modal, ModalFooter, Card, CardHeader, CardBody, useToast } from '../components'
 import type { Goal } from '../services/goalsApi'
 
@@ -19,6 +19,8 @@ interface GoalFormData {
 function GoalsPage() {
   const { data: goals, isLoading, error } = useGoals()
   const { data: areas } = useAreas()
+  const { data: tasks } = useTasks()
+  const { data: progressLogs } = useProgressLogs()
   const createMutation = useCreateGoal()
   const updateMutation = useUpdateGoal()
   const deleteMutation = useDeleteGoal()
@@ -134,6 +136,85 @@ function GoalsPage() {
     return areas?.find(a => a.id === areaId)?.name || 'Sin área'
   }
 
+  const formatDate = (value?: string | null) => {
+    if (!value) return 'Sin fecha'
+    const parsed = new Date(value)
+    return Number.isNaN(parsed.getTime()) ? value : parsed.toLocaleDateString()
+  }
+
+  const taskLookup = useMemo(() => {
+    const map: Record<string, { title: string; progress: number }> = {}
+    tasks?.forEach(task => {
+      map[task.id] = {
+        title: task.title,
+        progress: task.progress_percentage ?? 0,
+      }
+    })
+    return map
+  }, [tasks])
+
+  const goalTaskStats = useMemo(() => {
+    const stats: Record<string, { total: number; completed: number; withoutProgress: number }> = {}
+
+    tasks?.forEach(task => {
+      if (!task.goal_id) return
+      if (!stats[task.goal_id]) {
+        stats[task.goal_id] = { total: 0, completed: 0, withoutProgress: 0 }
+      }
+      stats[task.goal_id].total += 1
+      const progress = task.progress_percentage ?? 0
+      if (progress >= 100) {
+        stats[task.goal_id].completed += 1
+      }
+      if (progress === 0) {
+        stats[task.goal_id].withoutProgress += 1
+      }
+    })
+
+    return stats
+  }, [tasks])
+
+  const latestUpdatesByGoal = useMemo(() => {
+    if (!progressLogs) {
+      return {} as Record<string, { title: string; date?: string; progress?: number; taskTitle?: string }>
+    }
+
+    type InternalInfo = {
+      title: string
+      date?: string
+      progress?: number
+      taskTitle?: string
+      timestamp: number
+    }
+
+    const map: Record<string, InternalInfo> = {}
+
+    progressLogs.forEach(log => {
+      if (!log.goal_id) return
+      const rawDate = log.date || log.created_at || ''
+      const timestamp = rawDate ? new Date(rawDate).getTime() : 0
+      const existing = map[log.goal_id]
+      const taskTitle = log.task_id ? taskLookup[log.task_id]?.title : undefined
+
+      if (!existing || timestamp >= existing.timestamp) {
+        map[log.goal_id] = {
+          title: log.title,
+          date: rawDate,
+          progress: log.task_progress ?? undefined,
+          taskTitle,
+          timestamp,
+        }
+      }
+    })
+
+    return Object.fromEntries(
+      Object.entries(map).map(([goalId, { title, date, progress, taskTitle }]) => [
+        goalId,
+        { title, date, progress, taskTitle },
+      ]),
+    ) as Record<string, { title: string; date?: string; progress?: number; taskTitle?: string }>
+  }, [progressLogs, taskLookup])
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 p-8">
@@ -189,14 +270,17 @@ function GoalsPage() {
             transition={{ delay: 0.2 }}
           >
             <AnimatePresence>
-              {goals.map((goal, index) => (
-                <motion.div
-                  key={goal.id}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, scale: 0.9 }}
-                  transition={{ delay: index * 0.05 }}
-                >
+              {goals.map((goal, index) => {
+                const latestUpdate = latestUpdatesByGoal[goal.id]
+                const goalStats = goalTaskStats[goal.id]
+                return (
+                  <motion.div
+                    key={goal.id}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, scale: 0.9 }}
+                    transition={{ delay: index * 0.05 }}
+                  >
                   <Card hover>
                     <CardHeader>
                       <div className="flex justify-between items-start">
@@ -257,17 +341,38 @@ function GoalsPage() {
                           </div>
                         )}
 
-                        {(goal.start_date || goal.due_date) && (
-                          <div className="text-xs text-gray-500 space-y-1 pt-2 border-t">
-                            {goal.start_date && <p>Inicio: {goal.start_date}</p>}
-                            {goal.due_date && <p>Vence: {goal.due_date}</p>}
-                          </div>
-                        )}
+                        <div className="text-xs text-gray-500 space-y-1 pt-2 border-t">
+                          {latestUpdate ? (
+                            <>
+                              <p>
+                                Último avance: {formatDate(latestUpdate.date)}
+                                {latestUpdate.taskTitle ? ` · ${latestUpdate.taskTitle}` : ''}
+                              </p>
+                              {typeof latestUpdate.progress === 'number' && (
+                                <p>Progreso registrado: {latestUpdate.progress}%</p>
+                              )}
+                              <p className="text-gray-600 italic">"{latestUpdate.title}"</p>
+                            </>
+                          ) : (
+                            <p className="text-gray-400">Aún no hay avances registrados para esta meta.</p>
+                          )}
+                          {goalStats ? (
+                            <p>
+                              {goalStats.completed}/{goalStats.total} tareas completadas ·{' '}
+                              {goalStats.withoutProgress} sin avance
+                            </p>
+                          ) : (
+                            <p>No hay tareas asociadas a esta meta.</p>
+                          )}
+                          {goal.start_date && <p>Inicio: {goal.start_date}</p>}
+                          {goal.due_date && <p>Vence: {goal.due_date}</p>}
+                        </div>
                       </div>
                     </CardBody>
                   </Card>
                 </motion.div>
-              ))}
+                )
+              })}
             </AnimatePresence>
           </motion.div>
         ) : (
@@ -425,7 +530,10 @@ function GoalsPage() {
             onCancel={resetForm}
             submitLabel={editingGoal ? 'Actualizar' : 'Crear'}
             isSubmitting={createMutation.isPending || updateMutation.isPending}
+<<<<<<< Updated upstream
             submitType="submit"
+=======
+>>>>>>> Stashed changes
           />
         </form>
       </Modal>

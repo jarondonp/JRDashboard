@@ -2,8 +2,9 @@ import { apiGet, apiPost, apiPut, apiDelete } from './apiClient';
 
 export type ProgressLogInput = {
   area_id: string;
-  goal_id?: string;
-  task_id?: string;
+  goal_id?: string | null;
+  task_id?: string | null;
+  task_progress?: number;
   title: string;
   note?: string;
   date: string; // ISO date

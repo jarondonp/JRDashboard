@@ -115,27 +115,46 @@ interface ModalFooterProps {
   submitLabel?: string;
   cancelLabel?: string;
   isSubmitting?: boolean;
+<<<<<<< Updated upstream
   submitType?: 'button' | 'submit';
+=======
+  submitType?: 'submit' | 'button';
+>>>>>>> Stashed changes
 }
 
-export function ModalFooter({ 
-  onCancel, 
-  onSubmit, 
-  submitLabel = 'Guardar', 
+export function ModalFooter({
+  onCancel,
+  onSubmit,
+  submitLabel = 'Guardar',
   cancelLabel = 'Cancelar',
   isSubmitting = false,
+<<<<<<< Updated upstream
   submitType = 'button'
+=======
+  submitType = 'submit',
+>>>>>>> Stashed changes
 }: ModalFooterProps) {
+  const isButton = submitType === 'button';
+
   return (
     <>
       <Button variant="ghost" onClick={onCancel} disabled={isSubmitting} type="button">
         {cancelLabel}
       </Button>
+<<<<<<< Updated upstream
       <Button 
         variant="primary" 
         onClick={submitType === 'button' ? onSubmit : undefined}
         type={submitType}
         isLoading={isSubmitting}
+=======
+      <Button
+        variant="primary"
+        type={submitType}
+        onClick={isButton ? onSubmit : undefined}
+        isLoading={isSubmitting}
+        disabled={isSubmitting}
+>>>>>>> Stashed changes
       >
         {submitLabel}
       </Button>

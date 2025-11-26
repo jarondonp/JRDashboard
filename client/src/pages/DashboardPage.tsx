@@ -1,11 +1,13 @@
-import { MetricCard, ProgressCard, ListCard, Card, CardHeader, CardBody } from '../components';
+import { useMemo } from 'react';
+import { MetricCard, ProgressCard, ListCard, Card, CardBody } from '../components';
 import { 
   useMonthlyStats, 
   useRecentProgress, 
   useCriticalDocuments, 
   useOpenTasks,
   useGoals,
-  useTasks
+  useTasks,
+  useProgressLogs
 } from '../hooks';
 import { motion } from 'framer-motion';
 
@@ -16,6 +18,7 @@ function DashboardPage() {
   const { data: openTasks, isLoading: loadingTasks } = useOpenTasks();
   const { data: goals } = useGoals();
   const { data: tasks } = useTasks();
+  const { data: progressLogs } = useProgressLogs();
 
   const isLoading = loadingStats || loadingProgress || loadingDocs || loadingTasks;
 
@@ -23,6 +26,71 @@ function DashboardPage() {
   const globalCompletion = goals && goals.length > 0
     ? Math.round(goals.reduce((sum, g) => sum + (g.computed_progress || 0), 0) / goals.length)
     : 0;
+
+  const formatDate = (value?: string | null) => {
+    if (!value) return 'Sin fecha'
+    const parsed = new Date(value)
+    return Number.isNaN(parsed.getTime()) ? value : parsed.toLocaleDateString()
+  }
+
+  const latestLogsByTask = useMemo(() => {
+    if (!progressLogs) return {} as Record<string, { title: string; date?: string; task_progress?: number }>
+
+    type Internal = { title: string; date?: string; task_progress?: number; timestamp: number }
+    const map: Record<string, Internal> = {}
+
+    progressLogs.forEach(log => {
+      if (!log.task_id) return
+      const rawDate = log.date || log.created_at || ''
+      const timestamp = rawDate ? new Date(rawDate).getTime() : 0
+      const existing = map[log.task_id]
+      if (!existing || timestamp >= existing.timestamp) {
+        map[log.task_id] = {
+          title: log.title,
+          date: rawDate,
+          task_progress: log.task_progress ?? undefined,
+          timestamp,
+        }
+      }
+    })
+
+    return Object.fromEntries(
+      Object.entries(map).map(([taskId, { title, date, task_progress }]) => [
+        taskId,
+        { title, date, task_progress },
+      ]),
+    ) as Record<string, { title: string; date?: string; task_progress?: number }>
+  }, [progressLogs])
+
+  const tasksWithRecentProgress = useMemo(() => {
+    if (!progressLogs) return 0
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    return progressLogs.filter(log => {
+      if (!log.task_id) return false
+      const rawDate = log.date || log.created_at
+      if (!rawDate) return false
+      const date = new Date(rawDate)
+      date.setHours(0, 0, 0, 0)
+      return date.getTime() === today.getTime()
+    }).length
+  }, [progressLogs])
+
+  const lastTaskProgress = useMemo((): { title: string; date?: string; task_progress?: number } | undefined => {
+    if (!progressLogs || progressLogs.length === 0) return undefined
+    const sorted = [...progressLogs].sort((a, b) => {
+      const aDate = new Date(a.date || a.created_at || '').getTime()
+      const bDate = new Date(b.date || b.created_at || '').getTime()
+      return bDate - aDate
+    })
+    const latest = sorted.find(log => log.task_id)
+    if (!latest) return undefined
+    return {
+      title: latest.title,
+      date: latest.date || latest.created_at,
+      task_progress: latest.task_progress ?? undefined,
+    }
+  }, [progressLogs])
 
   if (isLoading) {
     return (
@@ -56,14 +124,23 @@ function DashboardPage() {
   const pendingTasks = tasks?.filter(t => 
     t.status !== 'completada' && t.status !== 'completed'
   ).slice(0, 5).map(task => {
-    const isOverdue = task.due_date && new Date(task.due_date) < new Date();
+    const latestLog = latestLogsByTask[task.id]
+    const subtitleParts: string[] = []
+    if (task.description) subtitleParts.push(task.description)
+    subtitleParts.push(`Progreso: ${task.progress_percentage ?? 0}%`)
+    if (latestLog?.date) subtitleParts.push(`Último avance: ${formatDate(latestLog.date)}`)
     return {
       id: task.id,
       title: task.title,
-      subtitle: task.description || '',
+      subtitle: subtitleParts.join(' · '),
       badge: {
-        text: task.status,
-        color: isOverdue ? 'red' as const : 'blue' as const
+        text: `${task.progress_percentage ?? 0}%`,
+        color:
+          (task.progress_percentage ?? 0) >= 80
+            ? ('green' as const)
+            : (task.progress_percentage ?? 0) > 0
+            ? ('purple' as const)
+            : ('blue' as const),
       },
       date: task.due_date || undefined
     };
@@ -106,7 +183,7 @@ function DashboardPage() {
           transition={{ duration: 0.5, delay: 0.1 }}
         >
           <h2 className="text-2xl font-bold text-gray-800 mb-4">Estado General del Sistema</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
             <MetricCard
               title="Cumplimiento Global"
               value={`${globalCompletion}%`}
@@ -134,6 +211,17 @@ function DashboardPage() {
               subtitle={criticalDocs?.nextReviewDate ? `Próxima revisión: ${criticalDocs.nextReviewDate}` : 'Sin fechas próximas'}
               icon="📄"
               color="yellow"
+            />
+            <MetricCard
+              title="Tareas con avance hoy"
+              value={tasksWithRecentProgress}
+              subtitle={
+                lastTaskProgress
+                  ? `Último: ${formatDate(lastTaskProgress.date)}${typeof lastTaskProgress.task_progress === 'number' ? ` · ${lastTaskProgress.task_progress}%` : ''}`
+                  : 'Sin avances registrados recientemente'
+              }
+              icon="⚙️"
+              color={tasksWithRecentProgress > 0 ? 'green' : 'yellow'}
             />
           </div>
         </motion.section>

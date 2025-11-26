@@ -227,8 +227,8 @@ function DocumentsPage() {
                         )}
                         
                         <div className="flex flex-wrap gap-2">
-                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${getDocTypeColor(doc.doc_type)}`}>
-                            {doc.doc_type}
+                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${getDocTypeColor(doc.doc_type || 'General')}`}>
+                            {doc.doc_type || 'General'}
                           </span>
                           {isReviewSoon(doc.review_date) && (
                             <span className="px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
@@ -393,7 +393,10 @@ function DocumentsPage() {
             onCancel={resetForm}
             submitLabel={editingDoc ? 'Actualizar' : 'Crear'}
             isSubmitting={createMutation.isPending || updateMutation.isPending}
+<<<<<<< Updated upstream
             submitType="submit"
+=======
+>>>>>>> Stashed changes
           />
         </form>
       </Modal>
