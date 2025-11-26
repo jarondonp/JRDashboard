@@ -885,11 +885,11 @@ module.exports = {
 ### **11.2 Vistas Especializadas**
 
 **Tareas Atrasadas:**
-- [ ] Crear `OverdueTasksPage.tsx` (`/tasks/overdue`)
-- [ ] Filtro: `due_date < hoy AND status != completada`
-- [ ] Ordenar por días de retraso
-- [ ] Acción rápida: reprogramar o completar
-- [ ] Badge de urgencia (rojo si >7 días)
+- [x] Crear `OverdueTasksPage.tsx` (`/tasks/overdue`)
+- [x] Filtro: `due_date < hoy AND status != completada`
+- [x] Ordenar por días de retraso
+- [x] Acción rápida: reprogramar o completar
+- [x] Badge de urgencia (rojo si >7 días)
 
 **Metas por Área:**
 - [ ] Crear `GoalsByAreaPage.tsx` (`/goals/by-area`)
