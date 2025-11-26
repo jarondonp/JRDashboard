@@ -8,3 +8,4 @@ export { Card, CardHeader, CardBody, CardFooter } from './Card';
 export { Modal, ModalFooter } from './Modal';
 export { ToastProvider, useToast } from './Toast';
 export { CardLayoutToolbar } from './CardLayoutToolbar';
+export { GlobalSearch } from './GlobalSearch';

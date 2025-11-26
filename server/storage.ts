@@ -1,5 +1,5 @@
 import { db } from './db';
-import { and, desc, eq, gte, lte } from 'drizzle-orm';
+import { and, desc, eq, gte, lte, sql } from 'drizzle-orm';
 import { areas, goals, tasks, progress_logs, documents, reports } from '../shared/schema';
 
 export const TIMELINE_EVENT_TYPES = ['progress_log', 'task_completed', 'goal_completed', 'document_added'] as const;
@@ -193,6 +193,32 @@ export async function deleteDocument(id: string) {
 const DEFAULT_FETCH_MULTIPLIER = 3;
 const DEFAULT_AREA_COLOR = '#6366F1';
 
+export type GlobalSearchEntityType = 'area' | 'goal' | 'task' | 'document';
+
+export interface GlobalSearchHit {
+  id: string;
+  type: GlobalSearchEntityType;
+  title: string;
+  subtitle?: string;
+  path: string;
+  area?: {
+    id: string;
+    name: string;
+    color: string | null;
+  };
+  meta?: Record<string, unknown>;
+}
+
+export interface GlobalSearchResults {
+  query: string;
+  results: {
+    areas: GlobalSearchHit[];
+    goals: GlobalSearchHit[];
+    tasks: GlobalSearchHit[];
+    documents: GlobalSearchHit[];
+  };
+}
+
 const buildMeta = (entries: Record<string, unknown>): Record<string, unknown> | undefined => {
   const meta: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(entries)) {
@@ -239,6 +265,224 @@ const shouldIncludeDate = (date: Date | undefined, from?: Date, to?: Date) => {
   if (to && date > to) return false;
   return true;
 };
+
+const createEmptySearchResults = (): GlobalSearchResults['results'] => ({
+  areas: [],
+  goals: [],
+  tasks: [],
+  documents: [],
+});
+
+const normalizeSearchLimit = (value?: number) => {
+  if (!value || Number.isNaN(value)) return 6;
+  const parsed = Math.trunc(value);
+  if (parsed < 1) return 1;
+  if (parsed > 20) return 20;
+  return parsed;
+};
+
+export async function globalSearch(query: string, limitPerEntity?: number): Promise<GlobalSearchResults> {
+  const raw = query ?? '';
+  const sanitized = raw.trim();
+
+  if (sanitized.length < 2) {
+    return { query: sanitized, results: createEmptySearchResults() };
+  }
+
+  const limit = normalizeSearchLimit(limitPerEntity);
+  const pattern = `%${sanitized.replace(/\s+/g, '%')}%`;
+
+  const [areaRows, goalRows, taskRows, documentRows] = await Promise.all([
+    db
+      .select({
+        id: areas.id,
+        name: areas.name,
+        description: areas.description,
+        type: areas.type,
+        color: areas.color,
+      })
+      .from(areas)
+      .where(
+        sql`
+          ${areas.name} ILIKE ${pattern}
+          OR COALESCE(${areas.description}, '') ILIKE ${pattern}
+          OR ${areas.type} ILIKE ${pattern}
+        `,
+      )
+      .orderBy(sql`lower(${areas.name})`)
+      .limit(limit),
+    db
+      .select({
+        id: goals.id,
+        title: goals.title,
+        description: goals.description,
+        status: goals.status,
+        dueDate: goals.due_date,
+        expectedOutcome: goals.expected_outcome,
+        updatedAt: goals.updated_at,
+        areaId: goals.area_id,
+        areaName: areas.name,
+        areaColor: areas.color,
+      })
+      .from(goals)
+      .innerJoin(areas, eq(areas.id, goals.area_id))
+      .where(
+        sql`
+          ${goals.title} ILIKE ${pattern}
+          OR COALESCE(${goals.description}, '') ILIKE ${pattern}
+          OR COALESCE(${goals.expected_outcome}, '') ILIKE ${pattern}
+        `,
+      )
+      .orderBy(desc(goals.updated_at))
+      .limit(limit),
+    db
+      .select({
+        id: tasks.id,
+        title: tasks.title,
+        description: tasks.description,
+        status: tasks.status,
+        dueDate: tasks.due_date,
+        progress: tasks.progress_percentage,
+        tags: tasks.tags,
+        updatedAt: tasks.updated_at,
+        goalId: tasks.goal_id,
+        goalTitle: goals.title,
+        areaId: tasks.area_id,
+        areaName: areas.name,
+        areaColor: areas.color,
+      })
+      .from(tasks)
+      .innerJoin(areas, eq(areas.id, tasks.area_id))
+      .leftJoin(goals, eq(goals.id, tasks.goal_id))
+      .where(
+        sql`
+          ${tasks.title} ILIKE ${pattern}
+          OR COALESCE(${tasks.description}, '') ILIKE ${pattern}
+          OR COALESCE(array_to_string(${tasks.tags}, ' '), '') ILIKE ${pattern}
+          OR COALESCE(${goals.title}, '') ILIKE ${pattern}
+        `,
+      )
+      .orderBy(desc(tasks.updated_at))
+      .limit(limit),
+    db
+      .select({
+        id: documents.id,
+        title: documents.title,
+        description: documents.description,
+        docType: documents.doc_type,
+        reviewDate: documents.review_date,
+        url: documents.url,
+        updatedAt: documents.updated_at,
+        areaId: documents.area_id,
+        areaName: areas.name,
+        areaColor: areas.color,
+        goalId: documents.goal_id,
+        goalTitle: goals.title,
+      })
+      .from(documents)
+      .innerJoin(areas, eq(areas.id, documents.area_id))
+      .leftJoin(goals, eq(goals.id, documents.goal_id))
+      .where(
+        sql`
+          ${documents.title} ILIKE ${pattern}
+          OR COALESCE(${documents.description}, '') ILIKE ${pattern}
+          OR COALESCE(${documents.doc_type}, '') ILIKE ${pattern}
+          OR COALESCE(${documents.url}, '') ILIKE ${pattern}
+          OR COALESCE(${goals.title}, '') ILIKE ${pattern}
+        `,
+      )
+      .orderBy(desc(documents.updated_at))
+      .limit(limit),
+  ]);
+
+  const areaHits: GlobalSearchHit[] = areaRows.map((row) => ({
+    id: row.id,
+    type: 'area',
+    title: row.name,
+    subtitle: row.description ?? undefined,
+    path: `/areas/${row.id}/dashboard`,
+    area: {
+      id: row.id,
+      name: row.name,
+      color: row.color ?? DEFAULT_AREA_COLOR,
+    },
+    meta: buildMeta({
+      category: row.type,
+    }),
+  }));
+
+  const goalHits: GlobalSearchHit[] = goalRows.map((row) => ({
+    id: row.id,
+    type: 'goal',
+    title: row.title,
+    subtitle: row.description ?? undefined,
+    path: `/goals?highlight=${row.id}`,
+    area: {
+      id: row.areaId,
+      name: row.areaName ?? 'Área sin nombre',
+      color: row.areaColor ?? DEFAULT_AREA_COLOR,
+    },
+    meta: buildMeta({
+      status: row.status,
+      dueDate: row.dueDate ?? undefined,
+      expectedOutcome: row.expectedOutcome ?? undefined,
+      updatedAt: row.updatedAt,
+    }),
+  }));
+
+  const taskHits: GlobalSearchHit[] = taskRows.map((row) => ({
+    id: row.id,
+    type: 'task',
+    title: row.title,
+    subtitle: row.description ?? undefined,
+    path: `/tasks?highlight=${row.id}`,
+    area: {
+      id: row.areaId,
+      name: row.areaName ?? 'Área sin nombre',
+      color: row.areaColor ?? DEFAULT_AREA_COLOR,
+    },
+    meta: buildMeta({
+      status: row.status,
+      dueDate: row.dueDate ?? undefined,
+      progress: row.progress ?? undefined,
+      tags: row.tags ?? undefined,
+      goalId: row.goalId ?? undefined,
+      goalTitle: row.goalTitle ?? undefined,
+      updatedAt: row.updatedAt,
+    }),
+  }));
+
+  const documentHits: GlobalSearchHit[] = documentRows.map((row) => ({
+    id: row.id,
+    type: 'document',
+    title: row.title,
+    subtitle: row.description ?? undefined,
+    path: `/documents?highlight=${row.id}`,
+    area: {
+      id: row.areaId,
+      name: row.areaName ?? 'Área sin nombre',
+      color: row.areaColor ?? DEFAULT_AREA_COLOR,
+    },
+    meta: buildMeta({
+      docType: row.docType ?? undefined,
+      reviewDate: row.reviewDate ?? undefined,
+      url: row.url ?? undefined,
+      goalId: row.goalId ?? undefined,
+      goalTitle: row.goalTitle ?? undefined,
+      updatedAt: row.updatedAt,
+    }),
+  }));
+
+  return {
+    query: sanitized,
+    results: {
+      areas: areaHits,
+      goals: goalHits,
+      tasks: taskHits,
+      documents: documentHits,
+    },
+  };
+}
 
 export async function getTimelineEvents(params: TimelineQueryParams) {
   const limit = Math.max(1, params.limit);

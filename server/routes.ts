@@ -77,6 +77,11 @@ const timelineQuerySchema = z.object({
   to: z.string().optional(),
 });
 
+const globalSearchQuerySchema = z.object({
+  q: z.string().min(1, 'Debe ingresar un término de búsqueda'),
+  limit: z.coerce.number().min(1).max(20).optional(),
+});
+
 // Areas
 router.get('/areas', async (req, res) => {
   try {
@@ -383,6 +388,20 @@ router.delete('/documents/:id', async (req, res) => {
     res.status(204).end();
   } catch (err) {
     res.status(500).json({ error: err.message });
+  }
+});
+
+router.get('/search', async (req, res) => {
+  try {
+    const { q, limit } = globalSearchQuerySchema.parse(req.query);
+    const result = await storage.globalSearch(q, limit);
+    res.json(result);
+  } catch (err) {
+    if (err instanceof ZodError) {
+      return res.status(400).json({ error: err.errors?.[0]?.message || 'Consulta inválida' });
+    }
+    console.error('Error ejecutando búsqueda global:', err);
+    res.status(500).json({ error: 'Error ejecutando búsqueda global' });
   }
 });
 

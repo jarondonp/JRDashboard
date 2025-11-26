@@ -21,6 +21,7 @@ import ScholarshipsPanelPage from './pages/ScholarshipsPanelPage'
 import CommercialPanelPage from './pages/CommercialPanelPage'
 import AllAreasOverviewPage from './pages/AllAreasOverviewPage'
 import './App.css'
+import { GlobalSearch } from './components'
 
 function App() {
   return (
@@ -30,6 +31,7 @@ function App() {
           <div className="nav-header">
             <h1 className="nav-title">Javier 360° PMO</h1>
             <p className="nav-subtitle">Personal Management Office</p>
+            <GlobalSearch />
           </div>
           <div className="nav-section">
             <h3 className="nav-section-title">PRINCIPAL</h3>

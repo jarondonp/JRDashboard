@@ -912,24 +912,24 @@ module.exports = {
 - [x] Áreas con mejor/peor rendimiento
 
 ### **11.3 Búsqueda Global**
-- [ ] Implementar `<GlobalSearch />` en header
-- [ ] Búsqueda cross-entity:
+- [x] Implementar `<GlobalSearch />` en header
+- [x] Búsqueda cross-entity:
   - Metas (por título, descripción)
   - Tareas (por título, tags)
   - Documentos (por título, tipo)
   - Áreas (por nombre)
-- [ ] Resultados agrupados por tipo
-- [ ] Navegación directa al resultado
-- [ ] Atajos de teclado: `Ctrl+K` o `Cmd+K`
+- [x] Resultados agrupados por tipo
+- [x] Navegación directa al resultado
+- [x] Atajos de teclado: `Ctrl+K` o `Cmd+K`
 
 **Componentes a Crear:**
-- [ ] `TimelinePage.tsx`
-- [ ] `OverdueTasksPage.tsx`
-- [ ] `GoalsByAreaPage.tsx`
-- [ ] `DocumentsReviewPage.tsx`
-- [ ] `ComplianceDashboard.tsx`
-- [ ] `GlobalSearch.tsx`
-- [ ] Hook: `useGlobalSearch(query)`
+- [x] `TimelinePage.tsx`
+- [x] `OverdueTasksPage.tsx`
+- [x] `GoalsByAreaPage.tsx`
+- [x] `DocumentsReviewPage.tsx`
+- [x] `ComplianceDashboard.tsx`
+- [x] `GlobalSearch.tsx`
+- [x] Hook: `useGlobalSearch(query)`
 
 ---
 
