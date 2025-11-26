@@ -9,3 +9,5 @@ export { Modal, ModalFooter } from './Modal';
 export { ToastProvider, useToast } from './Toast';
 export { CardLayoutToolbar } from './CardLayoutToolbar';
 export { GlobalSearch } from './GlobalSearch';
+export { ViewModeToggle } from './ViewModeToggle';
+export { DataTable } from './DataTable';

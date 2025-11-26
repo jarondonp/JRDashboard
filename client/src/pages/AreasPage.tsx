@@ -1,7 +1,7 @@
 import { useMemo, useState, type FormEvent } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { useAreas, useCreateArea, useUpdateArea, useDeleteArea, useCardLayout } from '../hooks'
-import { Button, Modal, ModalFooter, Card, CardHeader, CardBody, useToast, CardLayoutToolbar } from '../components'
+import { useAreas, useCreateArea, useUpdateArea, useDeleteArea, useCardLayout, useViewMode } from '../hooks'
+import { Button, Modal, ModalFooter, Card, CardHeader, CardBody, useToast, CardLayoutToolbar, ViewModeToggle } from '../components'
 import type { Area, AreaInput } from '../services/areasApi'
 
 function AreasPage() {
@@ -23,6 +23,7 @@ function AreasPage() {
   const [searchTerm, setSearchTerm] = useState('')
   const [sortBy, setSortBy] = useState<'name' | 'type'>('name')
   const { density, setDensity } = useCardLayout('areas')
+  const { mode: viewMode, setMode: setViewMode } = useViewMode('areas:view-mode')
 
   const handleSubmit = async (e?: FormEvent) => {
     e?.preventDefault()
@@ -152,99 +153,169 @@ function AreasPage() {
 
       {/* Areas Grid */}
       <div className="max-w-7xl mx-auto px-8 py-8">
-        <CardLayoutToolbar
-          searchValue={searchTerm}
-          onSearchChange={setSearchTerm}
-          searchPlaceholder="Buscar por nombre, tipo o descripción"
-          sortOptions={[
-            { value: 'name', label: 'Ordenar por nombre' },
-            { value: 'type', label: 'Ordenar por tipo' },
-          ]}
-          sortValue={sortBy}
-          onSortChange={(value) => setSortBy(value as 'name' | 'type')}
-          density={density}
-          onDensityChange={setDensity}
-        />
+        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+          <CardLayoutToolbar
+            searchValue={searchTerm}
+            onSearchChange={setSearchTerm}
+            searchPlaceholder="Buscar por nombre, tipo o descripción"
+            sortOptions={[
+              { value: 'name', label: 'Ordenar por nombre' },
+              { value: 'type', label: 'Ordenar por tipo' },
+            ]}
+            sortValue={sortBy}
+            onSortChange={(value) => setSortBy(value as 'name' | 'type')}
+            density={density}
+            onDensityChange={setDensity}
+          />
+          <ViewModeToggle mode={viewMode} onChange={setViewMode} />
+        </div>
 
         {sortedAreas.length > 0 ? (
-          <motion.div 
-            className={`${gridClass} mt-6`}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.2 }}
-          >
-            <AnimatePresence>
-              {sortedAreas.map((area, index) => (
-                <motion.div
-                  key={area.id}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, scale: 0.9 }}
-                  transition={{ delay: index * 0.05 }}
-                >
-                  <Card hover className="h-full" minHeightClass="min-h-[230px]">
-                    <CardHeader>
-                      <div className="flex justify-between items-start">
-                        <div className="flex items-center gap-2 flex-1">
-                          <div 
-                            className="w-4 h-4 rounded-full" 
-                            style={{ backgroundColor: area.color }}
-                          />
-                          <h3 className="text-lg font-semibold text-gray-800">{area.name}</h3>
-                        </div>
-                        <div className="flex gap-2 ml-2">
-                          <button
-                            onClick={() => handleEdit(area)}
-                            className="text-indigo-600 hover:text-indigo-800 transition-colors"
-                          >
-                            ✏️
-                          </button>
-                          <button
-                            onClick={() => handleDelete(area.id)}
-                            className="text-red-600 hover:text-red-800 transition-colors"
-                          >
-                            🗑️
-                          </button>
-                        </div>
-                      </div>
-                    </CardHeader>
-                    <CardBody>
-                      <div className="space-y-3">
-                        <p className="text-sm text-gray-600">
-                          <strong>Tipo:</strong> {area.type}
-                        </p>
-                        {area.description && (
-                          <p className="text-sm text-gray-700">{area.description}</p>
-                        )}
-                        {area.icon && (
-                          <p className="text-sm text-gray-600">
-                            <strong>Icono:</strong> {area.icon}
-                          </p>
-                        )}
-                      </div>
-                    </CardBody>
-                  </Card>
-                </motion.div>
-              ))}
-            </AnimatePresence>
-          </motion.div>
-        ) : (
-          <>
+          viewMode === 'cards' ? (
             <motion.div
+              className={`${gridClass} mt-6`}
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              className="text-center py-16"
+              transition={{ delay: 0.2 }}
             >
-              <p className="text-gray-500 text-lg">
-                {areas && areas.length > 0
-                  ? 'No se encontraron áreas con esos criterios'
-                  : 'No hay áreas registradas'}
-              </p>
-              <Button variant="primary" onClick={() => setShowModal(true)} className="mt-4">
-                Crear nueva área
-              </Button>
+              <AnimatePresence>
+                {sortedAreas.map((area, index) => (
+                  <motion.div
+                    key={area.id}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, scale: 0.9 }}
+                    transition={{ delay: index * 0.05 }}
+                  >
+                    <Card hover className="h-full" minHeightClass="min-h-[230px]">
+                      <CardHeader>
+                        <div className="flex justify-between items-start">
+                          <div className="flex items-center gap-2 flex-1">
+                            <div
+                              className="w-4 h-4 rounded-full"
+                              style={{ backgroundColor: area.color }}
+                            />
+                            <h3 className="text-lg font-semibold text-gray-800">{area.name}</h3>
+                          </div>
+                          <div className="flex gap-2 ml-2">
+                            <button
+                              onClick={() => handleEdit(area)}
+                              className="text-indigo-600 hover:text-indigo-800 transition-colors"
+                            >
+                              ✏️
+                            </button>
+                            <button
+                              onClick={() => handleDelete(area.id)}
+                              className="text-red-600 hover:text-red-800 transition-colors"
+                            >
+                              🗑️
+                            </button>
+                          </div>
+                        </div>
+                      </CardHeader>
+                      <CardBody>
+                        <div className="space-y-3">
+                          <p className="text-sm text-gray-600">
+                            <strong>Tipo:</strong> {area.type}
+                          </p>
+                          {area.description && (
+                            <p className="text-sm text-gray-700">{area.description}</p>
+                          )}
+                          {area.icon && (
+                            <p className="text-sm text-gray-600">
+                              <strong>Icono:</strong> {area.icon}
+                            </p>
+                          )}
+                        </div>
+                      </CardBody>
+                    </Card>
+                  </motion.div>
+                ))}
+              </AnimatePresence>
             </motion.div>
-          </>
+          ) : (
+            <motion.div
+              className="mt-6 overflow-hidden rounded-2xl border border-indigo-100 bg-white shadow-sm"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.1 }}
+            >
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-indigo-100">
+                  <thead className="bg-indigo-50/60">
+                    <tr className="text-left text-xs font-semibold uppercase tracking-wide text-indigo-600">
+                      <th className="px-4 py-3">Nombre</th>
+                      <th className="px-4 py-3">Tipo</th>
+                      <th className="px-4 py-3">Color</th>
+                      <th className="px-4 py-3">Descripción</th>
+                      <th className="px-4 py-3 text-right">Acciones</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-indigo-50 text-sm text-gray-700">
+                    {sortedAreas.map((area) => (
+                      <tr key={area.id} className="hover:bg-indigo-50/40 transition">
+                        <td className="px-4 py-3 font-semibold text-gray-800">
+                          {area.name}
+                        </td>
+                        <td className="px-4 py-3">
+                          <span className="inline-flex items-center rounded-full bg-indigo-100 px-2 py-0.5 text-xs font-medium text-indigo-700">
+                            {area.type}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-2">
+                            <span
+                              className="h-3 w-3 rounded-full border border-indigo-200"
+                              style={{ backgroundColor: area.color }}
+                            />
+                            <span className="text-xs text-gray-500">{area.color}</span>
+                          </div>
+                        </td>
+                        <td className="px-4 py-3">
+                          {area.description ? (
+                            <p className="line-clamp-2 text-gray-600">{area.description}</p>
+                          ) : (
+                            <span className="text-xs text-gray-400">Sin descripción</span>
+                          )}
+                        </td>
+                        <td className="px-4 py-3 text-right">
+                          <div className="inline-flex items-center gap-2">
+                            <button
+                              onClick={() => handleEdit(area)}
+                              className="text-indigo-600 hover:text-indigo-800 transition-colors"
+                            >
+                              ✏️ Editar
+                            </button>
+                            <button
+                              onClick={() => handleDelete(area.id)}
+                              className="text-red-600 hover:text-red-800 transition-colors"
+                            >
+                              🗑️ Eliminar
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </motion.div>
+          )
+        ) : (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="mt-10 text-center"
+          >
+            <p className="text-gray-500 text-lg">
+              {areas && areas.length > 0
+                ? 'No se encontraron áreas con esos criterios'
+                : 'No hay áreas registradas'}
+            </p>
+            <Button variant="primary" onClick={() => setShowModal(true)} className="mt-4">
+              Crear nueva área
+            </Button>
+          </motion.div>
         )}
       </div>
 

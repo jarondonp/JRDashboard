@@ -9,4 +9,5 @@ export * from './useCategoryDashboards';
 export * from './usePanelScopeSelection';
 export * from './useCardLayout';
 export * from './useTimeline';
+export * from './useViewMode';
 export * from './useGlobalSearch';

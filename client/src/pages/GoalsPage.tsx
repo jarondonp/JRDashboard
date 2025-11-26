@@ -9,8 +9,19 @@ import {
   useTasks,
   useProgressLogs,
   useCardLayout,
+  useViewMode,
 } from '../hooks'
-import { Button, Modal, ModalFooter, Card, CardHeader, CardBody, useToast, CardLayoutToolbar } from '../components'
+import {
+  Button,
+  Modal,
+  ModalFooter,
+  Card,
+  CardHeader,
+  CardBody,
+  useToast,
+  CardLayoutToolbar,
+  ViewModeToggle,
+} from '../components'
 import type { Goal } from '../services/goalsApi'
 
 interface GoalFormData {
@@ -51,6 +62,7 @@ function GoalsPage() {
   const [searchTerm, setSearchTerm] = useState('')
   const [sortBy, setSortBy] = useState<'progress' | 'due_date' | 'title'>('progress')
   const { density, setDensity } = useCardLayout('goals')
+  const { mode: viewMode, setMode: setViewMode } = useViewMode('goals:view-mode')
 
   const handleSubmit = async (e?: FormEvent) => {
     e?.preventDefault()
@@ -312,139 +324,252 @@ function GoalsPage() {
 
       {/* Goals Grid */}
       <div className="max-w-7xl mx-auto px-8 py-8">
-        <CardLayoutToolbar
-          searchValue={searchTerm}
-          onSearchChange={setSearchTerm}
-          searchPlaceholder="Buscar por título, área o descripción"
-          sortOptions={[
-            { value: 'progress', label: 'Ordenar por progreso' },
-            { value: 'due_date', label: 'Ordenar por fecha límite' },
-            { value: 'title', label: 'Ordenar alfabéticamente' },
-          ]}
-          sortValue={sortBy}
-          onSortChange={(value) => setSortBy(value as 'progress' | 'due_date' | 'title')}
-          density={density}
-          onDensityChange={setDensity}
-        />
+        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+          <CardLayoutToolbar
+            searchValue={searchTerm}
+            onSearchChange={setSearchTerm}
+            searchPlaceholder="Buscar por título, área o descripción"
+            sortOptions={[
+              { value: 'progress', label: 'Ordenar por progreso' },
+              { value: 'due_date', label: 'Ordenar por fecha límite' },
+              { value: 'title', label: 'Ordenar alfabéticamente' },
+            ]}
+            sortValue={sortBy}
+            onSortChange={(value) => setSortBy(value as 'progress' | 'due_date' | 'title')}
+            density={density}
+            onDensityChange={setDensity}
+          />
+          <ViewModeToggle mode={viewMode} onChange={setViewMode} />
+        </div>
 
         {sortedGoals.length > 0 ? (
-          <motion.div
-            className={`${gridClass} mt-6`}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.2 }}
-          >
-            <AnimatePresence>
-              {sortedGoals.map((goal, index) => {
-                const latestUpdate = latestUpdatesByGoal[goal.id!]
-                const goalStats = goalTaskStats[goal.id!]
-                return (
-                  <motion.div
-                    key={goal.id}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, scale: 0.9 }}
-                    transition={{ delay: index * 0.05 }}
-                  >
-                    <Card hover className="h-full" minHeightClass="min-h-[260px]">
-                      <CardHeader>
-                        <div className="flex justify-between items-start">
-                          <h3 className="text-lg font-semibold text-gray-800 flex-1">{goal.title}</h3>
-                          <div className="flex gap-2 ml-2">
-                            <button
-                              onClick={() => handleEdit(goal)}
-                              className="text-indigo-600 hover:text-indigo-800 transition-colors"
-                            >
-                              ✏️
-                            </button>
-                            <button
-                              onClick={() => handleDelete(goal.id)}
-                              className="text-red-600 hover:text-red-800 transition-colors"
-                            >
-                              🗑️
-                            </button>
+          viewMode === 'cards' ? (
+            <motion.div
+              className={`${gridClass} mt-6`}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.2 }}
+            >
+              <AnimatePresence>
+                {sortedGoals.map((goal, index) => {
+                  const latestUpdate = latestUpdatesByGoal[goal.id!]
+                  const goalStats = goalTaskStats[goal.id!]
+                  return (
+                    <motion.div
+                      key={goal.id}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, scale: 0.9 }}
+                      transition={{ delay: index * 0.05 }}
+                    >
+                      <Card hover className="h-full" minHeightClass="min-h-[260px]">
+                        <CardHeader>
+                          <div className="flex justify-between items-start">
+                            <h3 className="text-lg font-semibold text-gray-800 flex-1">{goal.title}</h3>
+                            <div className="flex gap-2 ml-2">
+                              <button
+                                onClick={() => handleEdit(goal)}
+                                className="text-indigo-600 hover:text-indigo-800 transition-colors"
+                              >
+                                ✏️
+                              </button>
+                              <button
+                                onClick={() => handleDelete(goal.id)}
+                                className="text-red-600 hover:text-red-800 transition-colors"
+                              >
+                                🗑️
+                              </button>
+                            </div>
                           </div>
-                        </div>
-                      </CardHeader>
-                      <CardBody>
-                        <div className="space-y-3">
-                          <p className="text-sm text-gray-600">
-                            <strong>Área:</strong> {getAreaName(goal.area_id)}
-                          </p>
-                          {goal.description && (
-                            <p className="text-sm text-gray-700">{goal.description}</p>
-                          )}
+                        </CardHeader>
+                        <CardBody>
+                          <div className="space-y-3">
+                            <p className="text-sm text-gray-600">
+                              <strong>Área:</strong> {getAreaName(goal.area_id)}
+                            </p>
+                            {goal.description && (
+                              <p className="text-sm text-gray-700">{goal.description}</p>
+                            )}
 
-                          <div className="flex flex-wrap gap-2">
-                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(goal.status)}`}>
+                            <div className="flex flex-wrap gap-2">
+                              <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(goal.status)}`}>
+                                {goal.status}
+                              </span>
+                              <span className={`px-2 py-1 rounded-full text-xs font-medium ${getPriorityColor(goal.priority)}`}>
+                                {goal.priority}
+                              </span>
+                              {goal.goal_type && (
+                                <span className="px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                                  {goal.goal_type}
+                                </span>
+                              )}
+                            </div>
+
+                            {typeof goal.computed_progress === 'number' && (
+                              <div className="mt-4">
+                                <div className="flex justify-between text-xs text-gray-600 mb-1">
+                                  <span>Progreso</span>
+                                  <span className="font-semibold">{goal.computed_progress}%</span>
+                                </div>
+                                <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
+                                  <motion.div
+                                    initial={{ width: 0 }}
+                                    animate={{ width: `${goal.computed_progress}%` }}
+                                    transition={{ duration: 0.5, delay: index * 0.05 }}
+                                    className="h-full bg-gradient-to-r from-indigo-500 to-purple-500 rounded-full"
+                                  />
+                                </div>
+                              </div>
+                            )}
+
+                            <div className="text-xs text-gray-500 space-y-1 pt-2 border-t">
+                              {latestUpdate ? (
+                                <>
+                                  <p>
+                                    Último avance: {formatDate(latestUpdate.date)}
+                                    {latestUpdate.taskTitle ? ` · ${latestUpdate.taskTitle}` : ''}
+                                  </p>
+                                  {typeof latestUpdate.progress === 'number' && (
+                                    <p>Progreso registrado: {latestUpdate.progress}%</p>
+                                  )}
+                                  <p className="text-gray-600 italic">"{latestUpdate.title}"</p>
+                                </>
+                              ) : (
+                                <p className="text-gray-400">Aún no hay avances registrados para esta meta.</p>
+                              )}
+                              {goalStats ? (
+                                <p>
+                                  {goalStats.completed}/{goalStats.total} tareas completadas · {goalStats.withoutProgress} sin avance
+                                </p>
+                              ) : (
+                                <p>No hay tareas asociadas a esta meta.</p>
+                              )}
+                              {goal.start_date && <p>Inicio: {goal.start_date}</p>}
+                              {goal.due_date && <p>Vence: {goal.due_date}</p>}
+                            </div>
+                          </div>
+                        </CardBody>
+                      </Card>
+                    </motion.div>
+                  )
+                })}
+              </AnimatePresence>
+            </motion.div>
+          ) : (
+            <motion.div
+              className="mt-6 overflow-hidden rounded-2xl border border-indigo-100 bg-white shadow-sm"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.1 }}
+            >
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-indigo-100">
+                  <thead className="bg-indigo-50/60">
+                    <tr className="text-left text-xs font-semibold uppercase tracking-wide text-indigo-600">
+                      <th className="px-4 py-3">Meta</th>
+                      <th className="px-4 py-3">Área</th>
+                      <th className="px-4 py-3">Estado</th>
+                      <th className="px-4 py-3">Prioridad</th>
+                      <th className="px-4 py-3">Progreso</th>
+                      <th className="px-4 py-3">Fechas</th>
+                      <th className="px-4 py-3">Resumen</th>
+                      <th className="px-4 py-3 text-right">Acciones</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-indigo-50 text-sm text-gray-700">
+                    {sortedGoals.map((goal) => {
+                      const latestUpdate = latestUpdatesByGoal[goal.id!]
+                      const goalStats = goalTaskStats[goal.id!]
+                      return (
+                        <tr key={goal.id} className="hover:bg-indigo-50/40 transition">
+                          <td className="px-4 py-3">
+                            <div className="flex flex-col">
+                              <span className="font-semibold text-gray-800">{goal.title}</span>
+                              {goal.description && (
+                                <span className="text-xs text-gray-500 line-clamp-2">{goal.description}</span>
+                              )}
+                            </div>
+                          </td>
+                          <td className="px-4 py-3">
+                            <span className="inline-flex items-center rounded-full bg-indigo-100 px-2 py-0.5 text-xs font-medium text-indigo-700">
+                              {getAreaName(goal.area_id)}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3">
+                            <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${getStatusColor(goal.status)}`}>
                               {goal.status}
                             </span>
-                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${getPriorityColor(goal.priority)}`}>
+                          </td>
+                          <td className="px-4 py-3">
+                            <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${getPriorityColor(goal.priority)}`}>
                               {goal.priority}
                             </span>
-                            {goal.goal_type && (
-                              <span className="px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
-                                {goal.goal_type}
-                              </span>
-                            )}
-                          </div>
-
-                          {typeof goal.computed_progress === 'number' && (
-                            <div className="mt-4">
-                              <div className="flex justify-between text-xs text-gray-600 mb-1">
-                                <span>Progreso</span>
-                                <span className="font-semibold">{goal.computed_progress}%</span>
-                              </div>
-                              <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
-                                <motion.div
-                                  initial={{ width: 0 }}
-                                  animate={{ width: `${goal.computed_progress}%` }}
-                                  transition={{ duration: 0.5, delay: index * 0.05 }}
-                                  className="h-full bg-gradient-to-r from-indigo-500 to-purple-500 rounded-full"
+                          </td>
+                          <td className="px-4 py-3">
+                            <div className="flex items-center gap-2">
+                              <div className="h-2 w-20 rounded-full bg-gray-200 overflow-hidden">
+                                <div
+                                  className="h-full rounded-full bg-gradient-to-r from-indigo-500 to-purple-500"
+                                  style={{ width: `${goal.computed_progress ?? 0}%` }}
                                 />
                               </div>
+                              <span className="text-xs text-gray-600">
+                                {goal.computed_progress ?? 0}%
+                              </span>
                             </div>
-                          )}
-
-                          <div className="text-xs text-gray-500 space-y-1 pt-2 border-t">
+                          </td>
+                          <td className="px-4 py-3 text-xs text-gray-600">
+                            <div className="flex flex-col gap-1">
+                              <span>Inicio: {goal.start_date ? formatDate(goal.start_date) : '—'}</span>
+                              <span>Vence: {goal.due_date ? formatDate(goal.due_date) : '—'}</span>
+                            </div>
+                          </td>
+                          <td className="px-4 py-3 text-xs text-gray-600">
                             {latestUpdate ? (
-                              <>
-                                <p>
-                                  Último avance: {formatDate(latestUpdate.date)}
-                                  {latestUpdate.taskTitle ? ` · ${latestUpdate.taskTitle}` : ''}
-                                </p>
-                                {typeof latestUpdate.progress === 'number' && (
-                                  <p>Progreso registrado: {latestUpdate.progress}%</p>
+                              <div className="flex flex-col gap-1">
+                                <span>Último avance: {formatDate(latestUpdate.date)}</span>
+                                {latestUpdate.progress !== undefined && (
+                                  <span>Progreso reporte: {latestUpdate.progress}%</span>
                                 )}
-                                <p className="text-gray-600 italic">"{latestUpdate.title}"</p>
-                              </>
+                                {goalStats && (
+                                  <span>
+                                    {goalStats.completed}/{goalStats.total} tareas · {goalStats.withoutProgress} sin avance
+                                  </span>
+                                )}
+                              </div>
                             ) : (
-                              <p className="text-gray-400">Aún no hay avances registrados para esta meta.</p>
+                              <span className="text-gray-400">Sin avances registrados</span>
                             )}
-                            {goalStats ? (
-                              <p>
-                                {goalStats.completed}/{goalStats.total} tareas completadas ·{' '}
-                                {goalStats.withoutProgress} sin avance
-                              </p>
-                            ) : (
-                              <p>No hay tareas asociadas a esta meta.</p>
-                            )}
-                            {goal.start_date && <p>Inicio: {goal.start_date}</p>}
-                            {goal.due_date && <p>Vence: {goal.due_date}</p>}
-                          </div>
-                        </div>
-                      </CardBody>
-                    </Card>
-                  </motion.div>
-                )
-              })}
-            </AnimatePresence>
-          </motion.div>
+                          </td>
+                          <td className="px-4 py-3 text-right">
+                            <div className="inline-flex items-center gap-2">
+                              <button
+                                onClick={() => handleEdit(goal)}
+                                className="text-indigo-600 hover:text-indigo-800 transition-colors"
+                              >
+                                ✏️ Editar
+                              </button>
+                              <button
+                                onClick={() => handleDelete(goal.id!)}
+                                className="text-red-600 hover:text-red-800 transition-colors"
+                              >
+                                🗑️ Eliminar
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </motion.div>
+          )
         ) : (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            className="text-center py-16"
+            className="mt-10 text-center"
           >
             <p className="text-gray-500 text-lg">
               {goals && goals.length > 0

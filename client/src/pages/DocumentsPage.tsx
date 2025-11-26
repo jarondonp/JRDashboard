@@ -1,7 +1,26 @@
-import { useState, type FormEvent } from 'react'
+import { useMemo, useState, type FormEvent } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { useDocuments, useCreateDocument, useUpdateDocument, useDeleteDocument, useAreas, useGoals } from '../hooks'
-import { Button, Modal, ModalFooter, Card, CardHeader, CardBody, useToast } from '../components'
+import {
+  useDocuments,
+  useCreateDocument,
+  useUpdateDocument,
+  useDeleteDocument,
+  useAreas,
+  useGoals,
+  useCardLayout,
+  useViewMode,
+} from '../hooks'
+import {
+  Button,
+  Modal,
+  ModalFooter,
+  Card,
+  CardHeader,
+  CardBody,
+  useToast,
+  CardLayoutToolbar,
+  ViewModeToggle,
+} from '../components'
 import type { Document } from '../services/documentsApi'
 
 interface DocumentFormData {
@@ -22,6 +41,11 @@ function DocumentsPage() {
   const updateMutation = useUpdateDocument()
   const deleteMutation = useDeleteDocument()
   const { showToast } = useToast()
+
+  const [searchTerm, setSearchTerm] = useState('')
+  const [sortBy, setSortBy] = useState<'review_date' | 'title'>('review_date')
+  const { density, setDensity } = useCardLayout('documents')
+  const { mode: viewMode, setMode: setViewMode } = useViewMode('documents:view-mode')
 
   const [showModal, setShowModal] = useState(false)
   const [editingDoc, setEditingDoc] = useState<Document | null>(null)
@@ -127,7 +151,46 @@ function DocumentsPage() {
     return daysUntil >= 0 && daysUntil <= 7
   }
 
+  const formatDate = (value?: string | null) => {
+    if (!value) return '—'
+    const parsed = new Date(value)
+    return Number.isNaN(parsed.getTime()) ? value : parsed.toLocaleDateString()
+  }
+
   const filteredGoals = goals?.filter(g => g.area_id === formData.area_id) || []
+
+  const filteredDocuments = useMemo(() => {
+    if (!documents) return []
+    const normalized = searchTerm.trim().toLowerCase()
+    if (!normalized) return [...documents]
+
+    return documents.filter((doc) => {
+      const title = doc.title.toLowerCase()
+      const description = (doc.description || '').toLowerCase()
+      const areaName = getAreaName(doc.area_id).toLowerCase()
+      const goalTitle = doc.goal_id ? (getGoalTitle(doc.goal_id) || '').toLowerCase() : ''
+      const docType = (doc.doc_type || '').toLowerCase()
+      return [title, description, areaName, goalTitle, docType].some((value) =>
+        value.includes(normalized),
+      )
+    })
+  }, [documents, searchTerm, areas, goals])
+
+  const sortedDocuments = useMemo(() => {
+    return [...filteredDocuments].sort((a, b) => {
+      if (sortBy === 'title') {
+        return a.title.localeCompare(b.title)
+      }
+      const aDate = a.review_date ? new Date(a.review_date).getTime() : Number.POSITIVE_INFINITY
+      const bDate = b.review_date ? new Date(b.review_date).getTime() : Number.POSITIVE_INFINITY
+      return aDate - bDate
+    })
+  }, [filteredDocuments, sortBy])
+
+  const gridClass =
+    density === 'compact'
+      ? 'grid gap-4 grid-cols-[repeat(auto-fit,minmax(260px,_1fr))] auto-rows-[1fr]'
+      : 'grid gap-6 grid-cols-[repeat(auto-fit,minmax(300px,_1fr))] auto-rows-[1fr]'
 
   if (isLoading) {
     return (
@@ -158,7 +221,7 @@ function DocumentsPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50">
       {/* Header */}
-      <motion.div 
+      <motion.div
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
         className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-8 py-8 shadow-lg"
@@ -176,22 +239,39 @@ function DocumentsPage() {
 
       {/* Documents Grid */}
       <div className="max-w-7xl mx-auto px-8 py-8">
-        {documents && documents.length > 0 ? (
-          <motion.div
-            className="grid gap-6 grid-cols-[repeat(auto-fit,minmax(300px,_1fr))] auto-rows-[1fr]"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.2 }}
-          >
-            <AnimatePresence>
-              {documents.map((doc, index) => (
-                <motion.div
-                  key={doc.id}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, scale: 0.9 }}
-                  transition={{ delay: index * 0.05 }}
-                >
+        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+          <CardLayoutToolbar
+            searchValue={searchTerm}
+            onSearchChange={setSearchTerm}
+            searchPlaceholder="Buscar por título, área, meta o tipo"
+            sortOptions={[
+              { value: 'review_date', label: 'Ordenar por fecha de revisión' },
+              { value: 'title', label: 'Ordenar alfabéticamente' },
+            ]}
+            sortValue={sortBy}
+            onSortChange={(value) => setSortBy(value as 'review_date' | 'title')}
+            density={density}
+            onDensityChange={setDensity}
+          />
+          <ViewModeToggle mode={viewMode} onChange={setViewMode} />
+        </div>
+        {sortedDocuments.length > 0 ? (
+          viewMode === 'cards' ? (
+            <motion.div
+              className={`${gridClass} mt-6`}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.2 }}
+            >
+              <AnimatePresence>
+                {sortedDocuments.map((doc, index) => (
+                  <motion.div
+                    key={doc.id}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, scale: 0.9 }}
+                    transition={{ delay: index * 0.05 }}
+                  >
                       <Card hover className="h-full" minHeightClass="min-h-[230px]">
                     <CardHeader>
                       <div className="flex justify-between items-start">
@@ -225,7 +305,7 @@ function DocumentsPage() {
                         {doc.description && (
                           <p className="text-sm text-gray-700">{doc.description}</p>
                         )}
-                        
+
                         <div className="flex flex-wrap gap-2">
                           <span className={`px-2 py-1 rounded-full text-xs font-medium ${getDocTypeColor(doc.doc_type || 'General')}`}>
                             {doc.doc_type || 'General'}
@@ -260,6 +340,94 @@ function DocumentsPage() {
               ))}
             </AnimatePresence>
           </motion.div>
+          ) : (
+            <motion.div
+              className="mt-6 overflow-hidden rounded-2xl border border-indigo-100 bg-white shadow-sm"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.1 }}
+            >
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-indigo-100">
+                  <thead className="bg-indigo-50/60">
+                    <tr className="text-left text-xs font-semibold uppercase tracking-wide text-indigo-600">
+                      <th className="px-4 py-3">Documento</th>
+                      <th className="px-4 py-3">Área</th>
+                      <th className="px-4 py-3">Meta</th>
+                      <th className="px-4 py-3">Tipo</th>
+                      <th className="px-4 py-3">Revisión</th>
+                      <th className="px-4 py-3">Enlace</th>
+                      <th className="px-4 py-3">Descripción</th>
+                      <th className="px-4 py-3 text-right">Acciones</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-indigo-50 text-sm text-gray-700">
+                    {sortedDocuments.map((doc) => (
+                      <tr key={doc.id} className="hover:bg-indigo-50/40 transition">
+                        <td className="px-4 py-3 font-semibold text-gray-800">
+                          {doc.title}
+                        </td>
+                        <td className="px-4 py-3">
+                          <span className="inline-flex items-center rounded-full bg-indigo-100 px-2 py-0.5 text-xs font-medium text-indigo-700">
+                            {getAreaName(doc.area_id)}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-xs text-gray-600">
+                          {doc.goal_id ? getGoalTitle(doc.goal_id) : '—'}
+                        </td>
+                        <td className="px-4 py-3">
+                          <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${getDocTypeColor(doc.doc_type || 'General')}`}>
+                            {doc.doc_type || 'General'}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-xs text-gray-600">
+                          {doc.review_date ? formatDate(doc.review_date) : '—'}
+                          {isReviewSoon(doc.review_date) && (
+                            <span className="ml-2 rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-semibold text-red-800">
+                              Próxima
+                            </span>
+                          )}
+                        </td>
+                        <td className="px-4 py-3">
+                          {doc.url ? (
+                            <a
+                              href={doc.url}
+                              className="text-sm text-indigo-600 hover:text-indigo-800"
+                              target="_blank"
+                              rel="noopener noreferrer"
+                            >
+                              Abrir enlace
+                            </a>
+                          ) : (
+                            <span className="text-xs text-gray-400">Sin enlace</span>
+                          )}
+                        </td>
+                        <td className="px-4 py-3 text-xs text-gray-600">
+                          {doc.description ? doc.description : <span className="text-gray-400">Sin descripción</span>}
+                        </td>
+                        <td className="px-4 py-3 text-right">
+                          <div className="inline-flex items-center gap-2">
+                            <button
+                              onClick={() => handleEdit(doc)}
+                              className="text-indigo-600 hover:text-indigo-800 transition-colors"
+                            >
+                              ✏️ Editar
+                            </button>
+                            <button
+                              onClick={() => handleDelete(doc.id)}
+                              className="text-red-600 hover:text-red-800 transition-colors"
+                            >
+                              🗑️ Eliminar
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </motion.div>
+          )
         ) : (
           <motion.div
             initial={{ opacity: 0 }}

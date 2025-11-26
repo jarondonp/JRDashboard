@@ -9,8 +9,19 @@ import {
   useGoals,
   useProgressLogs,
   useCardLayout,
+  useViewMode,
 } from '../hooks'
-import { Button, Modal, ModalFooter, Card, CardHeader, CardBody, useToast, CardLayoutToolbar } from '../components'
+import {
+  Button,
+  Modal,
+  ModalFooter,
+  Card,
+  CardHeader,
+  CardBody,
+  useToast,
+  CardLayoutToolbar,
+  ViewModeToggle,
+} from '../components'
 import type { Task } from '../services/tasksApi'
 
 interface TaskFormData {
@@ -88,6 +99,7 @@ function TasksPage() {
   const [searchTerm, setSearchTerm] = useState('')
   const [sortBy, setSortBy] = useState<'progress' | 'due_date' | 'title'>('progress')
   const { density, setDensity } = useCardLayout('tasks')
+  const { mode: viewMode, setMode: setViewMode } = useViewMode('tasks:view-mode')
 
   const handleSubmit = async (e?: FormEvent) => {
     e?.preventDefault()
@@ -286,129 +298,250 @@ function TasksPage() {
 
       {/* Tasks Grid */}
       <div className="max-w-7xl mx-auto px-8 py-8">
-        <CardLayoutToolbar
-          searchValue={searchTerm}
-          onSearchChange={setSearchTerm}
-          searchPlaceholder="Buscar por título, área, meta o tag"
-          sortOptions={[
-            { value: 'progress', label: 'Ordenar por progreso' },
-            { value: 'due_date', label: 'Ordenar por fecha límite' },
-            { value: 'title', label: 'Ordenar alfabéticamente' },
-          ]}
-          sortValue={sortBy}
-          onSortChange={(value) => setSortBy(value as 'progress' | 'due_date' | 'title')}
-          density={density}
-          onDensityChange={setDensity}
-        />
+        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+          <CardLayoutToolbar
+            searchValue={searchTerm}
+            onSearchChange={setSearchTerm}
+            searchPlaceholder="Buscar por título, área, meta o tag"
+            sortOptions={[
+              { value: 'progress', label: 'Ordenar por progreso' },
+              { value: 'due_date', label: 'Ordenar por fecha límite' },
+              { value: 'title', label: 'Ordenar alfabéticamente' },
+            ]}
+            sortValue={sortBy}
+            onSortChange={(value) => setSortBy(value as 'progress' | 'due_date' | 'title')}
+            density={density}
+            onDensityChange={setDensity}
+          />
+          <ViewModeToggle mode={viewMode} onChange={setViewMode} />
+        </div>
         {sortedTasksList.length > 0 ? (
-          <motion.div
-            className={`${gridClass} mt-6`}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.2 }}
-          >
-            <AnimatePresence>
-              {sortedTasksList.map((task, index) => {
-                const taskProgress = task.progress_percentage
-                const latestLog = latestLogsByTask[task.id!]
-                return (
-                  <motion.div
-                    key={task.id}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, scale: 0.9 }}
-                    transition={{ delay: index * 0.05 }}
-                  >
-                    <Card hover className="h-full" minHeightClass="min-h-[260px]">
-                      <CardHeader>
-                        <div className="flex justify-between items-start">
-                          <h3 className="text-lg font-semibold text-gray-800 flex-1">{task.title}</h3>
-                          <div className="flex gap-2 ml-2">
-                            <button
-                              onClick={() => handleEdit(task)}
-                              className="text-indigo-600 hover:text-indigo-800 transition-colors"
-                            >
-                              ✏️
-                            </button>
-                            <button
-                              onClick={() => handleDelete(task.id!)}
-                              className="text-red-600 hover:text-red-800 transition-colors"
-                            >
-                              🗑️
-                            </button>
+          viewMode === 'cards' ? (
+            <motion.div
+              className={`${gridClass} mt-6`}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.2 }}
+            >
+              <AnimatePresence>
+                {sortedTasksList.map((task, index) => {
+                  const taskProgress = task.progress_percentage
+                  const latestLog = latestLogsByTask[task.id!]
+                  return (
+                    <motion.div
+                      key={task.id}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, scale: 0.9 }}
+                      transition={{ delay: index * 0.05 }}
+                    >
+                      <Card hover className="h-full" minHeightClass="min-h-[260px]">
+                        <CardHeader>
+                          <div className="flex justify-between items-start">
+                            <h3 className="text-lg font-semibold text-gray-800 flex-1">{task.title}</h3>
+                            <div className="flex gap-2 ml-2">
+                              <button
+                                onClick={() => handleEdit(task)}
+                                className="text-indigo-600 hover:text-indigo-800 transition-colors"
+                              >
+                                ✏️
+                              </button>
+                              <button
+                                onClick={() => handleDelete(task.id!)}
+                                className="text-red-600 hover:text-red-800 transition-colors"
+                              >
+                                🗑️
+                              </button>
+                            </div>
                           </div>
-                        </div>
-                      </CardHeader>
-                      <CardBody>
-                        <div className="space-y-3">
-                          <p className="text-sm text-gray-600">
-                            <strong>Área:</strong> {getAreaName(task.area_id)}
-                          </p>
-                          {task.goal_id && (
+                        </CardHeader>
+                        <CardBody>
+                          <div className="space-y-3">
                             <p className="text-sm text-gray-600">
-                              <strong>Meta:</strong> {getGoalTitle(task.goal_id)}
+                              <strong>Área:</strong> {getAreaName(task.area_id)}
                             </p>
-                          )}
-                          {task.description && (
-                            <p className="text-sm text-gray-700">{task.description}</p>
-                          )}
-                          
-                          <div className="flex flex-wrap gap-2">
-                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(task.status)}`}>
+                            {task.goal_id && (
+                              <p className="text-sm text-gray-600">
+                                <strong>Meta:</strong> {getGoalTitle(task.goal_id)}
+                              </p>
+                            )}
+                            {task.description && (
+                              <p className="text-sm text-gray-700">{task.description}</p>
+                            )}
+
+                            <div className="flex flex-wrap gap-2">
+                              <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(task.status)}`}>
+                                {task.status}
+                              </span>
+                              {task.tags?.map(tag => (
+                                <span key={tag} className="px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                                  {tag}
+                                </span>
+                              ))}
+                            </div>
+
+                            {typeof taskProgress === 'number' && (
+                              <div className="mt-4">
+                                <div className="flex justify-between text-xs text-gray-600 mb-1">
+                                  <span>Progreso</span>
+                                  <span className="font-semibold">{taskProgress}%</span>
+                                </div>
+                                <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
+                                  <motion.div
+                                    initial={{ width: 0 }}
+                                    animate={{ width: `${taskProgress}%` }}
+                                    transition={{ duration: 0.5, delay: index * 0.05 }}
+                                    className={`h-full rounded-full ${taskProgress === 100 ? 'bg-green-500' : 'bg-gradient-to-r from-indigo-500 to-purple-500'}`}
+                                  />
+                                </div>
+                              </div>
+                            )}
+
+                            <div className="text-xs text-gray-500 space-y-1 pt-2 border-t">
+                              {latestLog ? (
+                                <>
+                                  <p>
+                                    Último avance: {formatDate(latestLog.date)}
+                                    {typeof latestLog.task_progress === 'number' && ` · ${latestLog.task_progress}%`}
+                                  </p>
+                                  <p className="text-gray-600 italic">"{latestLog.title}"</p>
+                                </>
+                              ) : (
+                                <p className="text-gray-400">Aún no hay avances registrados para esta tarea.</p>
+                              )}
+                              {task.due_date && <p>Vence: {formatDate(task.due_date)}</p>}
+                              {task.estimated_effort && <p>Esfuerzo: {task.estimated_effort}h</p>}
+                            </div>
+                          </div>
+                        </CardBody>
+                      </Card>
+                    </motion.div>
+                  )
+                })}
+              </AnimatePresence>
+            </motion.div>
+          ) : (
+            <motion.div
+              className="mt-6 overflow-hidden rounded-2xl border border-indigo-100 bg-white shadow-sm"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.1 }}
+            >
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-indigo-100">
+                  <thead className="bg-indigo-50/60">
+                    <tr className="text-left text-xs font-semibold uppercase tracking-wide text-indigo-600">
+                      <th className="px-4 py-3">Tarea</th>
+                      <th className="px-4 py-3">Área</th>
+                      <th className="px-4 py-3">Meta</th>
+                      <th className="px-4 py-3">Estado</th>
+                      <th className="px-4 py-3">Progreso</th>
+                      <th className="px-4 py-3">Fechas</th>
+                      <th className="px-4 py-3">Etiquetas</th>
+                      <th className="px-4 py-3">Último avance</th>
+                      <th className="px-4 py-3 text-right">Acciones</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-indigo-50 text-sm text-gray-700">
+                    {sortedTasksList.map((task) => {
+                      const latestLog = latestLogsByTask[task.id!]
+                      return (
+                        <tr key={task.id} className="hover:bg-indigo-50/40 transition">
+                          <td className="px-4 py-3">
+                            <div className="flex flex-col">
+                              <span className="font-semibold text-gray-800">{task.title}</span>
+                              {task.description && (
+                                <span className="text-xs text-gray-500 line-clamp-2">{task.description}</span>
+                              )}
+                            </div>
+                          </td>
+                          <td className="px-4 py-3">
+                            <span className="inline-flex items-center rounded-full bg-indigo-100 px-2 py-0.5 text-xs font-medium text-indigo-700">
+                              {getAreaName(task.area_id)}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 text-xs text-gray-600">
+                            {task.goal_id ? getGoalTitle(task.goal_id) : '—'}
+                          </td>
+                          <td className="px-4 py-3">
+                            <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${getStatusColor(task.status)}`}>
                               {task.status}
                             </span>
-                            {task.tags?.map(tag => (
-                              <span key={tag} className="px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
-                                {tag}
-                              </span>
-                            ))}
-                          </div>
-
-                          {typeof taskProgress === 'number' && (
-                            <div className="mt-4">
-                              <div className="flex justify-between text-xs text-gray-600 mb-1">
-                                <span>Progreso</span>
-                                <span className="font-semibold">{taskProgress}%</span>
-                              </div>
-                              <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
-                                <motion.div
-                                  initial={{ width: 0 }}
-                                  animate={{ width: `${taskProgress}%` }}
-                                  transition={{ duration: 0.5, delay: index * 0.05 }}
-                                  className={`h-full rounded-full ${taskProgress === 100 ? 'bg-green-500' : 'bg-gradient-to-r from-indigo-500 to-purple-500'}`}
+                          </td>
+                          <td className="px-4 py-3">
+                            <div className="flex items-center gap-2">
+                              <div className="h-2 w-20 rounded-full bg-gray-200 overflow-hidden">
+                                <div
+                                  className={`h-full rounded-full ${task.progress_percentage === 100 ? 'bg-green-500' : 'bg-gradient-to-r from-indigo-500 to-purple-500'}`}
+                                  style={{ width: `${task.progress_percentage ?? 0}%` }}
                                 />
                               </div>
+                              <span className="text-xs text-gray-600">
+                                {task.progress_percentage ?? 0}%
+                              </span>
                             </div>
-                          )}
-
-                          <div className="text-xs text-gray-500 space-y-1 pt-2 border-t">
-                            {latestLog ? (
-                              <>
-                                <p>
-                                  Último avance: {formatDate(latestLog.date)}
-                                  {typeof latestLog.task_progress === 'number' && ` · ${latestLog.task_progress}%`}
-                                </p>
-                                <p className="text-gray-600 italic">"{latestLog.title}"</p>
-                              </>
+                          </td>
+                          <td className="px-4 py-3 text-xs text-gray-600">
+                            <div className="flex flex-col gap-1">
+                              <span>Vence: {task.due_date ? formatDate(task.due_date) : '—'}</span>
+                              {task.estimated_effort ? <span>Esfuerzo: {task.estimated_effort}h</span> : null}
+                            </div>
+                          </td>
+                          <td className="px-4 py-3 text-xs text-gray-600">
+                            {task.tags && task.tags.length > 0 ? (
+                              <div className="flex flex-wrap gap-1">
+                                {task.tags.map((tag) => (
+                                  <span key={tag} className="rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-medium text-gray-700">
+                                    {tag}
+                                  </span>
+                                ))}
+                              </div>
                             ) : (
-                              <p className="text-gray-400">Aún no hay avances registrados para esta tarea.</p>
+                              <span className="text-gray-400">Sin tags</span>
                             )}
-                            {task.due_date && <p>Vence: {new Date(task.due_date).toLocaleDateString()}</p>}
-                            {task.estimated_effort && <p>Esfuerzo: {task.estimated_effort}h</p>}
-                          </div>
-                        </div>
-                      </CardBody>
-                    </Card>
-                  </motion.div>
-                )
-              })}
-            </AnimatePresence>
-          </motion.div>
+                          </td>
+                          <td className="px-4 py-3 text-xs text-gray-600">
+                            {latestLog ? (
+                              <div className="flex flex-col gap-1">
+                                <span>{formatDate(latestLog.date)}</span>
+                                {typeof latestLog.task_progress === 'number' && (
+                                  <span>Progreso: {latestLog.task_progress}%</span>
+                                )}
+                                <span className="italic text-gray-500">"{latestLog.title}"</span>
+                              </div>
+                            ) : (
+                              <span className="text-gray-400">Sin avances</span>
+                            )}
+                          </td>
+                          <td className="px-4 py-3 text-right">
+                            <div className="inline-flex items-center gap-2">
+                              <button
+                                onClick={() => handleEdit(task)}
+                                className="text-indigo-600 hover:text-indigo-800 transition-colors"
+                              >
+                                ✏️ Editar
+                              </button>
+                              <button
+                                onClick={() => handleDelete(task.id!)}
+                                className="text-red-600 hover:text-red-800 transition-colors"
+                              >
+                                🗑️ Eliminar
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </motion.div>
+          )
         ) : (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            className="text-center py-16"
+            className="mt-10 text-center"
           >
             <p className="text-gray-500 text-lg">
               {tasks && tasks.length > 0

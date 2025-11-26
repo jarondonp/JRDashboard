@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react'
+import { useMemo, useState, type FormEvent } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   useProgressLogs,
@@ -8,8 +8,20 @@ import {
   useAreas,
   useGoals,
   useTasks,
+  useCardLayout,
+  useViewMode,
 } from '../hooks'
-import { Button, Modal, ModalFooter, Card, CardHeader, CardBody, useToast } from '../components'
+import {
+  Button,
+  Modal,
+  ModalFooter,
+  Card,
+  CardHeader,
+  CardBody,
+  useToast,
+  CardLayoutToolbar,
+  ViewModeToggle,
+} from '../components'
 import type { ProgressLog } from '../services/progressApi'
 
 interface ProgressFormData {
@@ -33,6 +45,11 @@ function ProgressPage() {
   const updateMutation = useUpdateProgressLog()
   const deleteMutation = useDeleteProgressLog()
   const { showToast } = useToast()
+
+  const [searchTerm, setSearchTerm] = useState('')
+  const [sortBy, setSortBy] = useState<'date' | 'title'>('date')
+  const { density, setDensity } = useCardLayout('progress')
+  const { mode: viewMode, setMode: setViewMode } = useViewMode('progress:view-mode')
 
   const [showModal, setShowModal] = useState(false)
   const [editingLog, setEditingLog] = useState<ProgressLog | null>(null)
@@ -141,6 +158,12 @@ function ProgressPage() {
     return '😞'
   }
 
+  const formatDate = (value?: string | null) => {
+    if (!value) return '—'
+    const parsed = new Date(value)
+    return Number.isNaN(parsed.getTime()) ? value : parsed.toLocaleDateString()
+  }
+
   const filteredGoals = goals?.filter(g => g.area_id === formData.area_id) || []
   const filteredTasks =
     tasks?.filter(task => {
@@ -150,6 +173,39 @@ function ProgressPage() {
       }
       return true
     }) || []
+
+  const filteredLogs = useMemo(() => {
+    if (!logs) return []
+    const normalized = searchTerm.trim().toLowerCase()
+    if (!normalized) return [...logs]
+
+    return logs.filter((log) => {
+      const title = log.title.toLowerCase()
+      const note = (log.note || '').toLowerCase()
+      const areaName = getAreaName(log.area_id).toLowerCase()
+      const goalTitle = log.goal_id ? (getGoalTitle(log.goal_id) || '').toLowerCase() : ''
+      const taskTitle = log.task_id ? (getTaskTitle(log.task_id) || '').toLowerCase() : ''
+      return [title, note, areaName, goalTitle, taskTitle].some((value) =>
+        value.includes(normalized),
+      )
+    })
+  }, [logs, searchTerm, areas, goals, tasks])
+
+  const sortedLogs = useMemo(() => {
+    return [...filteredLogs].sort((a, b) => {
+      if (sortBy === 'title') {
+        return a.title.localeCompare(b.title)
+      }
+      const aDate = a.date ? new Date(a.date).getTime() : (a.created_at ? new Date(a.created_at).getTime() : 0)
+      const bDate = b.date ? new Date(b.date).getTime() : (b.created_at ? new Date(b.created_at).getTime() : 0)
+      return bDate - aDate
+    })
+  }, [filteredLogs, sortBy])
+
+  const gridClass =
+    density === 'compact'
+      ? 'grid gap-4 grid-cols-[repeat(auto-fit,minmax(260px,_1fr))] auto-rows-[1fr]'
+      : 'grid gap-6 grid-cols-[repeat(auto-fit,minmax(320px,_1fr))] auto-rows-[1fr]'
 
   if (isLoading) {
     return (
@@ -198,15 +254,32 @@ function ProgressPage() {
 
       {/* Progress Grid */}
       <div className="max-w-7xl mx-auto px-8 py-8">
-        {logs && logs.length > 0 ? (
-         <motion.div 
-           className="grid gap-6 grid-cols-[repeat(auto-fit,minmax(320px,_1fr))] auto-rows-[1fr]"
+        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+          <CardLayoutToolbar
+            searchValue={searchTerm}
+            onSearchChange={setSearchTerm}
+            searchPlaceholder="Buscar por título, área, meta o nota"
+            sortOptions={[
+              { value: 'date', label: 'Ordenar por fecha' },
+              { value: 'title', label: 'Ordenar alfabéticamente' },
+            ]}
+            sortValue={sortBy}
+            onSortChange={(value) => setSortBy(value as 'date' | 'title')}
+            density={density}
+            onDensityChange={setDensity}
+          />
+          <ViewModeToggle mode={viewMode} onChange={setViewMode} />
+        </div>
+        {sortedLogs.length > 0 ? (
+         viewMode === 'cards' ? (
+          <motion.div 
+           className={`${gridClass} mt-6`}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.2 }}
           >
             <AnimatePresence>
-              {logs.map((log, index) => (
+              {sortedLogs.map((log, index) => (
                 <motion.div
                   key={log.id}
                   initial={{ opacity: 0, y: 20 }}
@@ -283,6 +356,99 @@ function ProgressPage() {
               ))}
             </AnimatePresence>
           </motion.div>
+         ) : (
+            <motion.div
+              className="mt-6 overflow-hidden rounded-2xl border border-indigo-100 bg-white shadow-sm"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.1 }}
+            >
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-indigo-100">
+                  <thead className="bg-indigo-50/60">
+                    <tr className="text-left text-xs font-semibold uppercase tracking-wide text-indigo-600">
+                      <th className="px-4 py-3">Título</th>
+                      <th className="px-4 py-3">Área</th>
+                      <th className="px-4 py-3">Meta</th>
+                      <th className="px-4 py-3">Tarea</th>
+                      <th className="px-4 py-3">Mood / Impacto</th>
+                      <th className="px-4 py-3">Fecha</th>
+                      <th className="px-4 py-3">Detalle</th>
+                      <th className="px-4 py-3 text-right">Acciones</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-indigo-50 text-sm text-gray-700">
+                    {sortedLogs.map((log) => (
+                      <tr key={log.id} className="hover:bg-indigo-50/40 transition">
+                        <td className="px-4 py-3 font-semibold text-gray-800">
+                          {log.title}
+                        </td>
+                        <td className="px-4 py-3">
+                          <span className="inline-flex items-center rounded-full bg-indigo-100 px-2 py-0.5 text-xs font-medium text-indigo-700">
+                            {getAreaName(log.area_id)}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-xs text-gray-600">
+                          {log.goal_id ? getGoalTitle(log.goal_id) : '—'}
+                        </td>
+                        <td className="px-4 py-3 text-xs text-gray-600">
+                          {log.task_id ? getTaskTitle(log.task_id) : '—'}
+                        </td>
+                        <td className="px-4 py-3 text-xs text-gray-600">
+                          <div className="flex flex-wrap items-center gap-2">
+                            {log.mood && (
+                              <span className="inline-flex items-center gap-1 rounded-full bg-purple-100 px-2 py-0.5 text-[10px] font-medium text-purple-800">
+                                {getMoodEmoji(log.mood)} {log.mood}/5
+                              </span>
+                            )}
+                            {log.impact_level && (
+                              <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium ${
+                                log.impact_level >= 4
+                                  ? 'bg-green-100 text-green-800'
+                                  : log.impact_level >= 2
+                                  ? 'bg-yellow-100 text-yellow-800'
+                                  : 'bg-blue-100 text-blue-800'
+                              }`}
+                              >
+                                Impacto: {log.impact_level}/5
+                              </span>
+                            )}
+                            {typeof log.task_progress === 'number' && (
+                              <span className="inline-flex items-center rounded-full bg-indigo-100 px-2 py-0.5 text-[10px] font-medium text-indigo-800">
+                                Progreso tarea: {log.task_progress}%
+                              </span>
+                            )}
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 text-xs text-gray-600">
+                          {log.date ? formatDate(log.date) : formatDate(log.created_at)}
+                        </td>
+                        <td className="px-4 py-3 text-xs text-gray-600">
+                          {log.note ? log.note : <span className="text-gray-400">Sin nota</span>}
+                        </td>
+                        <td className="px-4 py-3 text-right">
+                          <div className="inline-flex items-center gap-2">
+                            <button
+                              onClick={() => handleEdit(log)}
+                              className="text-indigo-600 hover:text-indigo-800 transition-colors"
+                            >
+                              ✏️ Editar
+                            </button>
+                            <button
+                              onClick={() => handleDelete(log.id)}
+                              className="text-red-600 hover:text-red-800 transition-colors"
+                            >
+                              🗑️ Eliminar
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </motion.div>
+         )
         ) : (
           <motion.div
             initial={{ opacity: 0 }}
