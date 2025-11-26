@@ -899,10 +899,10 @@ module.exports = {
 - [x] Gráfico de distribución
 
 **Documentos en Revisión:**
-- [ ] Crear `DocumentsReviewPage.tsx` (`/documents/review`)
-- [ ] Filtro: `review_date <= hoy + 7 días`
-- [ ] Alertas por prioridad (rojo, amarillo, verde)
-- [ ] Acción rápida: marcar como revisado
+- [x] Crear `DocumentsReviewPage.tsx` (`/documents/review`)
+- [x] Filtro: `review_date <= hoy + 7 días`
+- [x] Alertas por prioridad (rojo, amarillo, verde)
+- [x] Acción rápida: marcar como revisado
 
 **Panel de Cumplimiento:**
 - [ ] Crear `ComplianceDashboard.tsx` (`/analytics/compliance`)
