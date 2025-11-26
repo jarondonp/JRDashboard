@@ -892,11 +892,11 @@ module.exports = {
 - [x] Badge de urgencia (rojo si >7 días)
 
 **Metas por Área:**
-- [ ] Crear `GoalsByAreaPage.tsx` (`/goals/by-area`)
-- [ ] Agrupación visual por área con totales
-- [ ] Progress bar por área
-- [ ] Expandir/colapsar cada grupo
-- [ ] Gráfico de distribución
+- [x] Crear `GoalsByAreaPage.tsx` (`/goals/by-area`)
+- [x] Agrupación visual por área con totales
+- [x] Progress bar por área
+- [x] Expandir/colapsar cada grupo
+- [x] Gráfico de distribución
 
 **Documentos en Revisión:**
 - [ ] Crear `DocumentsReviewPage.tsx` (`/documents/review`)

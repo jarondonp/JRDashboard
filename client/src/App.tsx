@@ -4,6 +4,7 @@ import AreasPage from './pages/AreasPage'
 import AreaDashboardPage from './pages/AreaDashboardPage'
 import AreaPanelPage from './pages/AreaPanelPage'
 import GoalsPage from './pages/GoalsPage'
+import GoalsByAreaPage from './pages/GoalsByAreaPage'
 import TasksPage from './pages/TasksPage'
 import OverdueTasksPage from './pages/OverdueTasksPage'
 import ProgressPage from './pages/ProgressPage'
@@ -39,6 +40,7 @@ function App() {
             <ul>
               <li><Link to="/areas">🎯 Áreas</Link></li>
               <li><Link to="/goals">✅ Metas</Link></li>
+              <li><Link to="/goals/by-area">🌐 Metas por Área</Link></li>
               <li><Link to="/tasks">📋 Tareas</Link></li>
               <li><Link to="/tasks/overdue">🚨 Atrasadas</Link></li>
               <li><Link to="/progress">📈 Avances</Link></li>
@@ -67,6 +69,7 @@ function App() {
             <Route path="/areas/:areaId/dashboard" element={<AreaDashboardPage />} />
             <Route path="/areas/:areaId/panel" element={<AreaPanelPage />} />
             <Route path="/goals" element={<GoalsPage />} />
+            <Route path="/goals/by-area" element={<GoalsByAreaPage />} />
             <Route path="/tasks" element={<TasksPage />} />
             <Route path="/tasks/overdue" element={<OverdueTasksPage />} />
             <Route path="/progress" element={<ProgressPage />} />
