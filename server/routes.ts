@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { ZodError, type z } from 'zod';
+import { ZodError, z } from 'zod';
 import * as storage from './storage';
 import { insertAreaSchema, insertGoalSchema, insertTaskSchema, insertProgressLogSchema, insertDocumentSchema, insertReportSchema } from '../shared/schema';
 import { updateGoalProgress, updateTaskProgressByStatus, recalculateTaskProgress } from './progressCalculator';
