@@ -68,6 +68,15 @@ const normalizeProgressLogInput = async (data: ProgressLogPayload) => {
   };
 };
 
+const timelineQuerySchema = z.object({
+  pageSize: z.coerce.number().min(1).max(100).default(20),
+  cursor: z.string().optional(),
+  areaId: z.string().optional(),
+  eventType: z.union([z.array(z.string()), z.string()]).optional(),
+  from: z.string().optional(),
+  to: z.string().optional(),
+});
+
 // Areas
 router.get('/areas', async (req, res) => {
   try {
@@ -374,6 +383,62 @@ router.delete('/documents/:id', async (req, res) => {
     res.status(204).end();
   } catch (err) {
     res.status(500).json({ error: err.message });
+  }
+});
+
+router.get('/timeline', async (req, res) => {
+  try {
+    const parsed = timelineQuerySchema.parse(req.query);
+    const rawEventType = parsed.eventType;
+    let eventTypes: storage.TimelineEventType[] | undefined;
+
+    if (rawEventType) {
+      const allowedTypes = new Set(storage.TIMELINE_EVENT_TYPES);
+      const values = Array.isArray(rawEventType) ? rawEventType : [rawEventType];
+      eventTypes = values
+        .map((value) => value.toLowerCase().trim())
+        .filter((value): value is storage.TimelineEventType => allowedTypes.has(value as storage.TimelineEventType));
+
+      if (eventTypes.length === 0) {
+        return res.status(400).json({
+          error: `eventType debe ser alguno de: ${storage.TIMELINE_EVENT_TYPES.join(', ')}`,
+        });
+      }
+    }
+
+    const fromDate = parsed.from ? new Date(parsed.from) : undefined;
+    if (fromDate && Number.isNaN(fromDate.getTime())) {
+      return res.status(400).json({ error: 'Parámetro "from" inválido' });
+    }
+
+    const toDate = parsed.to ? new Date(parsed.to) : undefined;
+    if (toDate && Number.isNaN(toDate.getTime())) {
+      return res.status(400).json({ error: 'Parámetro "to" inválido' });
+    }
+
+    const trimmedAreaId = parsed.areaId?.trim();
+    const areaFilter = trimmedAreaId && trimmedAreaId.length > 0 ? trimmedAreaId : undefined;
+
+    if (fromDate && toDate && fromDate > toDate) {
+      return res.status(400).json({ error: 'El parámetro "from" no puede ser mayor que "to"' });
+    }
+
+    const result = await storage.getTimelineEvents({
+      limit: parsed.pageSize,
+      cursor: parsed.cursor,
+      areaId: areaFilter,
+      eventTypes,
+      from: fromDate,
+      to: toDate,
+    });
+
+    res.json(result);
+  } catch (err) {
+    if (err instanceof ZodError) {
+      return res.status(400).json({ error: err.message });
+    }
+    console.error('Error fetching timeline:', err);
+    res.status(500).json({ error: 'Error fetching timeline' });
   }
 });
 

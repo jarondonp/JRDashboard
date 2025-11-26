@@ -1,6 +1,35 @@
 import { db } from './db';
-import { eq } from 'drizzle-orm';
+import { and, desc, eq, gte, lte } from 'drizzle-orm';
 import { areas, goals, tasks, progress_logs, documents, reports } from '../shared/schema';
+
+export const TIMELINE_EVENT_TYPES = ['progress_log', 'task_completed', 'goal_completed', 'document_added'] as const;
+export type TimelineEventType = typeof TIMELINE_EVENT_TYPES[number];
+
+export interface TimelineEvent {
+  id: string;
+  type: TimelineEventType;
+  title: string;
+  subtitle?: string;
+  area: {
+    id: string;
+    name: string;
+    color: string | null;
+  };
+  goal?: { id: string; title: string | null } | null;
+  task?: { id: string; title: string | null } | null;
+  date: string;
+  createdAt: string;
+  meta?: Record<string, unknown>;
+}
+
+export interface TimelineQueryParams {
+  limit: number;
+  cursor?: string;
+  areaId?: string;
+  eventTypes?: TimelineEventType[];
+  from?: Date;
+  to?: Date;
+}
 
 // Areas
 export async function getAreas() {
@@ -159,6 +188,334 @@ export async function updateDocument(id: string, data: any) {
 }
 export async function deleteDocument(id: string) {
   return db.delete(documents).where(eq(documents.id, id));
+}
+
+const DEFAULT_FETCH_MULTIPLIER = 3;
+const DEFAULT_AREA_COLOR = '#6366F1';
+
+const buildMeta = (entries: Record<string, unknown>): Record<string, unknown> | undefined => {
+  const meta: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(entries)) {
+    if (value === undefined || value === null) continue;
+    if (Array.isArray(value)) {
+      if (value.length === 0) continue;
+      meta[key] = value;
+      continue;
+    }
+    if (value instanceof Date) {
+      meta[key] = value.toISOString();
+      continue;
+    }
+    meta[key] = value;
+  }
+  return Object.keys(meta).length > 0 ? meta : undefined;
+};
+
+interface InternalTimelineEvent extends TimelineEvent {
+  sortKey: number;
+  sortId: string;
+}
+
+const parseCursor = (cursor?: string) => {
+  if (!cursor) return null;
+  const [timestampPart, idPart] = cursor.split('|');
+  if (!timestampPart || !idPart) return null;
+  const date = new Date(timestampPart);
+  const timestamp = date.getTime();
+  if (Number.isNaN(timestamp)) return null;
+  return { timestamp, id: idPart };
+};
+
+const normalizeDate = (input?: Date | string | null): Date | undefined => {
+  if (!input) return undefined;
+  if (input instanceof Date) return input;
+  const parsed = new Date(input);
+  return Number.isNaN(parsed.getTime()) ? undefined : parsed;
+};
+
+const shouldIncludeDate = (date: Date | undefined, from?: Date, to?: Date) => {
+  if (!date) return true;
+  if (from && date < from) return false;
+  if (to && date > to) return false;
+  return true;
+};
+
+export async function getTimelineEvents(params: TimelineQueryParams) {
+  const limit = Math.max(1, params.limit);
+  const fetchLimit = Math.max(limit * DEFAULT_FETCH_MULTIPLIER, limit + 10);
+  const eventTypes = new Set(params.eventTypes && params.eventTypes.length ? params.eventTypes : TIMELINE_EVENT_TYPES);
+
+  const events: InternalTimelineEvent[] = [];
+
+  const { areaId, from: fromDate, to: toDate } = params;
+
+  if (eventTypes.has('progress_log')) {
+    let query = db
+      .select({
+        id: progress_logs.id,
+        areaId: progress_logs.area_id,
+        areaName: areas.name,
+        areaColor: areas.color,
+        goalId: progress_logs.goal_id,
+        goalTitle: goals.title,
+        taskId: progress_logs.task_id,
+        taskTitle: tasks.title,
+        title: progress_logs.title,
+        note: progress_logs.note,
+        date: progress_logs.date,
+        createdAt: progress_logs.created_at,
+        mood: progress_logs.mood,
+        impact: progress_logs.impact_level,
+        taskProgress: progress_logs.task_progress,
+      })
+      .from(progress_logs)
+      .innerJoin(areas, eq(areas.id, progress_logs.area_id))
+      .leftJoin(goals, eq(goals.id, progress_logs.goal_id))
+      .leftJoin(tasks, eq(tasks.id, progress_logs.task_id));
+
+    const conditions = [];
+    if (areaId) conditions.push(eq(progress_logs.area_id, areaId));
+    if (fromDate) conditions.push(gte(progress_logs.created_at, fromDate));
+    if (toDate) conditions.push(lte(progress_logs.created_at, toDate));
+    if (conditions.length) {
+      query = query.where(and(...conditions));
+    }
+
+    const rows = await query.orderBy(desc(progress_logs.created_at)).limit(fetchLimit);
+
+    for (const row of rows) {
+      const createdAt = normalizeDate(row.createdAt) ?? new Date();
+      const eventDate = normalizeDate(row.date) ?? createdAt;
+      if (!shouldIncludeDate(eventDate, fromDate, toDate)) continue;
+
+      events.push({
+        id: `progress_log:${row.id}`,
+        sortId: row.id,
+        sortKey: createdAt.getTime(),
+        type: 'progress_log',
+        title: row.title,
+        subtitle: row.note ?? undefined,
+        area: {
+          id: row.areaId,
+          name: row.areaName ?? 'Área sin nombre',
+          color: row.areaColor ?? DEFAULT_AREA_COLOR,
+        },
+        goal: row.goalId ? { id: row.goalId, title: row.goalTitle ?? null } : null,
+        task: row.taskId ? { id: row.taskId, title: row.taskTitle ?? null } : null,
+        date: eventDate.toISOString(),
+        createdAt: createdAt.toISOString(),
+        meta: buildMeta({
+          mood: row.mood,
+          impact: row.impact,
+          progress: row.taskProgress,
+        }),
+      });
+    }
+  }
+
+  if (eventTypes.has('task_completed')) {
+    let query = db
+      .select({
+        id: tasks.id,
+        areaId: tasks.area_id,
+        areaName: areas.name,
+        areaColor: areas.color,
+        goalId: tasks.goal_id,
+        goalTitle: goals.title,
+        title: tasks.title,
+        description: tasks.description,
+        updatedAt: tasks.updated_at,
+        createdAt: tasks.created_at,
+        dueDate: tasks.due_date,
+        tags: tasks.tags,
+        progress: tasks.progress_percentage,
+      })
+      .from(tasks)
+      .innerJoin(areas, eq(areas.id, tasks.area_id))
+      .leftJoin(goals, eq(goals.id, tasks.goal_id));
+
+    const conditions = [eq(tasks.status, 'completada')];
+    if (areaId) conditions.push(eq(tasks.area_id, areaId));
+    if (fromDate) conditions.push(gte(tasks.updated_at, fromDate));
+    if (toDate) conditions.push(lte(tasks.updated_at, toDate));
+    if (conditions.length) {
+      query = query.where(and(...conditions));
+    }
+
+    const rows = await query.orderBy(desc(tasks.updated_at)).limit(fetchLimit);
+
+    for (const row of rows) {
+      const updatedAt = normalizeDate(row.updatedAt) ?? normalizeDate(row.createdAt) ?? new Date();
+      if (!shouldIncludeDate(updatedAt, fromDate, toDate)) continue;
+
+      events.push({
+        id: `task_completed:${row.id}`,
+        sortId: row.id,
+        sortKey: updatedAt.getTime(),
+        type: 'task_completed',
+        title: row.title,
+        subtitle: row.goalTitle ? `Meta: ${row.goalTitle}` : row.description ?? undefined,
+        area: {
+          id: row.areaId,
+          name: row.areaName ?? 'Área sin nombre',
+          color: row.areaColor ?? DEFAULT_AREA_COLOR,
+        },
+        goal: row.goalId ? { id: row.goalId, title: row.goalTitle ?? null } : null,
+        task: { id: row.id, title: row.title },
+        date: updatedAt.toISOString(),
+        createdAt: updatedAt.toISOString(),
+        meta: buildMeta({
+          progress: row.progress,
+          dueDate: normalizeDate(row.dueDate),
+          tags: row.tags,
+        }),
+      });
+    }
+  }
+
+  if (eventTypes.has('goal_completed')) {
+    let query = db
+      .select({
+        id: goals.id,
+        areaId: goals.area_id,
+        areaName: areas.name,
+        areaColor: areas.color,
+        title: goals.title,
+        description: goals.description,
+        updatedAt: goals.updated_at,
+        createdAt: goals.created_at,
+        computedProgress: goals.computed_progress,
+        priority: goals.priority,
+      })
+      .from(goals)
+      .innerJoin(areas, eq(areas.id, goals.area_id));
+
+    const conditions = [eq(goals.status, 'completada')];
+    if (areaId) conditions.push(eq(goals.area_id, areaId));
+    if (fromDate) conditions.push(gte(goals.updated_at, fromDate));
+    if (toDate) conditions.push(lte(goals.updated_at, toDate));
+    if (conditions.length) {
+      query = query.where(and(...conditions));
+    }
+
+    const rows = await query.orderBy(desc(goals.updated_at)).limit(fetchLimit);
+
+    for (const row of rows) {
+      const completedAt = normalizeDate(row.updatedAt) ?? normalizeDate(row.createdAt) ?? new Date();
+      if (!shouldIncludeDate(completedAt, fromDate, toDate)) continue;
+
+      events.push({
+        id: `goal_completed:${row.id}`,
+        sortId: row.id,
+        sortKey: completedAt.getTime(),
+        type: 'goal_completed',
+        title: row.title,
+        subtitle: row.description ?? undefined,
+        area: {
+          id: row.areaId,
+          name: row.areaName ?? 'Área sin nombre',
+          color: row.areaColor ?? DEFAULT_AREA_COLOR,
+        },
+        goal: { id: row.id, title: row.title },
+        date: completedAt.toISOString(),
+        createdAt: completedAt.toISOString(),
+        meta: buildMeta({
+          progress: row.computedProgress,
+          priority: row.priority,
+        }),
+      });
+    }
+  }
+
+  if (eventTypes.has('document_added')) {
+    let query = db
+      .select({
+        id: documents.id,
+        areaId: documents.area_id,
+        areaName: areas.name,
+        areaColor: areas.color,
+        goalId: documents.goal_id,
+        goalTitle: goals.title,
+        title: documents.title,
+        description: documents.description,
+        docType: documents.doc_type,
+        url: documents.url,
+        reviewDate: documents.review_date,
+        createdAt: documents.created_at,
+      })
+      .from(documents)
+      .innerJoin(areas, eq(areas.id, documents.area_id))
+      .leftJoin(goals, eq(goals.id, documents.goal_id));
+
+    const conditions = [];
+    if (areaId) conditions.push(eq(documents.area_id, areaId));
+    if (fromDate) conditions.push(gte(documents.created_at, fromDate));
+    if (toDate) conditions.push(lte(documents.created_at, toDate));
+    if (conditions.length) {
+      query = query.where(and(...conditions));
+    }
+
+    const rows = await query.orderBy(desc(documents.created_at)).limit(fetchLimit);
+
+    for (const row of rows) {
+      const createdAt = normalizeDate(row.createdAt) ?? new Date();
+      if (!shouldIncludeDate(createdAt, fromDate, toDate)) continue;
+
+      events.push({
+        id: `document_added:${row.id}`,
+        sortId: row.id,
+        sortKey: createdAt.getTime(),
+        type: 'document_added',
+        title: row.title,
+        subtitle: row.description ?? undefined,
+        area: {
+          id: row.areaId,
+          name: row.areaName ?? 'Área sin nombre',
+          color: row.areaColor ?? DEFAULT_AREA_COLOR,
+        },
+        goal: row.goalId ? { id: row.goalId, title: row.goalTitle ?? null } : null,
+        date: createdAt.toISOString(),
+        createdAt: createdAt.toISOString(),
+        meta: buildMeta({
+          docType: row.docType,
+          url: row.url,
+          reviewDate: normalizeDate(row.reviewDate),
+        }),
+      });
+    }
+  }
+
+  const cursorInfo = parseCursor(params.cursor);
+
+  const sorted = events.sort((a, b) => {
+    if (b.sortKey !== a.sortKey) return b.sortKey - a.sortKey;
+    return a.sortId.localeCompare(b.sortId);
+  });
+
+  const filtered = cursorInfo
+    ? sorted.filter((event) => {
+        if (event.sortKey < cursorInfo.timestamp) return true;
+        if (event.sortKey > cursorInfo.timestamp) return false;
+        return event.sortId < cursorInfo.id;
+      })
+    : sorted;
+
+  const slice = filtered.slice(0, limit);
+  const hasMore = filtered.length > limit;
+  const nextCursor =
+    hasMore && slice.length
+      ? `${slice[limit - 1].createdAt}|${slice[limit - 1].sortId}`
+      : undefined;
+
+  const items: TimelineEvent[] = slice.map(({ sortKey, sortId, ...rest }) => rest);
+
+  return {
+    items,
+    pagination: {
+      hasMore,
+      nextCursor: nextCursor ?? null,
+    },
+  };
 }
 
 // Reports

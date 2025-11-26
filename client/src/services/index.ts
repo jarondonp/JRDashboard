@@ -5,3 +5,4 @@ export * from './apiClient';
 export * as progressApi from './progressApi';
 export * as documentsApi from './documentsApi';
 export * as reportsApi from './reportsApi';
+export * as timelineApi from './timelineApi';

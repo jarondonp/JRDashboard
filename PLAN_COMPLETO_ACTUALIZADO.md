@@ -824,15 +824,63 @@ module.exports = {
 - [x] Habilitar modos de densidad (compacto vs. cómodo) que el usuario pueda alternar.
 
 ### **11.1 Timeline General**
-- [ ] Crear `TimelinePage.tsx` (`/timeline`)
-- [ ] Vista cronológica unificada combinando:
+- [x] Crear `TimelinePage.tsx` (`/timeline`)
+- [x] Vista cronológica unificada combinando:
   - Avances registrados (progress_logs)
   - Tareas completadas
   - Documentos añadidos
   - Metas alcanzadas
-- [ ] Agrupación por día/semana/mes (selector)
-- [ ] Scroll infinito con paginación
-- [ ] Filtros por área y tipo de evento
+- [x] Agrupación por día/semana/mes (selector)
+- [x] Scroll infinito con paginación
+- [x] Filtros por área y tipo de evento
+
+**Contrato de datos propuesto**
+- Endpoint REST: `GET /api/timeline`
+  - Query params: `page` (number, default 1), `pageSize` (default 20), `areaId`, `eventType[]`, `range` (`day|week|month`), `from`, `to`.
+  - Respuesta:
+    ```json
+    {
+      "items": [
+        {
+          "id": "uuid",
+          "type": "progress_log|task_completed|goal_completed|document_added",
+          "title": "string",
+          "subtitle": "string",
+          "area": { "id": "uuid", "name": "string", "color": "#hex" },
+          "goal": { "id": "uuid", "title": "string" } | null,
+          "task": { "id": "uuid", "title": "string" } | null,
+          "date": "2025-11-26",
+          "createdAt": "ISO timestamp",
+          "meta": {
+            "mood": 4,
+            "impact": 3,
+            "progress": 60,
+            "docType": "PDF",
+            "tags": ["career"]
+          }
+        }
+      ],
+      "pagination": { "page": 1, "pageSize": 20, "hasMore": true }
+    }
+    ```
+- Estrategia de paginación: cursor basado en `createdAt` + `id` para orden descendente (últimos eventos primero).
+- Normalización: reutilizar servicios existentes (tasks/goals/documents) para poblar `timelineEventsView` en backend.
+
+**Backlog técnico**
+- [ ] Query consolidada en `storage.timeline` que una:
+  - `progress_logs` (siempre)
+  - `tasks` con `status = 'completada'`
+  - `goals` con `status = 'completada'`
+  - `documents` creados recientemente
+- [ ] Índices sugeridos: `(created_at DESC)` en cada tabla, `(status, updated_at)` para tasks/goals, `(area_id, created_at)` para todos.
+- [ ] Functor de mapeo para transformar filas a view-model homogéneo.
+
+**Front-End**
+- [ ] Hook `useTimeline` con soporte de filtros y scroll infinito (TanStack Query).
+- [ ] Timeline agrupado por fecha según selector de rango (día, semana, mes).
+- [ ] Componentes: `TimelineDayGroup`, `TimelineEventCard`, badges de tipo/área.
+- [ ] Controles: chips de tipo, selector de área, selector de rango y barra de búsqueda rápida.
+- [ ] Estados UI: loading skeleton, empty state, error con reintento.
 
 ### **11.2 Vistas Especializadas**
 

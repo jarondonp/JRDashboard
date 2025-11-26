@@ -8,6 +8,7 @@ import TasksPage from './pages/TasksPage'
 import ProgressPage from './pages/ProgressPage'
 import DocumentsPage from './pages/DocumentsPage'
 import ReportsPage from './pages/ReportsPage'
+import TimelinePage from './pages/TimelinePage'
 import EmotionalPanelPage from './pages/EmotionalPanelPage'
 import VocationalPanelPage from './pages/VocationalPanelPage'
 import FinancialPanelPage from './pages/FinancialPanelPage'
@@ -39,6 +40,7 @@ function App() {
               <li><Link to="/goals">✅ Metas</Link></li>
               <li><Link to="/tasks">📋 Tareas</Link></li>
               <li><Link to="/progress">📈 Avances</Link></li>
+              <li><Link to="/timeline">🕒 Timeline</Link></li>
               <li><Link to="/documents">📄 Documentos</Link></li>
               <li><Link to="/reports">📊 Reportes</Link></li>
             </ul>
@@ -65,6 +67,7 @@ function App() {
             <Route path="/goals" element={<GoalsPage />} />
             <Route path="/tasks" element={<TasksPage />} />
             <Route path="/progress" element={<ProgressPage />} />
+            <Route path="/timeline" element={<TimelinePage />} />
             <Route path="/documents" element={<DocumentsPage />} />
             <Route path="/reports" element={<ReportsPage />} />
             <Route path="/panel/emotional" element={<EmotionalPanelPage />} />
