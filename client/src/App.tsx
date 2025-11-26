@@ -10,6 +10,7 @@ import OverdueTasksPage from './pages/OverdueTasksPage'
 import ProgressPage from './pages/ProgressPage'
 import DocumentsPage from './pages/DocumentsPage'
 import DocumentsReviewPage from './pages/DocumentsReviewPage'
+import ComplianceDashboard from './pages/ComplianceDashboard'
 import ReportsPage from './pages/ReportsPage'
 import TimelinePage from './pages/TimelinePage'
 import EmotionalPanelPage from './pages/EmotionalPanelPage'
@@ -49,6 +50,7 @@ function App() {
               <li><Link to="/documents">📄 Documentos</Link></li>
               <li><Link to="/documents/review">⏰ Revisiones</Link></li>
               <li><Link to="/reports">📊 Reportes</Link></li>
+              <li><Link to="/analytics/compliance">📏 Cumplimiento</Link></li>
             </ul>
           </div>
           <div className="nav-section">
@@ -78,6 +80,7 @@ function App() {
             <Route path="/timeline" element={<TimelinePage />} />
             <Route path="/documents" element={<DocumentsPage />} />
             <Route path="/documents/review" element={<DocumentsReviewPage />} />
+            <Route path="/analytics/compliance" element={<ComplianceDashboard />} />
             <Route path="/reports" element={<ReportsPage />} />
             <Route path="/panel/emotional" element={<EmotionalPanelPage />} />
             <Route path="/panel/vocational" element={<VocationalPanelPage />} />

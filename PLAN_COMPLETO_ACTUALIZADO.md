@@ -819,7 +819,7 @@ module.exports = {
 
 ### **11.0 Uniformidad y organización visual**
 - [x] Definir dimensiones consistentes para tarjetas en vistas principales (Áreas, Metas, Tareas, Documentos, Avances).
-- [x] Implementar un sistema de grid responsive con espaciamiento uniforme para evitar “saltos” visuales.
+- [x] Implementar un sistema de grid responsive con espaciamiento uniforme para evitar "saltos" visuales.
 - [x] Incorporar opciones de ordenamiento y búsqueda contextual para reducir el caos cuando hay muchas tarjetas.
 - [x] Habilitar modos de densidad (compacto vs. cómodo) que el usuario pueda alternar.
 
@@ -905,11 +905,11 @@ module.exports = {
 - [x] Acción rápida: marcar como revisado
 
 **Panel de Cumplimiento:**
-- [ ] Crear `ComplianceDashboard.tsx` (`/analytics/compliance`)
-- [ ] Gráficas de % cumplimiento por área (bar chart)
-- [ ] Tendencias mensuales (line chart)
-- [ ] Comparativa con mes anterior
-- [ ] Áreas con mejor/peor rendimiento
+- [x] Crear `ComplianceDashboard.tsx` (`/analytics/compliance`)
+- [x] Gráficas de % cumplimiento por área (bar chart)
+- [x] Tendencias mensuales (line chart)
+- [x] Comparativa con mes anterior
+- [x] Áreas con mejor/peor rendimiento
 
 ### **11.3 Búsqueda Global**
 - [ ] Implementar `<GlobalSearch />` en header
@@ -1678,17 +1678,17 @@ GET  /api/areas/:areaId/analytics   - Analytics específicos del área
 - Lógica de backend para recalcular tareas y metas al crear, editar o eliminar un avance.
 - Actualización de servicios y hooks de frontend para invalidar queries en cascada (logs → tareas → metas → dashboards).
 - Rediseño del formulario de `ProgressPage` con selector de tareas y controles de porcentaje/impacto/mood.
-- Ajustes en `TasksPage`, `GoalsPage`, `AreaPanel` y dashboards para mostrar los nuevos valores y estados (“tarea sin avances”, “último avance”, etc.).
+- Ajustes en `TasksPage`, `GoalsPage`, `AreaPanel` y dashboards para mostrar los nuevos valores y estados ("tarea sin avances", "último avance", etc.).
 - Documentación funcional y técnica del flujo.
 
 ### KPIs y vistas impactadas
 - Barras de progreso en tareas y metas.
 - KPIs de área relacionados con cumplimiento, avances recientes, impacto y mood.
-- Secciones de dashboards (ej. “Progreso Reciente”, paneles especializados, Reports) que dependen del progreso acumulado.
+- Secciones de dashboards (ej. "Progreso Reciente", paneles especializados, Reports) que dependen del progreso acumulado.
 - Insights automáticos que usan datos de impacto/mood y deltas de avance.
 
 ### Coordinación con otras fases
-- Mantiene intacto el alcance de la Fase 11 (“Vistas Avanzadas y Filtros”); se documenta como sub-fase 10.5 para evitar confusiones.
+- Mantiene intacto el alcance de la Fase 11 ("Vistas Avanzadas y Filtros"); se documenta como sub-fase 10.5 para evitar confusiones.
 - Sienta bases para la analítica futura (Fases 12-14) al entregar datos más precisos de progreso.
 
 ### Rama de trabajo
