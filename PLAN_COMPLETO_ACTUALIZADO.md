@@ -3,7 +3,7 @@
 **Proyecto:** Migración completa de React App a PostgreSQL (Neon) con REST API  
 **Stack:** React + Vite + TanStack Query + Express + Drizzle ORM + PostgreSQL  
 **Branch actual:** master  
-**Branch en curso:** `feature/task-progress-tracking` ➜ Fase 10.5 - Seguimiento granular de tareas (pendiente merge a `master`)  
+**Branch en curso:** master (sin rama activa, seguimiento de fases futuras pendiente)  
 **Fecha:** Noviembre 2025  
 **Última actualización:** Fase 10.5 (seguimiento granular) validada y lista para merge
 
