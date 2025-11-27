@@ -1,10 +1,12 @@
 import { useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
   Button,
   Card,
   CardBody,
   CardHeader,
+  Tabs,
 } from '../components';
 import { useAreas, useGoals, useTasks } from '../hooks';
 import type { Goal } from '../services/goalsApi';
@@ -62,13 +64,26 @@ interface AreaSummary {
 }
 
 function GoalsByAreaPage() {
+  const navigate = useNavigate();
   const { data: areas, isLoading: loadingAreas } = useAreas();
   const { data: goals, isLoading: loadingGoals, error } = useGoals();
   const { data: tasks, isLoading: loadingTasks } = useTasks();
 
+  const [activeTab, setActiveTab] = useState<'list' | 'by-area' | 'compliance'>('by-area');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [priorityFilter, setPriorityFilter] = useState<PriorityFilter>('all');
   const [searchTerm, setSearchTerm] = useState('');
+
+  const handleTabChange = (tabId: 'list' | 'by-area' | 'compliance') => {
+    setActiveTab(tabId);
+    if (tabId === 'list') {
+      navigate('/goals');
+      return;
+    }
+    if (tabId === 'compliance') {
+      navigate('/analytics/compliance');
+    }
+  };
 
   const tasksByGoal = useMemo(() => {
     const map = new Map<string, { total: number; completed: number }>();
@@ -239,6 +254,17 @@ function GoalsByAreaPage() {
       </motion.div>
 
       <div className="max-w-7xl mx-auto px-8 py-8 space-y-8">
+        <div className="flex flex-wrap items-center gap-4">
+          <Tabs
+            tabs={[
+              { id: 'list', label: 'Lista', icon: '📋' },
+              { id: 'by-area', label: 'Por Área', icon: '🗺️' },
+              { id: 'compliance', label: 'Cumplimiento', icon: '📏' },
+            ]}
+            activeTab={activeTab}
+            onChange={(nextId) => handleTabChange(nextId as 'list' | 'by-area' | 'compliance')}
+          />
+        </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <Card>
             <CardBody>

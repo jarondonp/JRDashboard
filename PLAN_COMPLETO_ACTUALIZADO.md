@@ -931,6 +931,20 @@ module.exports = {
 - [x] `GlobalSearch.tsx`
 - [x] Hook: `useGlobalSearch(query)`
 
+### **11.4 Navegación Simplificada y Acciones Rápidas** *(En Progreso)*
+**Objetivo:** Reducir la carga cognitiva del menú lateral, ofrecer accesos rápidos y consolidar vistas derivadas en tabs internas.
+
+- [x] Refactor `Sidebar` para soportar secciones principales: ⭐ Favoritos, 🏠 Principal, 🚀 Gestión Operativa, 💎 Áreas de Vida, 📊 Analytics. *(Estructura base lista; falta favoritos persistentes y acordeones avanzados)*
+- [x] Añadir gestión de **Favoritos** personalizables (persistencia local + pin/unpin desde cada item).
+- [x] Implementar acordeón para "Áreas de Vida" y modo colapsado con tooltips/iconos.
+- [x] Crear tabs internas en:
+  - [x] Metas (`[Lista] [Por Área] [Cumplimiento]`) **→ Tabs sincronizados entre `GoalsPage`, `GoalsByAreaPage` y `ComplianceDashboard`**
+  - [x] Tareas (`[Mis Tareas] [Atrasadas] [Kanban]`) **→ Nuevo tablero Kanban responsivo + navegación cruzada**
+  - [x] Documentos (`[Archivo] [Revisiones]`) **→ Filtros "Próximas revisiones" + vista lista/tarjetas**
+  - [x] Avances (`[Historial] [Mood/Impacto]`) **→ Resumen de mood con métricas agregadas**
+- [x] Incorporar botón flotante **Nuevo +** con acciones: Nueva Meta, Nueva Tarea, Registrar Avance. *(QuickActionMenu con fallback inteligente + atajos contextualizados)*
+- [x] Ajustar rutas/Layout para soportar los nuevos tabs y asegurar pruebas manuales de navegación. *(QA manual: accesibilidad, focus, navegación con panel expandido/colapsado, tabs en modo lista por defecto)*
+
 ---
 
 ## ⏳ FASE 12: ReportsPage - Analytics Fase 2 (Pendiente - 0%)

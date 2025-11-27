@@ -1,4 +1,5 @@
-import { useMemo, useState, type FormEvent } from 'react'
+import { useMemo, useState, useEffect, useCallback, type FormEvent } from 'react'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   useProgressLogs,
@@ -10,6 +11,7 @@ import {
   useTasks,
   useCardLayout,
   useViewMode,
+  useRegisterQuickAction,
 } from '../hooks'
 import {
   Button,
@@ -21,6 +23,8 @@ import {
   useToast,
   CardLayoutToolbar,
   ViewModeToggle,
+  Tabs,
+  TabsContent,
 } from '../components'
 import type { ProgressLog } from '../services/progressApi'
 
@@ -36,6 +40,18 @@ interface ProgressFormData {
   mood: number | ''
 }
 
+const createEmptyProgressForm = (): ProgressFormData => ({
+  area_id: '',
+  goal_id: '',
+  task_id: '',
+  task_progress: '',
+  title: '',
+  note: '',
+  date: new Date().toISOString().split('T')[0],
+  impact_level: '',
+  mood: '',
+})
+
 function ProgressPage() {
   const { data: logs, isLoading, error } = useProgressLogs()
   const { data: areas } = useAreas()
@@ -46,24 +62,18 @@ function ProgressPage() {
   const deleteMutation = useDeleteProgressLog()
   const { showToast } = useToast()
 
+  const navigate = useNavigate()
+  const location = useLocation()
+
+  const [showModal, setShowModal] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
   const [sortBy, setSortBy] = useState<'date' | 'title'>('date')
   const { density, setDensity } = useCardLayout('progress')
-  const { mode: viewMode, setMode: setViewMode } = useViewMode('progress:view-mode')
+  const { mode: viewMode, setMode: setViewMode } = useViewMode('progress:view-mode', 'table')
+  const [activeTab, setActiveTab] = useState<'logs' | 'mood'>('logs')
 
-  const [showModal, setShowModal] = useState(false)
   const [editingLog, setEditingLog] = useState<ProgressLog | null>(null)
-  const [formData, setFormData] = useState<ProgressFormData>({
-    area_id: '',
-    goal_id: '',
-    task_id: '',
-    task_progress: '',
-    title: '',
-    note: '',
-    date: new Date().toISOString().split('T')[0],
-    impact_level: '',
-    mood: ''
-  })
+  const [formData, setFormData] = useState<ProgressFormData>(() => createEmptyProgressForm())
 
   const handleSubmit = async (e?: FormEvent) => {
     e?.preventDefault()
@@ -122,17 +132,7 @@ function ProgressPage() {
   const resetForm = () => {
     setShowModal(false)
     setEditingLog(null)
-    setFormData({
-      area_id: '',
-      goal_id: '',
-      task_id: '',
-      task_progress: '',
-      title: '',
-      note: '',
-      date: new Date().toISOString().split('T')[0],
-      impact_level: '',
-      mood: ''
-    })
+    setFormData(createEmptyProgressForm())
   }
 
   const getAreaName = (areaId: string) => {
@@ -192,7 +192,8 @@ function ProgressPage() {
   }, [logs, searchTerm, areas, goals, tasks])
 
   const sortedLogs = useMemo(() => {
-    return [...filteredLogs].sort((a, b) => {
+    const source = filteredLogs
+    return [...source].sort((a, b) => {
       if (sortBy === 'title') {
         return a.title.localeCompare(b.title)
       }
@@ -201,6 +202,46 @@ function ProgressPage() {
       return bDate - aDate
     })
   }, [filteredLogs, sortBy])
+
+  const moodStats = useMemo(() => {
+    if (!sortedLogs.length) {
+      return {
+        average: 0,
+        counts: {} as Record<number, number>,
+      }
+    }
+    const counts: Record<number, number> = {}
+    let sum = 0
+    let samples = 0
+
+    sortedLogs.forEach((log) => {
+      if (log.mood) {
+        sum += log.mood
+        samples += 1
+        counts[log.mood] = (counts[log.mood] || 0) + 1
+      }
+    })
+
+    const average = samples > 0 ? sum / samples : 0
+    return { average, counts }
+  }, [sortedLogs])
+
+  const openCreateProgressModal = useCallback(() => {
+    setActiveTab('logs')
+    setEditingLog(null)
+    setFormData(createEmptyProgressForm())
+    setShowModal(true)
+  }, [])
+
+  useRegisterQuickAction('progress:create', openCreateProgressModal)
+
+  useEffect(() => {
+    const state = location.state as { quickAction?: string } | undefined
+    if (state?.quickAction === 'progress:create') {
+      openCreateProgressModal()
+      navigate(location.pathname, { replace: true, state: {} })
+    }
+  }, [location.pathname, location.state, navigate, openCreateProgressModal])
 
   const gridClass =
     density === 'compact'
@@ -246,7 +287,7 @@ function ProgressPage() {
             <h1 className="text-3xl font-bold mb-1">📈 Avances</h1>
             <p className="text-indigo-100">Registra tu progreso diario</p>
           </div>
-          <Button variant="secondary" onClick={() => setShowModal(true)}>
+          <Button variant="secondary" onClick={openCreateProgressModal}>
             + Nuevo Avance
           </Button>
         </div>
@@ -255,212 +296,263 @@ function ProgressPage() {
       {/* Progress Grid */}
       <div className="max-w-7xl mx-auto px-8 py-8">
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-          <CardLayoutToolbar
-            searchValue={searchTerm}
-            onSearchChange={setSearchTerm}
-            searchPlaceholder="Buscar por título, área, meta o nota"
-            sortOptions={[
-              { value: 'date', label: 'Ordenar por fecha' },
-              { value: 'title', label: 'Ordenar alfabéticamente' },
+          <Tabs
+            tabs={[
+              { id: 'logs', label: 'Registros', icon: '📈' },
+              { id: 'mood', label: 'Mood & Impacto', icon: '💡' },
             ]}
-            sortValue={sortBy}
-            onSortChange={(value) => setSortBy(value as 'date' | 'title')}
-            density={density}
-            onDensityChange={setDensity}
+            activeTab={activeTab}
+            onChange={(id) => setActiveTab(id as 'logs' | 'mood')}
           />
-          <ViewModeToggle mode={viewMode} onChange={setViewMode} />
-        </div>
-        {sortedLogs.length > 0 ? (
-         viewMode === 'cards' ? (
-          <motion.div 
-           className={`${gridClass} mt-6`}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.2 }}
-          >
-            <AnimatePresence>
-              {sortedLogs.map((log, index) => (
-                <motion.div
-                  key={log.id}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, scale: 0.9 }}
-                  transition={{ delay: index * 0.05 }}
-                >
-                        <Card hover className="h-full" minHeightClass="min-h-[260px]">
-                    <CardHeader>
-                      <div className="flex justify-between items-start">
-                        <h3 className="text-lg font-semibold text-gray-800 flex-1">{log.title}</h3>
-                        <div className="flex gap-2 ml-2">
-                          <button
-                            onClick={() => handleEdit(log)}
-                            className="text-indigo-600 hover:text-indigo-800 transition-colors"
-                          >
-                            ✏️
-                          </button>
-                          <button
-                            onClick={() => handleDelete(log.id)}
-                            className="text-red-600 hover:text-red-800 transition-colors"
-                          >
-                            🗑️
-                          </button>
-                        </div>
-                      </div>
-                    </CardHeader>
-                    <CardBody>
-                      <div className="space-y-3">
-                        <p className="text-sm text-gray-600">
-                          <strong>Área:</strong> {getAreaName(log.area_id)}
-                        </p>
-                        {log.goal_id && (
-                          <p className="text-sm text-gray-600">
-                            <strong>Meta:</strong> {getGoalTitle(log.goal_id)}
-                          </p>
-                        )}
-                        {log.task_id && (
-                          <p className="text-sm text-gray-600">
-                            <strong>Tarea:</strong> {getTaskTitle(log.task_id)}
-                          </p>
-                        )}
-                        {log.note && (
-                          <p className="text-sm text-gray-700">{log.note}</p>
-                        )}
-                        
-                        <div className="flex flex-wrap gap-2">
-                          {log.mood && (
-                            <span className="px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
-                              Mood: {getMoodEmoji(log.mood)} {log.mood}/5
-                            </span>
-                          )}
-                          {log.impact_level && (
-                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${log.impact_level >= 4 ? 'bg-green-100 text-green-800' : log.impact_level >= 2 ? 'bg-yellow-100 text-yellow-800' : 'bg-blue-100 text-blue-800'}`}>
-                              Impacto: {log.impact_level}/5
-                            </span>
-                          )}
-                          {typeof log.task_progress === 'number' && (
-                            <span className="px-2 py-1 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800">
-                              Progreso tarea: {log.task_progress}%
-                            </span>
-                          )}
-                        </div>
 
-                        {log.date && (
-                          <div className="text-xs text-gray-500 pt-2 border-t">
-                            <p>Fecha: {new Date(log.date).toLocaleDateString()}</p>
+          {activeTab === 'logs' && (
+            <div className="flex flex-col gap-3 md:flex-row md:items-center md:gap-4">
+              <CardLayoutToolbar
+                searchValue={searchTerm}
+                onSearchChange={setSearchTerm}
+                searchPlaceholder="Buscar por título, área, meta o nota"
+                sortOptions={[
+                  { value: 'date', label: 'Ordenar por fecha' },
+                  { value: 'title', label: 'Ordenar alfabéticamente' },
+                ]}
+                sortValue={sortBy}
+                onSortChange={(value) => setSortBy(value as 'date' | 'title')}
+                density={density}
+                onDensityChange={setDensity}
+              />
+              <ViewModeToggle mode={viewMode} onChange={setViewMode} />
+            </div>
+          )}
+        </div>
+
+        <TabsContent>
+        {activeTab === 'logs' ? (
+          sortedLogs.length > 0 ? (
+            viewMode === 'cards' ? (
+              <motion.div
+                className={`${gridClass} mt-6`}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.2 }}
+              >
+                <AnimatePresence>
+                  {sortedLogs.map((log, index) => (
+                    <motion.div
+                      key={log.id}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, scale: 0.9 }}
+                      transition={{ delay: index * 0.05 }}
+                    >
+                      <Card hover className="h-full" minHeightClass="min-h-[260px]">
+                        <CardHeader>
+                          <div className="flex justify-between items-start">
+                            <h3 className="text-lg font-semibold text-gray-800 flex-1">{log.title}</h3>
+                            <div className="flex gap-2 ml-2">
+                              <button
+                                onClick={() => handleEdit(log)}
+                                className="text-indigo-600 hover:text-indigo-800 transition-colors"
+                              >
+                                ✏️
+                              </button>
+                              <button
+                                onClick={() => handleDelete(log.id)}
+                                className="text-red-600 hover:text-red-800 transition-colors"
+                              >
+                                🗑️
+                              </button>
+                            </div>
                           </div>
-                        )}
-                      </div>
-                    </CardBody>
-                  </Card>
-                </motion.div>
-              ))}
-            </AnimatePresence>
-          </motion.div>
-         ) : (
+                        </CardHeader>
+                        <CardBody>
+                          <div className="space-y-3">
+                            <p className="text-sm text-gray-600">
+                              <strong>Área:</strong> {getAreaName(log.area_id)}
+                            </p>
+                            {log.goal_id && (
+                              <p className="text-sm text-gray-600">
+                                <strong>Meta:</strong> {getGoalTitle(log.goal_id)}
+                              </p>
+                            )}
+                            {log.task_id && (
+                              <p className="text-sm text-gray-600">
+                                <strong>Tarea:</strong> {getTaskTitle(log.task_id)}
+                              </p>
+                            )}
+                            {log.note && (
+                              <p className="text-sm text-gray-700">{log.note}</p>
+                            )}
+
+                            <div className="flex flex-wrap gap-2">
+                              {log.mood && (
+                                <span className="px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                                  Mood: {getMoodEmoji(log.mood)} {log.mood}/5
+                                </span>
+                              )}
+                              {log.impact_level && (
+                                <span className={`px-2 py-1 rounded-full text-xs font-medium ${log.impact_level >= 4 ? 'bg-green-100 text-green-800' : log.impact_level >= 2 ? 'bg-yellow-100 text-yellow-800' : 'bg-blue-100 text-blue-800'}`}>
+                                  Impacto: {log.impact_level}/5
+                                </span>
+                              )}
+                              {typeof log.task_progress === 'number' && (
+                                <span className="px-2 py-1 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800">
+                                  Progreso tarea: {log.task_progress}%
+                                </span>
+                              )}
+                            </div>
+
+                            {log.date && (
+                              <div className="text-xs text-gray-500 pt-2 border-t">
+                                <p>Fecha: {new Date(log.date).toLocaleDateString()}</p>
+                              </div>
+                            )}
+                          </div>
+                        </CardBody>
+                      </Card>
+                    </motion.div>
+                  ))}
+                </AnimatePresence>
+              </motion.div>
+            ) : (
+              <motion.div
+                className="mt-6 overflow-hidden rounded-2xl border border-indigo-100 bg-white shadow-sm"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.1 }}
+              >
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-indigo-100">
+                    <thead className="bg-indigo-50/60">
+                      <tr className="text-left text-xs font-semibold uppercase tracking-wide text-indigo-600">
+                        <th className="px-4 py-3">Título</th>
+                        <th className="px-4 py-3">Área</th>
+                        <th className="px-4 py-3">Meta</th>
+                        <th className="px-4 py-3">Tarea</th>
+                        <th className="px-4 py-3">Mood / Impacto</th>
+                        <th className="px-4 py-3">Fecha</th>
+                        <th className="px-4 py-3">Nota</th>
+                        <th className="px-4 py-3 text-right">Acciones</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-indigo-50 text-sm text-gray-700">
+                      {sortedLogs.map((log) => (
+                        <tr key={log.id} className="hover:bg-indigo-50/40 transition">
+                          <td className="px-4 py-3 font-semibold text-gray-800">
+                            {log.title}
+                          </td>
+                          <td className="px-4 py-3">
+                            <span className="inline-flex items-center rounded-full bg-indigo-100 px-2 py-0.5 text-xs font-medium text-indigo-700">
+                              {getAreaName(log.area_id)}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 text-xs text-gray-600">
+                            {log.goal_id ? getGoalTitle(log.goal_id) : '—'}
+                          </td>
+                          <td className="px-4 py-3 text-xs text-gray-600">
+                            {log.task_id ? getTaskTitle(log.task_id) : '—'}
+                          </td>
+                          <td className="px-4 py-3 text-xs text-gray-600">
+                            <div className="flex flex-wrap items-center gap-2">
+                              {log.mood && (
+                                <span className="inline-flex items-center gap-1 rounded-full bg-purple-100 px-2 py-0.5 text-[10px] font-medium text-purple-800">
+                                  {getMoodEmoji(log.mood)} {log.mood}/5
+                                </span>
+                              )}
+                              {log.impact_level && (
+                                <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium ${
+                                  log.impact_level >= 4
+                                    ? 'bg-green-100 text-green-800'
+                                    : log.impact_level >= 2
+                                    ? 'bg-yellow-100 text-yellow-800'
+                                    : 'bg-blue-100 text-blue-800'
+                                }`}
+                                >
+                                  Impacto: {log.impact_level}/5
+                                </span>
+                              )}
+                              {typeof log.task_progress === 'number' && (
+                                <span className="inline-flex items-center rounded-full bg-indigo-100 px-2 py-0.5 text-[10px] font-medium text-indigo-800">
+                                  Progreso tarea: {log.task_progress}%
+                                </span>
+                              )}
+                            </div>
+                          </td>
+                          <td className="px-4 py-3 text-xs text-gray-600">
+                            {log.date ? formatDate(log.date) : formatDate(log.created_at)}
+                          </td>
+                          <td className="px-4 py-3 text-xs text-gray-600">
+                            {log.note ? log.note : <span className="text-gray-400">Sin nota</span>}
+                          </td>
+                          <td className="px-4 py-3 text-right">
+                            <div className="inline-flex items-center gap-2">
+                              <button
+                                onClick={() => handleEdit(log)}
+                                className="text-indigo-600 hover=text-indigo-800 transition-colors"
+                              >
+                                ✏️ Editar
+                              </button>
+                              <button
+                                onClick={() => handleDelete(log.id)}
+                                className="text-red-600 hover:text-red-800 transition-colors"
+                              >
+                                🗑️ Eliminar
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </motion.div>
+            )
+          ) : (
             <motion.div
-              className="mt-6 overflow-hidden rounded-2xl border border-indigo-100 bg-white shadow-sm"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              transition={{ delay: 0.1 }}
+              className="mt-10 text-center"
             >
-              <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-indigo-100">
-                  <thead className="bg-indigo-50/60">
-                    <tr className="text-left text-xs font-semibold uppercase tracking-wide text-indigo-600">
-                      <th className="px-4 py-3">Título</th>
-                      <th className="px-4 py-3">Área</th>
-                      <th className="px-4 py-3">Meta</th>
-                      <th className="px-4 py-3">Tarea</th>
-                      <th className="px-4 py-3">Mood / Impacto</th>
-                      <th className="px-4 py-3">Fecha</th>
-                      <th className="px-4 py-3">Detalle</th>
-                      <th className="px-4 py-3 text-right">Acciones</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-indigo-50 text-sm text-gray-700">
-                    {sortedLogs.map((log) => (
-                      <tr key={log.id} className="hover:bg-indigo-50/40 transition">
-                        <td className="px-4 py-3 font-semibold text-gray-800">
-                          {log.title}
-                        </td>
-                        <td className="px-4 py-3">
-                          <span className="inline-flex items-center rounded-full bg-indigo-100 px-2 py-0.5 text-xs font-medium text-indigo-700">
-                            {getAreaName(log.area_id)}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3 text-xs text-gray-600">
-                          {log.goal_id ? getGoalTitle(log.goal_id) : '—'}
-                        </td>
-                        <td className="px-4 py-3 text-xs text-gray-600">
-                          {log.task_id ? getTaskTitle(log.task_id) : '—'}
-                        </td>
-                        <td className="px-4 py-3 text-xs text-gray-600">
-                          <div className="flex flex-wrap items-center gap-2">
-                            {log.mood && (
-                              <span className="inline-flex items-center gap-1 rounded-full bg-purple-100 px-2 py-0.5 text-[10px] font-medium text-purple-800">
-                                {getMoodEmoji(log.mood)} {log.mood}/5
-                              </span>
-                            )}
-                            {log.impact_level && (
-                              <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium ${
-                                log.impact_level >= 4
-                                  ? 'bg-green-100 text-green-800'
-                                  : log.impact_level >= 2
-                                  ? 'bg-yellow-100 text-yellow-800'
-                                  : 'bg-blue-100 text-blue-800'
-                              }`}
-                              >
-                                Impacto: {log.impact_level}/5
-                              </span>
-                            )}
-                            {typeof log.task_progress === 'number' && (
-                              <span className="inline-flex items-center rounded-full bg-indigo-100 px-2 py-0.5 text-[10px] font-medium text-indigo-800">
-                                Progreso tarea: {log.task_progress}%
-                              </span>
-                            )}
-                          </div>
-                        </td>
-                        <td className="px-4 py-3 text-xs text-gray-600">
-                          {log.date ? formatDate(log.date) : formatDate(log.created_at)}
-                        </td>
-                        <td className="px-4 py-3 text-xs text-gray-600">
-                          {log.note ? log.note : <span className="text-gray-400">Sin nota</span>}
-                        </td>
-                        <td className="px-4 py-3 text-right">
-                          <div className="inline-flex items-center gap-2">
-                            <button
-                              onClick={() => handleEdit(log)}
-                              className="text-indigo-600 hover:text-indigo-800 transition-colors"
-                            >
-                              ✏️ Editar
-                            </button>
-                            <button
-                              onClick={() => handleDelete(log.id)}
-                              className="text-red-600 hover:text-red-800 transition-colors"
-                            >
-                              🗑️ Eliminar
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+              <p className="text-gray-500 text-lg">
+                Aún no has registrado avances.
+              </p>
+              <Button variant="primary" onClick={() => setShowModal(true)} className="mt-4">
+                Registrar primer avance
+              </Button>
             </motion.div>
-         )
+          )
         ) : (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="text-center py-16"
-          >
-            <p className="text-gray-500 text-lg">No hay avances registrados</p>
-            <Button variant="primary" onClick={() => setShowModal(true)} className="mt-4">
-              Registrar primer avance
-            </Button>
-          </motion.div>
+          <div className="mt-8 grid gap-6 md:grid-cols-2">
+            <Card minHeightClass="min-h-[160px]">
+              <CardBody>
+                <h3 className="text-sm font-semibold text-indigo-600 uppercase tracking-wide">Promedio de Mood</h3>
+                <p className="mt-3 text-4xl font-bold text-gray-800">
+                  {moodStats.average > 0 ? `${moodStats.average.toFixed(1)} / 5` : 'Sin datos'}
+                </p>
+                <p className="mt-2 text-sm text-gray-500">
+                  {sortedLogs.length} registros con mood registrado.
+                </p>
+              </CardBody>
+            </Card>
+
+            <Card minHeightClass="min-h-[160px]">
+              <CardBody>
+                <h3 className="text-sm font-semibold text-indigo-600 uppercase tracking-wide">Distribución</h3>
+                <div className="mt-4 flex flex-wrap gap-3 text-sm text-gray-600">
+                  {[5, 4, 3, 2, 1].map((value) => (
+                    <div key={value} className="flex items-center gap-2">
+                      <span className="text-lg">{getMoodEmoji(value)}</span>
+                      <span>{value}/5</span>
+                      <span className="text-xs text-gray-400">
+                        {moodStats.counts[value] ?? 0} registros
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </CardBody>
+            </Card>
+          </div>
         )}
+        </TabsContent>
       </div>
 
       {/* Modal */}

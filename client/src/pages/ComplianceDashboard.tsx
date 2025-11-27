@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
   Card,
@@ -7,6 +8,7 @@ import {
   MetricCard,
   ProgressCard,
   ListCard,
+  Tabs,
 } from '../components';
 import { LineChart, BarChart } from '../components/charts';
 import { useGoals, useAreas, useTasks } from '../hooks';
@@ -45,12 +47,27 @@ const withinWindow = (date?: string | null, days?: number) => {
 };
 
 function ComplianceDashboard() {
+  const navigate = useNavigate();
   const { data: goals, isLoading: goalsLoading, error: goalsError } = useGoals();
   const { data: areas, isLoading: areasLoading } = useAreas();
   const { data: tasks, isLoading: tasksLoading } = useTasks();
 
   const [windowOption, setWindowOption] = useState<WindowOption>('60');
   const [selectedArea, setSelectedArea] = useState<string>('');
+  const [activeTab, setActiveTab] = useState<'list' | 'by-area' | 'compliance'>('compliance');
+
+  const handleTabChange = (tabId: 'list' | 'by-area' | 'compliance') => {
+    setActiveTab(tabId);
+    if (tabId === 'list') {
+      navigate('/goals');
+      return;
+    }
+    if (tabId === 'by-area') {
+      navigate('/goals/by-area');
+      return;
+    }
+    navigate('/analytics/compliance');
+  };
 
   const windowDays = WINDOW_CHOICES[windowOption].days;
   const areaFilter = selectedArea || undefined;
@@ -346,6 +363,17 @@ function ComplianceDashboard() {
       </motion.div>
 
       <div className="max-w-7xl mx-auto px-8 py-8 space-y-8">
+        <div className="flex flex-wrap items-center gap-4">
+          <Tabs
+            tabs={[
+              { id: 'list', label: 'Lista', icon: '📋' },
+              { id: 'by-area', label: 'Por Área', icon: '🗺️' },
+              { id: 'compliance', label: 'Cumplimiento', icon: '📏' },
+            ]}
+            activeTab={activeTab}
+            onChange={(nextId) => handleTabChange(nextId as 'list' | 'by-area' | 'compliance')}
+          />
+        </div>
         <Card>
           <CardBody className="space-y-4">
             <div className="flex flex-col lg:flex-row lg:items-end gap-4">

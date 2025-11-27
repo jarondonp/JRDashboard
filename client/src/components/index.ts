@@ -11,3 +11,6 @@ export { CardLayoutToolbar } from './CardLayoutToolbar';
 export { GlobalSearch } from './GlobalSearch';
 export { ViewModeToggle } from './ViewModeToggle';
 export { DataTable } from './DataTable';
+export { default as Sidebar } from './Sidebar';
+export { Tabs, TabsContent } from './Tabs';
+export { QuickActionMenu } from './QuickActionMenu';

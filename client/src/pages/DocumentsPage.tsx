@@ -20,6 +20,8 @@ import {
   useToast,
   CardLayoutToolbar,
   ViewModeToggle,
+  Tabs,
+  TabsContent,
 } from '../components'
 import type { Document } from '../services/documentsApi'
 
@@ -45,9 +47,10 @@ function DocumentsPage() {
   const [searchTerm, setSearchTerm] = useState('')
   const [sortBy, setSortBy] = useState<'review_date' | 'title'>('review_date')
   const { density, setDensity } = useCardLayout('documents')
-  const { mode: viewMode, setMode: setViewMode } = useViewMode('documents:view-mode')
+  const { mode: viewMode, setMode: setViewMode } = useViewMode('documents:view-mode', 'table')
 
   const [showModal, setShowModal] = useState(false)
+  const [activeTab, setActiveTab] = useState<'all' | 'review'>('all')
   const [editingDoc, setEditingDoc] = useState<Document | null>(null)
   const [formData, setFormData] = useState<DocumentFormData>({
     area_id: '',
@@ -177,7 +180,8 @@ function DocumentsPage() {
   }, [documents, searchTerm, areas, goals])
 
   const sortedDocuments = useMemo(() => {
-    return [...filteredDocuments].sort((a, b) => {
+    const source = filteredDocuments
+    return [...source].sort((a, b) => {
       if (sortBy === 'title') {
         return a.title.localeCompare(b.title)
       }
@@ -186,6 +190,17 @@ function DocumentsPage() {
       return aDate - bDate
     })
   }, [filteredDocuments, sortBy])
+
+  const reviewDocuments = useMemo(
+    () =>
+      sortedDocuments.filter((doc) => {
+        if (!doc.review_date) return false
+        return isReviewSoon(doc.review_date)
+      }),
+    [sortedDocuments],
+  )
+
+  const documentsToRender = activeTab === 'review' ? reviewDocuments : sortedDocuments
 
   const gridClass =
     density === 'compact'
@@ -255,7 +270,18 @@ function DocumentsPage() {
           />
           <ViewModeToggle mode={viewMode} onChange={setViewMode} />
         </div>
-        {sortedDocuments.length > 0 ? (
+        <div className="mt-6 flex flex-wrap gap-4">
+          <Tabs
+            tabs={[
+              { id: 'all', label: 'Todos', icon: '📄' },
+              { id: 'review', label: 'Próximas Revisiones', icon: '⏰' },
+            ]}
+            activeTab={activeTab}
+            onChange={(id) => setActiveTab(id as 'all' | 'review')}
+          />
+        </div>
+        <TabsContent>
+        {documentsToRender.length > 0 ? (
           viewMode === 'cards' ? (
             <motion.div
               className={`${gridClass} mt-6`}
@@ -264,7 +290,7 @@ function DocumentsPage() {
               transition={{ delay: 0.2 }}
             >
               <AnimatePresence>
-                {sortedDocuments.map((doc, index) => (
+                {documentsToRender.map((doc, index) => (
                   <motion.div
                     key={doc.id}
                     initial={{ opacity: 0, y: 20 }}
@@ -362,7 +388,7 @@ function DocumentsPage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-indigo-50 text-sm text-gray-700">
-                    {sortedDocuments.map((doc) => (
+                    {documentsToRender.map((doc) => (
                       <tr key={doc.id} className="hover:bg-indigo-50/40 transition">
                         <td className="px-4 py-3 font-semibold text-gray-800">
                           {doc.title}
@@ -434,12 +460,17 @@ function DocumentsPage() {
             animate={{ opacity: 1 }}
             className="text-center py-16"
           >
-            <p className="text-gray-500 text-lg">No hay documentos registrados</p>
+            <p className="text-gray-500 text-lg">
+              {documents && documents.length > 0
+                ? 'No se encontraron documentos con estos filtros'
+                : 'No hay documentos registrados'}
+            </p>
             <Button variant="primary" onClick={() => setShowModal(true)} className="mt-4">
               Crear primer documento
             </Button>
           </motion.div>
         )}
+        </TabsContent>
       </div>
 
       {/* Modal */}

@@ -1,4 +1,5 @@
-import { useState, useMemo, type FormEvent } from 'react'
+import { useState, useMemo, useCallback, useEffect, type FormEvent } from 'react'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   useGoals,
@@ -10,6 +11,7 @@ import {
   useProgressLogs,
   useCardLayout,
   useViewMode,
+  useRegisterQuickAction,
 } from '../hooks'
 import {
   Button,
@@ -21,6 +23,7 @@ import {
   useToast,
   CardLayoutToolbar,
   ViewModeToggle,
+  Tabs,
 } from '../components'
 import type { Goal } from '../services/goalsApi'
 
@@ -36,6 +39,18 @@ interface GoalFormData {
   expected_outcome: string
 }
 
+const createEmptyGoalForm = (): GoalFormData => ({
+  area_id: '',
+  title: '',
+  description: '',
+  goal_type: 'Corto Plazo',
+  start_date: '',
+  due_date: '',
+  status: 'no_iniciada',
+  priority: 'media',
+  expected_outcome: '',
+})
+
 function GoalsPage() {
   const { data: goals, isLoading, error } = useGoals()
   const { data: areas } = useAreas()
@@ -46,23 +61,29 @@ function GoalsPage() {
   const deleteMutation = useDeleteGoal()
   const { showToast } = useToast()
 
+  const navigate = useNavigate()
+  const location = useLocation()
+  const [activeTab, setActiveTab] = useState<'list' | 'by-area' | 'compliance'>('list')
   const [showModal, setShowModal] = useState(false)
   const [editingGoal, setEditingGoal] = useState<Goal | null>(null)
-  const [formData, setFormData] = useState<GoalFormData>({
-    area_id: '',
-    title: '',
-    description: '',
-    goal_type: 'Corto Plazo',
-    start_date: '',
-    due_date: '',
-    status: 'no_iniciada',
-    priority: 'media',
-    expected_outcome: ''
-  })
+  const [formData, setFormData] = useState<GoalFormData>(() => createEmptyGoalForm())
   const [searchTerm, setSearchTerm] = useState('')
   const [sortBy, setSortBy] = useState<'progress' | 'due_date' | 'title'>('progress')
   const { density, setDensity } = useCardLayout('goals')
-  const { mode: viewMode, setMode: setViewMode } = useViewMode('goals:view-mode')
+  const { mode: viewMode, setMode: setViewMode } = useViewMode('goals:view-mode', 'table')
+
+  const handleTabChange = (tabId: 'list' | 'by-area' | 'compliance') => {
+    setActiveTab(tabId)
+    if (tabId === 'list') {
+      navigate('/goals')
+      return
+    }
+    if (tabId === 'by-area') {
+      navigate('/goals/by-area')
+      return
+    }
+    navigate('/analytics/compliance')
+  }
 
   const handleSubmit = async (e?: FormEvent) => {
     e?.preventDefault()
@@ -125,17 +146,7 @@ function GoalsPage() {
   const resetForm = () => {
     setShowModal(false)
     setEditingGoal(null)
-    setFormData({
-      area_id: '',
-      title: '',
-      description: '',
-      goal_type: 'Corto Plazo',
-      start_date: '',
-      due_date: '',
-      status: 'no_iniciada',
-      priority: 'media',
-      expected_outcome: ''
-    })
+    setFormData(createEmptyGoalForm())
   }
 
   const getStatusColor = (status: string) => {
@@ -277,6 +288,23 @@ function GoalsPage() {
       ? 'grid gap-4 grid-cols-[repeat(auto-fit,minmax(260px,_1fr))] auto-rows-[1fr]'
       : 'grid gap-6 grid-cols-[repeat(auto-fit,minmax(300px,_1fr))] auto-rows-[1fr]'
 
+  const openCreateGoalModal = useCallback(() => {
+    setActiveTab('list')
+    setEditingGoal(null)
+    setFormData(createEmptyGoalForm())
+    setShowModal(true)
+  }, [])
+
+  useRegisterQuickAction('goal:create', openCreateGoalModal)
+
+  useEffect(() => {
+    const state = location.state as { quickAction?: string } | undefined
+    if (state?.quickAction === 'goal:create') {
+      openCreateGoalModal()
+      navigate(location.pathname, { replace: true, state: {} })
+    }
+  }, [location.pathname, location.state, navigate, openCreateGoalModal])
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 p-8">
@@ -316,7 +344,7 @@ function GoalsPage() {
             <h1 className="text-3xl font-bold mb-1">🎯 Metas</h1>
             <p className="text-indigo-100">Gestiona tus objetivos y alcanza tus sueños</p>
           </div>
-          <Button variant="secondary" onClick={() => setShowModal(true)}>
+          <Button variant="secondary" onClick={openCreateGoalModal}>
             + Nueva Meta
           </Button>
         </div>
@@ -324,6 +352,17 @@ function GoalsPage() {
 
       {/* Goals Grid */}
       <div className="max-w-7xl mx-auto px-8 py-8">
+        <div className="mb-6 flex flex-wrap items-center gap-4">
+          <Tabs
+            tabs={[
+              { id: 'list', label: 'Lista', icon: '📋' },
+              { id: 'by-area', label: 'Por Área', icon: '🗺️' },
+              { id: 'compliance', label: 'Cumplimiento', icon: '📏' },
+            ]}
+            activeTab={activeTab}
+            onChange={(nextId) => handleTabChange(nextId as 'list' | 'by-area' | 'compliance')}
+          />
+        </div>
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <CardLayoutToolbar
             searchValue={searchTerm}

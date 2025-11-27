@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
   Button,
@@ -8,6 +9,7 @@ import {
   Modal,
   ModalFooter,
   useToast,
+  Tabs,
 } from '../components';
 import { useAreas, useGoals, useTasks, useUpdateTask } from '../hooks';
 import type { Task } from '../services/tasksApi';
@@ -57,15 +59,28 @@ const buildTaskPayload = (task: Task, overrides: Partial<Task> & { status?: stri
 });
 
 function OverdueTasksPage() {
+  const navigate = useNavigate();
   const { data: tasks, isLoading, error } = useTasks();
   const { data: areas } = useAreas();
   const { data: goals } = useGoals();
   const updateTask = useUpdateTask();
   const { showToast } = useToast();
 
+  const [activeTab, setActiveTab] = useState<'list' | 'overdue' | 'kanban'>('overdue');
   const [selectedArea, setSelectedArea] = useState('');
   const [selectedGoal, setSelectedGoal] = useState('');
   const [modalState, setModalState] = useState<RescheduleModalState>({ open: false });
+
+  const handleTabChange = (tabId: 'list' | 'overdue' | 'kanban') => {
+    setActiveTab(tabId);
+    if (tabId === 'list') {
+      navigate('/tasks');
+      return;
+    }
+    if (tabId === 'kanban') {
+      navigate('/tasks', { state: { tasksTab: 'kanban' } });
+    }
+  };
 
   const overdueTasks = useMemo(() => {
     if (!tasks) return [];
@@ -205,6 +220,17 @@ function OverdueTasksPage() {
       </motion.div>
 
       <div className="max-w-7xl mx-auto px-8 py-8 space-y-8">
+        <div className="flex flex-wrap items-center gap-4">
+          <Tabs
+            tabs={[
+              { id: 'list', label: 'Lista', icon: '📋' },
+              { id: 'overdue', label: 'Atrasadas', icon: '⏰' },
+              { id: 'kanban', label: 'Kanban', icon: '🗂️' },
+            ]}
+            activeTab={activeTab}
+            onChange={(nextId) => handleTabChange(nextId as 'list' | 'overdue' | 'kanban')}
+          />
+        </div>
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <Card>
             <CardBody>

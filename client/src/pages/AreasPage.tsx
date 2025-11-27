@@ -23,7 +23,7 @@ function AreasPage() {
   const [searchTerm, setSearchTerm] = useState('')
   const [sortBy, setSortBy] = useState<'name' | 'type'>('name')
   const { density, setDensity } = useCardLayout('areas')
-  const { mode: viewMode, setMode: setViewMode } = useViewMode('areas:view-mode')
+  const { mode: viewMode, setMode: setViewMode } = useViewMode('areas:view-mode', 'table')
 
   const handleSubmit = async (e?: FormEvent) => {
     e?.preventDefault()

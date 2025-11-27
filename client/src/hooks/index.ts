@@ -11,3 +11,4 @@ export * from './useCardLayout';
 export * from './useTimeline';
 export * from './useViewMode';
 export * from './useGlobalSearch';
+export * from './useQuickActions';
