@@ -100,6 +100,10 @@ const MENU_SECTIONS: MenuSection[] = [
   },
 ];
 
+const COLLAPSIBLE_SECTION_IDS = MENU_SECTIONS.filter((section) => section.collapsible).map(
+  (section) => section.id,
+);
+
 function flattenItems(items: MenuItem[]): MenuItem[] {
   return items.flatMap((item) =>
     item.children ? [item, ...flattenItems(item.children)] : [item],
@@ -182,6 +186,19 @@ function Sidebar() {
     [favorites],
   );
 
+  const allSectionsCollapsed = COLLAPSIBLE_SECTION_IDS.every((id) => openSections[id] === false);
+
+  const toggleSectionVisibility = () => {
+    setOpenSections((prev) => {
+      const shouldExpand = COLLAPSIBLE_SECTION_IDS.every((id) => prev[id] === false);
+      const next = { ...prev };
+      COLLAPSIBLE_SECTION_IDS.forEach((id) => {
+        next[id] = shouldExpand;
+      });
+      return next;
+    });
+  };
+
   const isActive = (path?: string) => {
     if (!path) return false;
     return location.pathname === path;
@@ -200,6 +217,11 @@ function Sidebar() {
           [item.id]: !isOpen,
         }));
 
+      const parentLinkClassName = ({ isActive: routeActive }: { isActive: boolean }) =>
+        `nav-link nav-parent-button nav-link-parent ${
+          routeActive || isActive(item.to) ? 'active' : ''
+        }`;
+
       return (
         <li
           key={item.id}
@@ -207,22 +229,39 @@ function Sidebar() {
           data-open={isOpen ? 'true' : 'false'}
           data-level={menuLevel}
         >
-          <button
-            type="button"
-            className="nav-parent-button"
-            onClick={toggle}
-            aria-expanded={isOpen}
-            aria-controls={`nav-group-${item.id}`}
-            data-level={menuLevel}
-          >
-            <span className="nav-item-content">
-              {icon}
-              <span className="nav-item-label" title={isCollapsed ? item.label : undefined}>
-                {item.label}
+          <div className="nav-parent-header">
+            {item.to ? (
+              <NavLink
+                to={item.to}
+                className={parentLinkClassName}
+                title={isCollapsed ? item.label : undefined}
+              >
+                <span className="nav-item-content">
+                  {icon}
+                  <span className="nav-item-label">{item.label}</span>
+                </span>
+              </NavLink>
+            ) : (
+              <span className="nav-link nav-parent-button nav-link-parent nav-link-parent--static">
+                <span className="nav-item-content">
+                  {icon}
+                  <span className="nav-item-label">{item.label}</span>
+                </span>
               </span>
-            </span>
-            <span className={`nav-parent-indicator ${isOpen ? 'open' : ''}`}>▾</span>
-          </button>
+            )}
+            <button
+              type="button"
+              className="nav-parent-toggle"
+              onClick={toggle}
+              aria-label={`${isOpen ? 'Contraer' : 'Expandir'} ${item.label}`}
+              aria-expanded={isOpen}
+              aria-controls={`nav-group-${item.id}`}
+            >
+              <span className={`nav-parent-indicator ${isOpen ? 'open' : ''}`} aria-hidden="true">
+                ▾
+              </span>
+            </button>
+          </div>
           <ul
             id={`nav-group-${item.id}`}
             className="nav-sublist"
@@ -270,7 +309,7 @@ function Sidebar() {
       <div className="nav-header">
         <div className="nav-header-top">
           <div className="nav-branding">
-            <h1 className="nav-title">Javier 360° PMO</h1>
+            <h1 className="nav-title">JR 360 PMO</h1>
             <p className="nav-subtitle">Personal Management Office</p>
           </div>
           <button
@@ -280,10 +319,26 @@ function Sidebar() {
             aria-label={isCollapsed ? 'Expandir menú lateral' : 'Colapsar menú lateral'}
             title={isCollapsed ? 'Expandir menú' : 'Colapsar menú'}
           >
-            {isCollapsed ? '➤' : '◀'}
+            <span className="sr-only">{isCollapsed ? 'Expandir menú lateral' : 'Colapsar menú lateral'}</span>
+            <span aria-hidden="true" className="nav-collapse-toggle-icon">
+              {isCollapsed ? '›' : '‹'}
+            </span>
           </button>
         </div>
-        {!isCollapsed && <GlobalSearch />}
+        {!isCollapsed && (
+          <div className="nav-tools">
+            <div className="nav-search">
+              <GlobalSearch />
+            </div>
+            <button
+              type="button"
+              className="nav-collapse-all"
+              onClick={toggleSectionVisibility}
+            >
+              {allSectionsCollapsed ? 'Expandir secciones' : 'Replegar secciones'}
+            </button>
+          </div>
+        )}
       </div>
 
       {favoriteItems.length > 0 && (
