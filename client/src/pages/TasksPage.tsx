@@ -26,6 +26,9 @@ import {
   Tabs,
 } from '../components'
 import type { Task } from '../services/tasksApi'
+import { useDashboardParams } from '../features/dashboard/useDashboardParams'
+import { filterTasksForDashboard } from '../features/dashboard/filters'
+import { isTaskDashboardFilter } from '../features/dashboard/navigation'
 
 interface TaskFormData {
   area_id: string
@@ -115,6 +118,16 @@ function TasksPage() {
   const [sortBy, setSortBy] = useState<'progress' | 'due_date' | 'title'>('progress')
   const { density, setDensity } = useCardLayout('tasks')
   const { mode: viewMode, setMode: setViewMode } = useViewMode('tasks:view-mode', 'table')
+  const {
+    dashboardFilter,
+    dashboardFilterLabel,
+    dashboardFocus,
+    dashboardFocusId,
+    clearDashboardFilter,
+    clearDashboardFocus,
+  } = useDashboardParams()
+  const taskDashboardFilter = isTaskDashboardFilter(dashboardFilter) ? dashboardFilter : null
+  const activeDashboardFilterLabel = taskDashboardFilter ? dashboardFilterLabel : undefined
 
   const handleTabChange = (tabId: 'list' | 'overdue' | 'kanban') => {
     setActiveTab(tabId)
@@ -246,8 +259,12 @@ function TasksPage() {
     })
   }, [tasks, searchTerm, areas, goals])
 
+  const dashboardFilteredTasks = useMemo(() => {
+    return filterTasksForDashboard(filteredTasksList, taskDashboardFilter)
+  }, [filteredTasksList, taskDashboardFilter])
+
   const sortedTasksList = useMemo(() => {
-    return [...filteredTasksList].sort((a, b) => {
+    return [...dashboardFilteredTasks].sort((a, b) => {
       if (sortBy === 'title') {
         return a.title.localeCompare(b.title)
       }
@@ -260,7 +277,23 @@ function TasksPage() {
       const bProgress = b.progress_percentage ?? 0
       return bProgress - aProgress
     })
-  }, [filteredTasksList, sortBy])
+  }, [dashboardFilteredTasks, sortBy])
+
+  useEffect(() => {
+    if (!taskDashboardFilter) return
+    setActiveTab('list')
+    setViewMode('table')
+  }, [taskDashboardFilter, setViewMode])
+
+  useEffect(() => {
+    if (dashboardFocus === 'task' && dashboardFocusId && tasks) {
+      const target = tasks.find((task) => task.id === dashboardFocusId)
+      if (target) {
+        handleEdit(target)
+        clearDashboardFocus()
+      }
+    }
+  }, [dashboardFocus, dashboardFocusId, tasks, clearDashboardFocus])
 
   const kanbanColumns = useMemo(() => {
     const baseColumns = KANBAN_STATUSES.map((status) => ({
@@ -407,7 +440,21 @@ function TasksPage() {
           />
           {activeTab === 'list' && <ViewModeToggle mode={viewMode} onChange={setViewMode} />}
         </div>
-
+        {activeDashboardFilterLabel && (
+          <div className="dashboard-origin-banner">
+            <span>
+              Vista filtrada desde el dashboard:&nbsp;
+              <strong>{activeDashboardFilterLabel}</strong>
+            </span>
+            <button
+              type="button"
+              className="dashboard-origin-banner__button"
+              onClick={clearDashboardFilter}
+            >
+              Limpiar filtros
+            </button>
+          </div>
+        )}
         {activeTab === 'list' && (
           <>
             {sortedTasksList.length > 0 ? (

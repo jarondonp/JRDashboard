@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback, useEffect, type FormEvent } from 'react'
-import { useNavigate, useLocation } from 'react-router-dom'
+import { useNavigate, useLocation, useSearchParams } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   useGoals,
@@ -26,6 +26,8 @@ import {
   Tabs,
 } from '../components'
 import type { Goal } from '../services/goalsApi'
+import type { DashboardFilterKey } from '../features/dashboard/navigation'
+import { DASHBOARD_FILTER_LABELS } from '../features/dashboard/navigation'
 
 interface GoalFormData {
   area_id: string
@@ -71,6 +73,15 @@ function GoalsPage() {
   const [sortBy, setSortBy] = useState<'progress' | 'due_date' | 'title'>('progress')
   const { density, setDensity } = useCardLayout('goals')
   const { mode: viewMode, setMode: setViewMode } = useViewMode('goals:view-mode', 'table')
+  const [searchParams, setSearchParams] = useSearchParams()
+  const rawDashboardFilter = searchParams.get('dashboardFilter')
+  const dashboardFilter: DashboardFilterKey | null =
+    rawDashboardFilter && rawDashboardFilter.startsWith('goals-')
+      ? (rawDashboardFilter as DashboardFilterKey)
+      : null
+  const dashboardFocus = searchParams.get('dashboardFocus')
+  const dashboardFocusId = searchParams.get('dashboardId')
+  const dashboardFilterLabel = dashboardFilter ? DASHBOARD_FILTER_LABELS[dashboardFilter] : undefined
 
   const handleTabChange = (tabId: 'list' | 'by-area' | 'compliance') => {
     setActiveTab(tabId)
@@ -115,22 +126,6 @@ function GoalsPage() {
     }
   }
 
-  const handleEdit = (goal: Goal) => {
-    setEditingGoal(goal)
-    setFormData({
-      area_id: goal.area_id,
-      title: goal.title,
-      description: goal.description || '',
-      goal_type: goal.goal_type || 'Corto Plazo',
-      start_date: goal.start_date || '',
-      due_date: goal.due_date || '',
-      status: goal.status,
-      priority: goal.priority,
-      expected_outcome: goal.expected_outcome || ''
-    })
-    setShowModal(true)
-  }
-
   const handleDelete = async (id: string) => {
     if (window.confirm('¿Estás seguro de eliminar esta meta?')) {
       try {
@@ -149,6 +144,54 @@ function GoalsPage() {
     setFormData(createEmptyGoalForm())
   }
 
+  const handleClearDashboardFilter = () => {
+    const next = new URLSearchParams(searchParams)
+    next.delete('dashboardFilter')
+    setSearchParams(next, { replace: true })
+  }
+
+  const isDateInCurrentMonth = (value?: string | null) => {
+    if (!value) return false
+    const parsed = new Date(value)
+    if (Number.isNaN(parsed.getTime())) return false
+    const now = new Date()
+    return parsed.getFullYear() === now.getFullYear() && parsed.getMonth() === now.getMonth()
+  }
+
+const isUpdatedInCurrentMonth = (value?: string | null) => {
+  if (!value) return false
+  const parsed = new Date(value)
+  if (Number.isNaN(parsed.getTime())) return false
+  const now = new Date()
+  return parsed.getFullYear() === now.getFullYear() && parsed.getMonth() === now.getMonth()
+}
+
+const isBeforeCurrentMonth = (value?: string | null) => {
+  if (!value) return false
+  const parsed = new Date(value)
+  if (Number.isNaN(parsed.getTime())) return false
+  const now = new Date()
+  const currentStart = new Date(now.getFullYear(), now.getMonth(), 1)
+  parsed.setHours(0, 0, 0, 0)
+  return parsed.getTime() < currentStart.getTime()
+}
+
+const isAfterCurrentMonth = (value?: string | null) => {
+  if (!value) return false
+  const parsed = new Date(value)
+  if (Number.isNaN(parsed.getTime())) return false
+  const now = new Date()
+  const nextMonthStart = new Date(now.getFullYear(), now.getMonth() + 1, 1)
+  parsed.setHours(0, 0, 0, 0)
+  return parsed.getTime() >= nextMonthStart.getTime()
+}
+
+  useEffect(() => {
+    if (dashboardFilter) {
+      setActiveTab('list')
+    }
+  }, [dashboardFilter])
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'completada': return 'bg-green-100 text-green-800'
@@ -166,6 +209,33 @@ function GoalsPage() {
       default: return 'bg-gray-100 text-gray-800'
     }
   }
+
+  const resolveGoalStatus = useCallback((goal: Goal) => {
+    const progress = goal.computed_progress ?? 0
+    if (progress >= 100) {
+      return 'completada'
+    }
+    if (goal.status === 'completada' && progress < 100) {
+      return progress === 0 ? 'no_iniciada' : 'en_progreso'
+    }
+    return goal.status
+  }, [])
+
+const handleEdit = useCallback((goal: Goal) => {
+  setEditingGoal(goal)
+  setFormData({
+    area_id: goal.area_id,
+    title: goal.title,
+    description: goal.description || '',
+    goal_type: goal.goal_type || 'Corto Plazo',
+    start_date: goal.start_date || '',
+    due_date: goal.due_date || '',
+    status: resolveGoalStatus(goal),
+    priority: goal.priority,
+    expected_outcome: goal.expected_outcome || '',
+  })
+  setShowModal(true)
+}, [resolveGoalStatus])
 
   const getAreaName = (areaId: string) => {
     return areas?.find(a => a.id === areaId)?.name || 'Sin área'
@@ -250,12 +320,46 @@ function GoalsPage() {
     ) as Record<string, { title: string; date?: string; progress?: number; taskTitle?: string }>
   }, [progressLogs, taskLookup])
 
-  const filteredGoals = useMemo(() => {
+  const goalsForView = useMemo(() => {
     if (!goals) return []
-    const normalizedSearch = searchTerm.trim().toLowerCase()
-    if (!normalizedSearch) return [...goals]
+    let dataset = [...goals]
+    if (activeTab === 'list' && dashboardFilter) {
+      dataset = dataset.filter(goal => {
+        const status = resolveGoalStatus(goal)
+        const progress = goal.computed_progress ?? 0
+        switch (dashboardFilter) {
+          case 'goals-in-progress':
+            return status === 'en_progreso' || status === 'in_progress'
+          case 'goals-month-current':
+          case 'goals-month-due':
+            return isDateInCurrentMonth(goal.due_date)
+          case 'goals-month-completed':
+            return progress >= 100 && (isUpdatedInCurrentMonth(goal.updated_at) || isDateInCurrentMonth(goal.due_date))
+          case 'goals-month-early':
+            return progress >= 100 && isUpdatedInCurrentMonth(goal.updated_at) && (isAfterCurrentMonth(goal.due_date) || !goal.due_date)
+          case 'goals-month-pending':
+            return isDateInCurrentMonth(goal.due_date) && progress < 100
+          case 'goals-month-recovered':
+            return progress >= 100 && isUpdatedInCurrentMonth(goal.updated_at) && isBeforeCurrentMonth(goal.due_date)
+          default:
+            return true
+        }
+      })
+    }
 
-    return goals.filter((goal) => {
+    if (activeTab === 'compliance') {
+      dataset = dataset.filter((goal) => resolveGoalStatus(goal) !== 'completada')
+    }
+    return dataset
+  }, [goals, dashboardFilter, resolveGoalStatus, activeTab])
+
+  const filteredGoals = useMemo(() => {
+    const dataset = goalsForView
+    if (dataset.length === 0) return []
+    const normalizedSearch = searchTerm.trim().toLowerCase()
+    if (!normalizedSearch) return [...dataset]
+
+    return dataset.filter((goal) => {
       const title = goal.title.toLowerCase()
       const description = (goal.description || '').toLowerCase()
       const areaName = getAreaName(goal.area_id).toLowerCase()
@@ -265,7 +369,7 @@ function GoalsPage() {
         areaName.includes(normalizedSearch)
       )
     })
-  }, [goals, searchTerm, areas])
+  }, [goalsForView, searchTerm, areas])
 
   const sortedGoals = useMemo(() => {
     return [...filteredGoals].sort((a, b) => {
@@ -296,6 +400,19 @@ function GoalsPage() {
   }, [])
 
   useRegisterQuickAction('goal:create', openCreateGoalModal)
+
+  useEffect(() => {
+    if (dashboardFocus === 'goal' && dashboardFocusId && goals) {
+      const target = goals.find((goal) => goal.id === dashboardFocusId)
+      if (target) {
+        handleEdit(target)
+        const next = new URLSearchParams(searchParams)
+        next.delete('dashboardFocus')
+        next.delete('dashboardId')
+        setSearchParams(next, { replace: true })
+      }
+    }
+  }, [dashboardFocus, dashboardFocusId, goals, handleEdit, searchParams, setSearchParams])
 
   useEffect(() => {
     const state = location.state as { quickAction?: string } | undefined
@@ -381,6 +498,22 @@ function GoalsPage() {
           <ViewModeToggle mode={viewMode} onChange={setViewMode} />
         </div>
 
+        {dashboardFilterLabel && (
+          <div className="dashboard-origin-banner">
+            <span>
+              Vista filtrada desde el dashboard:&nbsp;
+              <strong>{dashboardFilterLabel}</strong>
+            </span>
+            <button
+              type="button"
+              className="dashboard-origin-banner__button"
+              onClick={handleClearDashboardFilter}
+            >
+              Limpiar filtros
+            </button>
+          </div>
+        )}
+
         {sortedGoals.length > 0 ? (
           viewMode === 'cards' ? (
             <motion.div
@@ -391,8 +524,9 @@ function GoalsPage() {
             >
               <AnimatePresence>
                 {sortedGoals.map((goal, index) => {
-                  const latestUpdate = latestUpdatesByGoal[goal.id!]
+                  const derivedStatus = resolveGoalStatus(goal)
                   const goalStats = goalTaskStats[goal.id!]
+                  const latestUpdate = latestUpdatesByGoal[goal.id!]
                   return (
                     <motion.div
                       key={goal.id}
@@ -430,9 +564,9 @@ function GoalsPage() {
                               <p className="text-sm text-gray-700">{goal.description}</p>
                             )}
 
-                            <div className="flex flex-wrap gap-2">
-                              <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(goal.status)}`}>
-                                {goal.status}
+                            <div className="flex flex-wrap gap-2 items-center">
+                              <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(derivedStatus)}`}>
+                                {derivedStatus}
                               </span>
                               <span className={`px-2 py-1 rounded-full text-xs font-medium ${getPriorityColor(goal.priority)}`}>
                                 {goal.priority}
@@ -477,8 +611,11 @@ function GoalsPage() {
                                 <p className="text-gray-400">Aún no hay avances registrados para esta meta.</p>
                               )}
                               {goalStats ? (
-                                <p>
-                                  {goalStats.completed}/{goalStats.total} tareas completadas · {goalStats.withoutProgress} sin avance
+                                <p className="text-sm text-slate-500">
+                                  {goalStats.completed}/{goalStats.total} tareas completadas
+                                  {goalStats.withoutProgress > 0 && (
+                                    <span> · {goalStats.withoutProgress} sin avance</span>
+                                  )}
                                 </p>
                               ) : (
                                 <p>No hay tareas asociadas a esta meta.</p>
@@ -517,8 +654,9 @@ function GoalsPage() {
                   </thead>
                   <tbody className="divide-y divide-indigo-50 text-sm text-gray-700">
                     {sortedGoals.map((goal) => {
-                      const latestUpdate = latestUpdatesByGoal[goal.id!]
+                      const derivedStatus = resolveGoalStatus(goal)
                       const goalStats = goalTaskStats[goal.id!]
+                      const latestUpdate = latestUpdatesByGoal[goal.id!]
                       return (
                         <tr key={goal.id} className="hover:bg-indigo-50/40 transition">
                           <td className="px-4 py-3">
@@ -535,8 +673,8 @@ function GoalsPage() {
                             </span>
                           </td>
                           <td className="px-4 py-3">
-                            <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${getStatusColor(goal.status)}`}>
-                              {goal.status}
+                            <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${getStatusColor(derivedStatus)}`}>
+                              {derivedStatus}
                             </span>
                           </td>
                           <td className="px-4 py-3">
@@ -571,9 +709,12 @@ function GoalsPage() {
                                   <span>Progreso reporte: {latestUpdate.progress}%</span>
                                 )}
                                 {goalStats && (
-                                  <span>
-                                    {goalStats.completed}/{goalStats.total} tareas · {goalStats.withoutProgress} sin avance
-                                  </span>
+                                  <div className="text-sm text-slate-500">
+                                    {goalStats.completed}/{goalStats.total} tareas
+                                    {goalStats.withoutProgress > 0 && (
+                                      <span> · {goalStats.withoutProgress} sin avance</span>
+                                    )}
+                                  </div>
                                 )}
                               </div>
                             ) : (

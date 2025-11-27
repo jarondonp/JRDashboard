@@ -6,7 +6,16 @@
   transition: transform 0.2s, box-shadow 0.2s;
 }
 
-.progress-card:hover {
+.progress-card--interactive {
+  cursor: pointer;
+}
+
+.progress-card--interactive:focus-visible {
+  outline: 3px solid rgba(79, 70, 229, 0.5);
+  outline-offset: 4px;
+}
+
+.progress-card--interactive:hover {
   transform: translateY(-2px);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
 }

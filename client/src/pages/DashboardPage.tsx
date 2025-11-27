@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { MetricCard, ProgressCard, ListCard, Card, CardBody } from '../components';
+import { MetricCard, ListCard, Card, CardBody } from '../components';
 import { 
   useMonthlyStats, 
   useRecentProgress, 
@@ -10,6 +10,8 @@ import {
   useProgressLogs
 } from '../hooks';
 import { motion } from 'framer-motion';
+import { useDashboardNavigation } from '../features/dashboard/navigation';
+import { filterTasksForDashboard } from '../features/dashboard/filters';
 
 function DashboardPage() {
   const { data: monthlyStats, isLoading: loadingStats } = useMonthlyStats();
@@ -19,6 +21,12 @@ function DashboardPage() {
   const { data: goals } = useGoals();
   const { data: tasks } = useTasks();
   const { data: progressLogs } = useProgressLogs();
+  const {
+    openFilter,
+    openGoalDetail,
+    openTaskDetail,
+    openProgressLogDetail,
+  } = useDashboardNavigation();
 
   const isLoading = loadingStats || loadingProgress || loadingDocs || loadingTasks;
 
@@ -91,6 +99,124 @@ function DashboardPage() {
       task_progress: latest.task_progress ?? undefined,
     }
   }, [progressLogs])
+
+  const openTasksThisMonth = useMemo(() => {
+    if (!openTasks?.tasks) return []
+    return filterTasksForDashboard(openTasks.tasks, 'tasks-open-month')
+  }, [openTasks])
+
+  const openTasksThisMonthOverdue = useMemo(() => {
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    return openTasksThisMonth.filter((task) => {
+      if (!task.due_date) return false
+      const dueDate = new Date(task.due_date)
+      dueDate.setHours(0, 0, 0, 0)
+      return dueDate.getTime() < today.getTime()
+    }).length
+  }, [openTasksThisMonth])
+
+  const monthNameRaw = new Intl.DateTimeFormat('es', { month: 'long' }).format(new Date())
+  const monthName = monthNameRaw.charAt(0).toUpperCase() + monthNameRaw.slice(1)
+  const pluralize = (value: number, singular: string, plural: string) => (value === 1 ? singular : plural)
+
+  const totalDueGoals = monthlyStats?.totalMonthGoals ?? 0
+  const completedOnTimeCount = monthlyStats?.completedGoals ?? 0
+  const pendingGoalsCount = monthlyStats?.pendingGoals ?? 0
+  const completedThisMonthCount = monthlyStats?.completedThisMonth ?? 0
+  const earlyGoalsCount = monthlyStats?.completedEarlyGoals ?? 0
+  const recoveredGoalsCount = monthlyStats?.completedLateGoals ?? 0
+  const completionPercent = totalDueGoals > 0 ? Math.round((completedOnTimeCount / totalDueGoals) * 100) : 0
+  const averageMonthlyProgress = monthlyStats?.goalCompletionRate ?? 0
+
+  const summaryText = useMemo(() => {
+    const parts: string[] = []
+    if (totalDueGoals > 0) {
+      parts.push(
+        `${totalDueGoals} ${pluralize(totalDueGoals, 'meta con fecha límite', 'metas con fecha límite')} en ${monthName}`,
+      )
+    }
+    const extraCompleted = Math.max(completedThisMonthCount - completedOnTimeCount, 0)
+    if (extraCompleted > 0) {
+      parts.push(
+        `${extraCompleted} ${pluralize(extraCompleted, 'meta', 'metas')} finalizada${extraCompleted === 1 ? '' : 's'} este mes aunque vencen más adelante`,
+      )
+    }
+    if (recoveredGoalsCount > 0) {
+      parts.push(
+        `${recoveredGoalsCount} ${pluralize(
+          recoveredGoalsCount,
+          'meta recuperada fuera de plazo',
+          'metas recuperadas fuera de plazo',
+        )}`,
+      )
+    }
+    if (parts.length === 0) {
+      return 'Aún no hay metas asociadas al mes actual.'
+    }
+    return parts.join(' · ')
+  }, [totalDueGoals, monthName, completedThisMonthCount, completedOnTimeCount, recoveredGoalsCount])
+
+  const trendData = monthlyStats?.completionTrend ?? []
+  const trendMaxValue = trendData.reduce((max, item) => Math.max(max, item.value), 0)
+
+  const dueGoalsList = useMemo(() => {
+    if (!goals || !monthlyStats) return []
+    const ids = new Set(monthlyStats.dueGoalIds || [])
+    return goals.filter((goal) => goal.id && ids.has(goal.id))
+  }, [goals, monthlyStats])
+
+  const pendingGoalsList = useMemo(() => {
+    if (!goals || !monthlyStats) return []
+    const ids = new Set(monthlyStats.pendingGoalIds || [])
+    return goals.filter((goal) => goal.id && ids.has(goal.id))
+  }, [goals, monthlyStats])
+
+  const earlyGoalsList = useMemo(() => {
+    if (!goals || !monthlyStats) return []
+    const ids = new Set(monthlyStats.completedEarlyGoalIds || [])
+    return goals.filter((goal) => goal.id && ids.has(goal.id))
+  }, [goals, monthlyStats])
+
+  const recoveredGoalsList = useMemo(() => {
+    if (!goals || !monthlyStats) return []
+    const ids = new Set(monthlyStats.completedLateGoalIds || [])
+    return goals.filter((goal) => goal.id && ids.has(goal.id))
+  }, [goals, monthlyStats])
+
+  const summaryItems = useMemo(
+    () => [
+      {
+        key: 'goals',
+        value: monthlyStats?.trackedGoals ?? 0,
+        valueClass: 'text-indigo-600',
+        label: 'Metas monitoreadas este mes',
+        action: () => openFilter('goals-active'),
+      },
+      {
+        key: 'tasks-total',
+        value: openTasks?.total ?? 0,
+        valueClass: 'text-purple-600',
+        label: 'Tareas pendientes',
+        action: () => openFilter('tasks-pending'),
+      },
+      {
+        key: 'tasks-today',
+        value: openTasks?.today ?? 0,
+        valueClass: 'text-pink-600',
+        label: 'Tareas de hoy',
+        action: () => openFilter('tasks-today'),
+      },
+      {
+        key: 'progress-week',
+        value: recentProgress?.count ?? 0,
+        valueClass: 'text-teal-600',
+        label: 'Avances esta semana',
+        action: () => openFilter('progress-this-week'),
+      },
+    ],
+    [monthlyStats?.trackedGoals, openTasks?.total, openTasks?.today, recentProgress?.count, openFilter],
+  )
 
   if (isLoading) {
     return (
@@ -190,13 +316,19 @@ function DashboardPage() {
               subtitle="Progreso promedio de metas"
               icon="📊"
               color="blue"
+              onClick={() => openFilter('goals-overview')}
             />
             <MetricCard
               title="Tareas Abiertas del Mes"
-              value={openTasks?.total || 0}
-              subtitle={openTasks?.overdue ? `${openTasks.overdue} atrasada${openTasks.overdue !== 1 ? 's' : ''} 🔴` : 'Al día'}
+              value={openTasksThisMonth.length}
+              subtitle={
+                openTasksThisMonthOverdue
+                  ? `${openTasksThisMonthOverdue} atrasada${openTasksThisMonthOverdue !== 1 ? 's' : ''} 🔴`
+                  : 'Al día'
+              }
               icon="📋"
-              color={openTasks?.overdue ? 'red' : 'green'}
+              color={openTasksThisMonthOverdue ? 'red' : 'green'}
+              onClick={() => openFilter('tasks-open-month')}
             />
             <MetricCard
               title="Avances Esta Semana"
@@ -204,6 +336,7 @@ function DashboardPage() {
               subtitle={recentProgress?.lastUpdate ? `Última: ${recentProgress.lastUpdate}` : 'Sin registros'}
               icon="📈"
               color="purple"
+              onClick={() => openFilter('progress-this-week')}
             />
             <MetricCard
               title="Documentos Críticos"
@@ -211,6 +344,7 @@ function DashboardPage() {
               subtitle={criticalDocs?.nextReviewDate ? `Próxima revisión: ${criticalDocs.nextReviewDate}` : 'Sin fechas próximas'}
               icon="📄"
               color="yellow"
+              onClick={() => openFilter('documents-critical')}
             />
             <MetricCard
               title="Tareas con avance hoy"
@@ -222,6 +356,7 @@ function DashboardPage() {
               }
               icon="⚙️"
               color={tasksWithRecentProgress > 0 ? 'green' : 'yellow'}
+              onClick={() => openFilter('progress-today')}
             />
           </div>
         </motion.section>
@@ -233,13 +368,149 @@ function DashboardPage() {
           transition={{ duration: 0.5, delay: 0.2 }}
         >
           <h2 className="text-2xl font-bold text-gray-800 mb-4">🎯 Metas del Mes</h2>
-          <ProgressCard
-            title="Cumplimiento de Metas"
-            current={monthlyStats?.completedGoals || 0}
-            total={monthlyStats?.totalMonthGoals || 0}
-            subtitle="metas completadas este mes"
-            color="blue"
-          />
+          <Card>
+            <CardBody>
+              <div className="space-y-6">
+                <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                  <div>
+                    <h3 className="text-lg font-semibold text-slate-800">Seguimiento de {monthName}</h3>
+                    <p className="text-sm text-slate-500 max-w-2xl">{summaryText}</p>
+                  </div>
+                  <div className="text-right">
+                    <span className="text-3xl font-bold text-indigo-600">{completionPercent}%</span>
+                    <p className="text-xs text-slate-500">metas con fecha del mes completadas</p>
+                    <p className="text-xs text-slate-400">Progreso promedio: {averageMonthlyProgress}%</p>
+                  </div>
+                </div>
+                <div className="h-2 w-full overflow-hidden rounded-full bg-slate-200">
+                  <div
+                    className="h-full rounded-full bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 transition-all"
+                    style={{ width: `${Math.min(Math.max(completionPercent, 0), 100)}%` }}
+                  />
+                </div>
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                  <button
+                    type="button"
+                    className="rounded-xl border border-indigo-100 bg-white/70 px-4 py-3 text-left shadow-sm transition hover:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-300"
+                    onClick={() => openFilter('goals-month-due')}
+                  >
+                    <span className="block text-2xl font-semibold text-indigo-600">{totalDueGoals}</span>
+                    <span className="text-xs text-slate-500">Vencen en {monthName}</span>
+                  </button>
+                  <button
+                    type="button"
+                    className="rounded-xl border border-emerald-100 bg-emerald-50/70 px-4 py-3 text-left shadow-sm transition hover:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-300"
+                    onClick={() => openFilter('goals-month-completed')}
+                  >
+                    <span className="block text-2xl font-semibold text-emerald-600">{completedThisMonthCount}</span>
+                    <span className="text-xs text-emerald-700">Completadas este mes</span>
+                  </button>
+                  <button
+                    type="button"
+                    className="rounded-xl border border-amber-100 bg-amber-50/80 px-4 py-3 text-left shadow-sm transition hover:border-amber-300 focus:outline-none focus:ring-2 focus:ring-amber-300"
+                    onClick={() => openFilter('goals-month-pending')}
+                  >
+                    <span className="block text-2xl font-semibold text-amber-600">{pendingGoalsCount}</span>
+                    <span className="text-xs text-amber-700">Pendientes del mes</span>
+                  </button>
+                  <button
+                    type="button"
+                    className="rounded-xl border border-fuchsia-100 bg-fuchsia-50/70 px-4 py-3 text-left shadow-sm transition hover:border-fuchsia-300 focus:outline-none focus:ring-2 focus:ring-fuchsia-300"
+                    onClick={() => openFilter('goals-month-early')}
+                  >
+                    <span className="block text-2xl font-semibold text-fuchsia-600">{earlyGoalsCount}</span>
+                    <span className="text-xs text-fuchsia-700">Finalizadas anticipadamente</span>
+                  </button>
+                </div>
+                {trendData.length > 0 && (
+                  <div className="mt-2">
+                    <div className="flex items-center justify-between">
+                      <h4 className="text-sm font-semibold uppercase tracking-wide text-slate-600">
+                        Historial de cierres
+                      </h4>
+                      <span className="text-xs text-slate-400">Últimos {trendData.length} meses</span>
+                    </div>
+                    <div className="mt-3 flex items-end gap-3">
+                      {trendData.map(({ label, value }) => (
+                        <div key={label} className="flex-1">
+                          <div className="relative h-20 rounded-lg bg-indigo-50">
+                            <div
+                              className="absolute bottom-0 left-0 right-0 rounded-lg bg-indigo-500"
+                              style={{ height: trendMaxValue > 0 ? `${(value / trendMaxValue) * 100}%` : '0%' }}
+                            />
+                          </div>
+                          <div className="mt-1 text-center text-xs font-medium text-slate-500">{label}</div>
+                          <div className="text-center text-xs text-slate-400">
+                            {value} {pluralize(value, 'meta', 'metas')}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {pendingGoalsList.length > 0 && (
+                  <div>
+                    <h4 className="text-sm font-semibold text-slate-600">Metas pendientes clave</h4>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {pendingGoalsList.slice(0, 4).map((goal) => (
+                        <button
+                          key={goal.id}
+                          type="button"
+                          onClick={() => openGoalDetail(goal.id)}
+                          className="group flex items-center gap-2 rounded-full border border-amber-200 bg-amber-50 px-3 py-1.5 text-xs font-medium text-amber-700 transition hover:bg-amber-100 focus:outline-none focus:ring-2 focus:ring-amber-200"
+                        >
+                          <span>{goal.title}</span>
+                          <span className="text-[10px] text-amber-500">{Math.round(goal.computed_progress ?? 0)}%</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {earlyGoalsList.length > 0 && (
+                  <div>
+                    <div className="flex items-center gap-2 text-sm font-semibold text-emerald-600">
+                      <span>Metas finalizadas antes de lo previsto</span>
+                      <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs text-emerald-700">
+                        {earlyGoalsCount}
+                      </span>
+                    </div>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {earlyGoalsList.slice(0, 4).map((goal) => (
+                        <button
+                          key={goal.id}
+                          type="button"
+                          onClick={() => openGoalDetail(goal.id)}
+                          className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-medium text-emerald-700 transition hover:bg-emerald-100 focus:outline-none focus:ring-2 focus:ring-emerald-200"
+                        >
+                          {goal.title}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {recoveredGoalsList.length > 0 && (
+                  <div className="rounded-xl border border-orange-200 bg-orange-50/80 px-4 py-3">
+                    <p className="text-sm font-medium text-orange-700">
+                      {recoveredGoalsCount} {pluralize(recoveredGoalsCount, 'meta recuperada', 'metas recuperadas')} este
+                      mes. Celebra el avance y ajusta la planificación para evitar retrasos futuros.
+                    </p>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {recoveredGoalsList.slice(0, 3).map((goal) => (
+                        <button
+                          key={goal.id}
+                          type="button"
+                          onClick={() => openGoalDetail(goal.id)}
+                          className="rounded-full border border-orange-200 bg-white px-3 py-1.5 text-xs font-medium text-orange-700 transition hover:bg-orange-100 focus:outline-none focus:ring-2 focus:ring-orange-200"
+                        >
+                          {goal.title}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </CardBody>
+          </Card>
         </motion.section>
 
         {/* Sección 3: Metas en Progreso y Tareas */}
@@ -254,12 +525,14 @@ function DashboardPage() {
               items={goalsInProgress}
               emptyMessage="No hay metas en progreso"
               maxItems={5}
+              onItemClick={openGoalDetail}
             />
             <ListCard
               title="⏳ Tareas Prioritarias"
               items={pendingTasks}
               emptyMessage="No hay tareas pendientes"
               maxItems={5}
+              onItemClick={openTaskDetail}
             />
           </div>
         </motion.section>
@@ -276,6 +549,7 @@ function DashboardPage() {
             items={recentLogs}
             emptyMessage="No hay avances registrados esta semana"
             maxItems={5}
+            onItemClick={openProgressLogDetail}
           />
         </motion.section>
 
@@ -288,23 +562,18 @@ function DashboardPage() {
           <h2 className="text-2xl font-bold text-gray-800 mb-4">📌 Resumen Rápido</h2>
           <Card gradient>
             <CardBody>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                <div className="text-center">
-                  <div className="text-3xl font-bold text-indigo-600">{monthlyStats?.totalMonthGoals || 0}</div>
-                  <div className="text-sm text-gray-600 mt-1">Total de metas activas</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-3xl font-bold text-purple-600">{openTasks?.total || 0}</div>
-                  <div className="text-sm text-gray-600 mt-1">Tareas pendientes</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-3xl font-bold text-pink-600">{openTasks?.today || 0}</div>
-                  <div className="text-sm text-gray-600 mt-1">Tareas de hoy</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-3xl font-bold text-teal-600">{recentProgress?.count || 0}</div>
-                  <div className="text-sm text-gray-600 mt-1">Avances esta semana</div>
-                </div>
+              <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                {summaryItems.map((item) => (
+                  <button
+                    key={item.key}
+                    type="button"
+                    onClick={item.action}
+                    className="flex flex-col items-center justify-center gap-2 rounded-2xl border border-white/40 bg-white/80 px-6 py-5 text-center shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-indigo-300 focus:ring-offset-2"
+                  >
+                    <span className={`text-3xl font-bold ${item.valueClass}`}>{item.value}</span>
+                    <span className="text-sm font-medium text-slate-600">{item.label}</span>
+                  </button>
+                ))}
               </div>
             </CardBody>
           </Card>

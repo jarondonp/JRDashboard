@@ -8,7 +8,16 @@
   overflow: hidden;
 }
 
-.metric-card:hover {
+.metric-card--interactive {
+  cursor: pointer;
+}
+
+.metric-card--interactive:focus-visible {
+  outline: 3px solid rgba(129, 140, 248, 0.65);
+  outline-offset: 4px;
+}
+
+.metric-card--interactive:hover {
   transform: translateY(-2px);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
 }

@@ -452,6 +452,37 @@ body {
   padding-left: 1rem;
 }
 
+.dashboard-origin-banner {
+  margin-top: 1.5rem;
+  padding: 0.85rem 1.25rem;
+  border-radius: 14px;
+  background: rgba(99, 102, 241, 0.12);
+  border: 1px solid rgba(99, 102, 241, 0.25);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  color: #312e81;
+  font-size: 0.9rem;
+}
+
+.dashboard-origin-banner__button {
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.85) 0%, rgba(129, 140, 248, 0.9) 100%);
+  color: white;
+  border: none;
+  border-radius: 10px;
+  padding: 0.45rem 0.9rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.dashboard-origin-banner__button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 18px rgba(99, 102, 241, 0.25);
+}
+
 .nav-section-button {
   width: 100%;
   background: none;

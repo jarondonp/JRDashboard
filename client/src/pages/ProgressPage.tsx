@@ -27,6 +27,9 @@ import {
   TabsContent,
 } from '../components'
 import type { ProgressLog } from '../services/progressApi'
+import { useDashboardParams } from '../features/dashboard/useDashboardParams'
+import { filterProgressForDashboard } from '../features/dashboard/filters'
+import { isProgressDashboardFilter } from '../features/dashboard/navigation'
 
 interface ProgressFormData {
   area_id: string
@@ -71,6 +74,16 @@ function ProgressPage() {
   const { density, setDensity } = useCardLayout('progress')
   const { mode: viewMode, setMode: setViewMode } = useViewMode('progress:view-mode', 'table')
   const [activeTab, setActiveTab] = useState<'logs' | 'mood'>('logs')
+  const {
+    dashboardFilter,
+    dashboardFilterLabel,
+    dashboardFocus,
+    dashboardFocusId,
+    clearDashboardFilter,
+    clearDashboardFocus,
+  } = useDashboardParams()
+  const progressDashboardFilter = isProgressDashboardFilter(dashboardFilter) ? dashboardFilter : null
+  const activeDashboardFilterLabel = progressDashboardFilter ? dashboardFilterLabel : undefined
 
   const [editingLog, setEditingLog] = useState<ProgressLog | null>(null)
   const [formData, setFormData] = useState<ProgressFormData>(() => createEmptyProgressForm())
@@ -191,8 +204,12 @@ function ProgressPage() {
     })
   }, [logs, searchTerm, areas, goals, tasks])
 
+  const dashboardFilteredLogs = useMemo(() => {
+    return filterProgressForDashboard(filteredLogs, progressDashboardFilter)
+  }, [filteredLogs, progressDashboardFilter])
+
   const sortedLogs = useMemo(() => {
-    const source = filteredLogs
+    const source = dashboardFilteredLogs
     return [...source].sort((a, b) => {
       if (sortBy === 'title') {
         return a.title.localeCompare(b.title)
@@ -201,7 +218,7 @@ function ProgressPage() {
       const bDate = b.date ? new Date(b.date).getTime() : (b.created_at ? new Date(b.created_at).getTime() : 0)
       return bDate - aDate
     })
-  }, [filteredLogs, sortBy])
+  }, [dashboardFilteredLogs, sortBy])
 
   const moodStats = useMemo(() => {
     if (!sortedLogs.length) {
@@ -242,6 +259,23 @@ function ProgressPage() {
       navigate(location.pathname, { replace: true, state: {} })
     }
   }, [location.pathname, location.state, navigate, openCreateProgressModal])
+
+  useEffect(() => {
+    if (progressDashboardFilter) {
+      setActiveTab('logs')
+      setViewMode('table')
+    }
+  }, [progressDashboardFilter, setViewMode])
+
+  useEffect(() => {
+    if (dashboardFocus === 'progress-log' && dashboardFocusId && logs) {
+      const target = logs.find((log) => log.id === dashboardFocusId)
+      if (target) {
+        handleEdit(target)
+        clearDashboardFocus()
+      }
+    }
+  }, [dashboardFocus, dashboardFocusId, logs, clearDashboardFocus])
 
   const gridClass =
     density === 'compact'
@@ -325,6 +359,22 @@ function ProgressPage() {
           )}
         </div>
 
+        {activeTab === 'logs' && activeDashboardFilterLabel && (
+          <div className="dashboard-origin-banner">
+            <span>
+              Vista filtrada desde el dashboard:&nbsp;
+              <strong>{activeDashboardFilterLabel}</strong>
+            </span>
+            <button
+              type="button"
+              className="dashboard-origin-banner__button"
+              onClick={clearDashboardFilter}
+            >
+              Limpiar filtros
+            </button>
+          </div>
+        )}
+ 
         <TabsContent>
         {activeTab === 'logs' ? (
           sortedLogs.length > 0 ? (

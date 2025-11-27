@@ -36,18 +36,34 @@ export async function calculateGoalProgress(goalId: string): Promise<number> {
  */
 export async function updateGoalProgress(goalId: string): Promise<void> {
   console.log('=== updateGoalProgress called for goal:', goalId);
+  const existingGoal = await db.select().from(goals).where(eq(goals.id, goalId)).limit(1);
+  if (!existingGoal.length) {
+    console.warn('Goal not found for progress update:', goalId);
+    return;
+  }
   const progress = await calculateGoalProgress(goalId);
   console.log('Calculated progress:', progress);
-  
+
+  const updates: Partial<typeof goals.$inferUpdate> = {
+    computed_progress: progress,
+    updated_at: new Date(),
+  };
+
+  const goalRecord = existingGoal[0];
+  const shouldComplete = progress >= 100;
+
+  if (shouldComplete && goalRecord.status !== 'completada') {
+    updates.status = 'completada';
+  } else if (!shouldComplete && goalRecord.status === 'completada') {
+    updates.status = progress === 0 ? 'no_iniciada' : 'en_progreso';
+  }
+
   const result = await db
     .update(goals)
-    .set({ 
-      computed_progress: progress,
-      updated_at: new Date()
-    })
+    .set(updates)
     .where(eq(goals.id, goalId))
     .returning();
-  
+
   console.log('Goal updated:', result[0]);
 }
 
@@ -56,7 +72,7 @@ export async function updateGoalProgress(goalId: string): Promise<void> {
  */
 export async function updateAllGoalsProgress(): Promise<void> {
   const allGoals = await db.select().from(goals);
-  
+
   for (const goal of allGoals) {
     await updateGoalProgress(goal.id);
   }
@@ -69,7 +85,7 @@ export async function updateAllGoalsProgress(): Promise<void> {
  */
 export async function updateTaskProgressByStatus(taskId: string, status: string): Promise<void> {
   let progress = 0;
-  
+
   // Asignar progreso automático basado en el estado
   if (status === 'completada' || status === 'completed') {
     progress = 100;

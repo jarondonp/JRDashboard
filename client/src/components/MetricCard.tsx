@@ -1,3 +1,4 @@
+import { KeyboardEvent } from 'react';
 import './MetricCard.css';
 
 interface MetricCardProps {
@@ -7,11 +8,36 @@ interface MetricCardProps {
   icon?: string;
   color?: 'blue' | 'green' | 'yellow' | 'red' | 'purple';
   trend?: 'up' | 'down' | 'neutral';
+  onClick?: () => void;
 }
 
-export function MetricCard({ title, value, subtitle, icon, color = 'blue', trend }: MetricCardProps) {
+export function MetricCard({
+  title,
+  value,
+  subtitle,
+  icon,
+  color = 'blue',
+  trend,
+  onClick,
+}: MetricCardProps) {
+  const interactive = typeof onClick === 'function';
+
+  const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+    if (!interactive) return;
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      onClick?.();
+    }
+  };
+
   return (
-    <div className={`metric-card metric-card--${color}`}>
+    <div
+      className={`metric-card metric-card--${color} ${interactive ? 'metric-card--interactive' : ''}`}
+      onClick={interactive ? onClick : undefined}
+      role={interactive ? 'button' : undefined}
+      tabIndex={interactive ? 0 : undefined}
+      onKeyDown={handleKeyDown}
+    >
       <div className="metric-card__header">
         {icon && <span className="metric-card__icon">{icon}</span>}
         <h3 className="metric-card__title">{title}</h3>

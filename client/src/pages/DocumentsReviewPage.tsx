@@ -4,6 +4,9 @@ import { Button, Card, CardBody, CardHeader, useToast } from '../components';
 import { useDocuments, useAreas, useGoals } from '../hooks';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiPut } from '../services/apiClient';
+import { useDashboardParams } from '../features/dashboard/useDashboardParams';
+import { filterDocumentsForDashboard } from '../features/dashboard/filters';
+import { isDocumentDashboardFilter } from '../features/dashboard/navigation';
 
 type PriorityFilter = 'all' | 'alta' | 'media' | 'baja';
 type ReviewWindow = '7' | '14' | '30' | 'all';
@@ -66,6 +69,13 @@ function DocumentsReviewPage() {
   const { data: goals } = useGoals();
   const queryClient = useQueryClient();
   const { showToast } = useToast();
+  const {
+    dashboardFilter,
+    dashboardFilterLabel,
+    clearDashboardFilter,
+  } = useDashboardParams();
+  const documentDashboardFilter = isDocumentDashboardFilter(dashboardFilter) ? dashboardFilter : null;
+  const activeDashboardFilterLabel = documentDashboardFilter ? dashboardFilterLabel : undefined;
 
   const [priorityFilter, setPriorityFilter] = useState<PriorityFilter>('all');
   const [windowFilter, setWindowFilter] = useState<ReviewWindow>('7');
@@ -88,7 +98,7 @@ function DocumentsReviewPage() {
     const search = searchTerm.trim().toLowerCase();
     const lookupDays = WINDOW_OPTIONS.find((option) => option.id === windowFilter)?.days;
 
-    return documents
+    const base = documents
       .filter((doc) => {
         const days = daysUntil(doc.review_date);
         const matchesWindow =
@@ -107,7 +117,9 @@ function DocumentsReviewPage() {
         const daysB = daysUntil(b.review_date);
         return daysA - daysB;
       });
-  }, [documents, priorityFilter, windowFilter, searchTerm]);
+
+    return filterDocumentsForDashboard(base, documentDashboardFilter);
+  }, [documents, priorityFilter, windowFilter, searchTerm, documentDashboardFilter]);
 
   const summary = useMemo(() => {
     const total = filteredDocuments.length;
@@ -172,6 +184,22 @@ function DocumentsReviewPage() {
       </motion.div>
 
       <div className="max-w-7xl mx-auto px-8 py-8 space-y-8">
+        {activeDashboardFilterLabel && (
+          <div className="dashboard-origin-banner">
+            <span>
+              Vista filtrada desde el dashboard:&nbsp;
+              <strong>{activeDashboardFilterLabel}</strong>
+            </span>
+            <button
+              type="button"
+              className="dashboard-origin-banner__button"
+              onClick={clearDashboardFilter}
+            >
+              Limpiar filtros
+            </button>
+          </div>
+        )}
+
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <Card>
             <CardBody>
