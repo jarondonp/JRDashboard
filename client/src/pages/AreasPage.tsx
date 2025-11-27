@@ -1,8 +1,35 @@
-import { useMemo, useState, type FormEvent } from 'react'
+import { useMemo, useState, useCallback, useEffect, type FormEvent } from 'react'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { useAreas, useCreateArea, useUpdateArea, useDeleteArea, useCardLayout, useViewMode } from '../hooks'
-import { Button, Modal, ModalFooter, Card, CardHeader, CardBody, useToast, CardLayoutToolbar, ViewModeToggle } from '../components'
+import {
+  useAreas,
+  useCreateArea,
+  useUpdateArea,
+  useDeleteArea,
+  useCardLayout,
+  useViewMode,
+  useRegisterQuickAction,
+} from '../hooks'
+import {
+  Button,
+  Modal,
+  ModalFooter,
+  Card,
+  CardHeader,
+  CardBody,
+  useToast,
+  CardLayoutToolbar,
+  ViewModeToggle,
+} from '../components'
 import type { Area, AreaInput } from '../services/areasApi'
+
+const createEmptyAreaInput = (): AreaInput => ({
+  name: '',
+  type: 'Personal',
+  color: '#3498db',
+  description: '',
+  icon: '',
+})
 
 function AreasPage() {
   const { data: areas, isLoading, error } = useAreas()
@@ -10,16 +37,12 @@ function AreasPage() {
   const updateMutation = useUpdateArea()
   const deleteMutation = useDeleteArea()
   const { showToast } = useToast()
+  const navigate = useNavigate()
+  const location = useLocation()
 
   const [showModal, setShowModal] = useState(false)
   const [editingArea, setEditingArea] = useState<Area | null>(null)
-  const [formData, setFormData] = useState<AreaInput>({
-    name: '',
-    type: 'Personal',
-    color: '#3498db',
-    description: '',
-    icon: ''
-  })
+  const [formData, setFormData] = useState<AreaInput>(() => createEmptyAreaInput())
   const [searchTerm, setSearchTerm] = useState('')
   const [sortBy, setSortBy] = useState<'name' | 'type'>('name')
   const { density, setDensity } = useCardLayout('areas')
@@ -68,14 +91,24 @@ function AreasPage() {
   const resetForm = () => {
     setShowModal(false)
     setEditingArea(null)
-    setFormData({
-      name: '',
-      type: 'Personal',
-      color: '#3498db',
-      description: '',
-      icon: ''
-    })
+    setFormData(createEmptyAreaInput())
   }
+
+  const openCreateAreaModal = useCallback(() => {
+    setEditingArea(null)
+    setFormData(createEmptyAreaInput())
+    setShowModal(true)
+  }, [])
+
+  useRegisterQuickAction('area:create', openCreateAreaModal)
+
+  useEffect(() => {
+    const state = location.state as { quickAction?: string } | undefined
+    if (state?.quickAction === 'area:create') {
+      openCreateAreaModal()
+      navigate(location.pathname, { replace: true, state: {} })
+    }
+  }, [location.pathname, location.state, navigate, openCreateAreaModal])
 
   const filteredAreas = useMemo(() => {
     if (!areas) return []
@@ -145,7 +178,7 @@ function AreasPage() {
             <h1 className="text-3xl font-bold mb-1">🎨 Áreas de Vida</h1>
             <p className="text-indigo-100">Organiza tu vida en diferentes áreas</p>
           </div>
-          <Button variant="secondary" onClick={() => setShowModal(true)}>
+          <Button variant="secondary" onClick={openCreateAreaModal}>
             + Nueva Área
           </Button>
         </div>

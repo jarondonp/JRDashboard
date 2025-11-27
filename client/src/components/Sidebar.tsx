@@ -36,6 +36,12 @@ const MENU_SECTIONS: MenuSection[] = [
     title: 'GESTIÓN OPERATIVA',
     items: [
       {
+        id: 'areas',
+        label: 'Áreas',
+        icon: '🗂️',
+        to: '/areas',
+      },
+      {
         id: 'goals',
         label: 'Metas',
         icon: '🎯',

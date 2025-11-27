@@ -6,6 +6,13 @@ import { useToast } from './Toast';
 
 const QUICK_ACTIONS = [
   {
+    id: 'area:create' as const,
+    title: 'Nueva área',
+    subtitle: 'Configura un nuevo ámbito clave',
+    icon: '🗂️',
+    accent: 'from-slate-500 to-sky-500',
+  },
+  {
     id: 'task:create' as const,
     title: 'Nueva tarea',
     subtitle: 'Captura una acción concreta',
@@ -38,7 +45,9 @@ export function QuickActionMenu() {
     const executed = trigger(actionId);
     if (!executed) {
       showToast('Redirigiendo para crear desde la vista correspondiente…', 'info');
-      if (actionId === 'task:create') {
+      if (actionId === 'area:create') {
+        navigate('/areas', { state: { quickAction: actionId }, replace: false });
+      } else if (actionId === 'task:create') {
         navigate('/tasks', { state: { quickAction: actionId }, replace: false });
       } else if (actionId === 'goal:create') {
         navigate('/goals', { state: { quickAction: actionId }, replace: false });
