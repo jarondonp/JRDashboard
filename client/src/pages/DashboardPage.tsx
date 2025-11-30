@@ -160,12 +160,6 @@ function DashboardPage() {
   const trendData = monthlyStats?.completionTrend ?? []
   const trendMaxValue = trendData.reduce((max, item) => Math.max(max, item.value), 0)
 
-  const dueGoalsList = useMemo(() => {
-    if (!goals || !monthlyStats) return []
-    const ids = new Set(monthlyStats.dueGoalIds || [])
-    return goals.filter((goal) => goal.id && ids.has(goal.id))
-  }, [goals, monthlyStats])
-
   const pendingGoalsList = useMemo(() => {
     if (!goals || !monthlyStats) return []
     const ids = new Set(monthlyStats.pendingGoalIds || [])
