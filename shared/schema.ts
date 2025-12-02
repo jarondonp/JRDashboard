@@ -108,6 +108,7 @@ export const documents = pgTable('documents', {
   id: uuid('id').primaryKey(),
   area_id: uuid('area_id').notNull(),
   goal_id: uuid('goal_id'),
+  task_id: uuid('task_id'),
   title: text('title').notNull(),
   description: text('description'),
   url: text('url'),
@@ -119,6 +120,7 @@ export const documents = pgTable('documents', {
 export const insertDocumentSchema = z.object({
   area_id: z.string(),
   goal_id: z.string().optional(),
+  task_id: z.string().optional(),
   title: z.string(),
   description: z.string().optional(),
   url: z.string().optional(),

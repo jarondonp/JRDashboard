@@ -7,6 +7,7 @@ import {
   CardBody,
   CardHeader,
   Tabs,
+  InlineCreateButton,
 } from '../components';
 import { useAreas, useGoals, useTasks } from '../hooks';
 import type { Goal } from '../services/goalsApi';
@@ -170,9 +171,9 @@ function GoalsByAreaPage() {
       avgProgress:
         summary.totalGoals > 0
           ? Math.round(
-              summary.goals.reduce((acc, goal) => acc + formatProgress(goal.computed_progress), 0) /
-                summary.goals.length,
-            )
+            summary.goals.reduce((acc, goal) => acc + formatProgress(goal.computed_progress), 0) /
+            summary.goals.length,
+          )
           : 0,
       goals: summary.goals.sort((a, b) => {
         if (a.status === b.status) return b.progress - a.progress;
@@ -383,6 +384,13 @@ function GoalsByAreaPage() {
                               style={{ backgroundColor: areaSummary.areaColor ?? DEFAULT_AREA_COLOR }}
                             />
                             {areaSummary.areaName}
+                            <InlineCreateButton
+                              type="goal"
+                              initialData={{ area_id: areaSummary.areaId }}
+                              className="ml-2"
+                              size="sm"
+                              variant="ghost"
+                            />
                           </h2>
                           <p className="text-sm text-gray-500">
                             {areaSummary.totalGoals} metas · {areaSummary.tasksTotal} tareas asignadas
@@ -440,13 +448,12 @@ function GoalsByAreaPage() {
                                     )}
                                   </div>
                                   <span
-                                    className={`px-2 py-1 rounded-full text-xs font-semibold ${
-                                      goal.status === 'completada'
+                                    className={`px-2 py-1 rounded-full text-xs font-semibold ${goal.status === 'completada'
                                         ? 'bg-emerald-100 text-emerald-700'
                                         : goal.status === 'en_progreso'
-                                        ? 'bg-blue-100 text-blue-700'
-                                        : 'bg-gray-100 text-gray-700'
-                                    }`}
+                                          ? 'bg-blue-100 text-blue-700'
+                                          : 'bg-gray-100 text-gray-700'
+                                      }`}
                                   >
                                     {goal.status.replace('_', ' ')}
                                   </span>

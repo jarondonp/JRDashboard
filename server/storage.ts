@@ -178,7 +178,7 @@ export async function getDocuments() {
   return db.select().from(documents);
 }
 export async function getDocumentById(id: string) {
-  return db.select().from(documents).where({ id }).limit(1);
+  return db.select().from(documents).where(eq(documents.id, id)).limit(1);
 }
 export async function createDocument(data: any) {
   return db.insert(documents).values(data).returning();
@@ -378,10 +378,13 @@ export async function globalSearch(query: string, limitPerEntity?: number): Prom
         areaColor: areas.color,
         goalId: documents.goal_id,
         goalTitle: goals.title,
+        taskId: documents.task_id,
+        taskTitle: tasks.title,
       })
       .from(documents)
       .innerJoin(areas, eq(areas.id, documents.area_id))
       .leftJoin(goals, eq(goals.id, documents.goal_id))
+      .leftJoin(tasks, eq(tasks.id, documents.task_id))
       .where(
         sql`
           ${documents.title} ILIKE ${pattern}
@@ -389,6 +392,7 @@ export async function globalSearch(query: string, limitPerEntity?: number): Prom
           OR COALESCE(${documents.doc_type}, '') ILIKE ${pattern}
           OR COALESCE(${documents.url}, '') ILIKE ${pattern}
           OR COALESCE(${goals.title}, '') ILIKE ${pattern}
+          OR COALESCE(${tasks.title}, '') ILIKE ${pattern}
         `,
       )
       .orderBy(desc(documents.updated_at))
@@ -469,6 +473,8 @@ export async function globalSearch(query: string, limitPerEntity?: number): Prom
       url: row.url ?? undefined,
       goalId: row.goalId ?? undefined,
       goalTitle: row.goalTitle ?? undefined,
+      taskId: row.taskId ?? undefined,
+      taskTitle: row.taskTitle ?? undefined,
       updatedAt: row.updatedAt,
     }),
   }));
@@ -680,6 +686,8 @@ export async function getTimelineEvents(params: TimelineQueryParams) {
         areaColor: areas.color,
         goalId: documents.goal_id,
         goalTitle: goals.title,
+        taskId: documents.task_id,
+        taskTitle: tasks.title,
         title: documents.title,
         description: documents.description,
         docType: documents.doc_type,
@@ -689,7 +697,8 @@ export async function getTimelineEvents(params: TimelineQueryParams) {
       })
       .from(documents)
       .innerJoin(areas, eq(areas.id, documents.area_id))
-      .leftJoin(goals, eq(goals.id, documents.goal_id));
+      .leftJoin(goals, eq(goals.id, documents.goal_id))
+      .leftJoin(tasks, eq(tasks.id, documents.task_id));
 
     const conditions = [];
     if (areaId) conditions.push(eq(documents.area_id, areaId));
@@ -718,6 +727,7 @@ export async function getTimelineEvents(params: TimelineQueryParams) {
           color: row.areaColor ?? DEFAULT_AREA_COLOR,
         },
         goal: row.goalId ? { id: row.goalId, title: row.goalTitle ?? null } : null,
+        task: row.taskId ? { id: row.taskId, title: row.taskTitle ?? null } : null,
         date: createdAt.toISOString(),
         createdAt: createdAt.toISOString(),
         meta: buildMeta({
@@ -738,10 +748,10 @@ export async function getTimelineEvents(params: TimelineQueryParams) {
 
   const filtered = cursorInfo
     ? sorted.filter((event) => {
-        if (event.sortKey < cursorInfo.timestamp) return true;
-        if (event.sortKey > cursorInfo.timestamp) return false;
-        return event.sortId < cursorInfo.id;
-      })
+      if (event.sortKey < cursorInfo.timestamp) return true;
+      if (event.sortKey > cursorInfo.timestamp) return false;
+      return event.sortId < cursorInfo.id;
+    })
     : sorted;
 
   const slice = filtered.slice(0, limit);
@@ -767,7 +777,7 @@ export async function getReports() {
   return db.select().from(reports);
 }
 export async function getReportById(id: string) {
-  return db.select().from(reports).where({ id }).limit(1);
+  return db.select().from(reports).where(eq(reports.id, id)).limit(1);
 }
 export async function createReport(data: any) {
   return db.insert(reports).values(data).returning();
@@ -784,7 +794,7 @@ export async function getAreaDashboard(areaId: string) {
   try {
     // Get area info
     const areaData = await db.select().from(areas).where(eq(areas.id, areaId)).limit(1);
-    
+
     if (!areaData.length) {
       return { error: 'Area not found' };
     }
@@ -832,7 +842,7 @@ export async function getAreaDashboard(areaId: string) {
     // Calculate metrics
     const totalGoals = areaGoalsData.length;
     const completedGoals = areaGoalsData.filter(g => g.status === 'completada').length;
-    const avgGoalProgress = totalGoals > 0 
+    const avgGoalProgress = totalGoals > 0
       ? Math.round(areaGoalsData.reduce((sum, g) => sum + (g.computed_progress || 0), 0) / totalGoals)
       : 0;
 

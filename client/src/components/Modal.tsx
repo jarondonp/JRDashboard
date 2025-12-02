@@ -9,6 +9,7 @@ interface ModalProps {
   children: ReactNode;
   footer?: ReactNode;
   size?: 'sm' | 'md' | 'lg' | 'xl';
+  zIndex?: number;
 }
 
 const sizeStyles = {
@@ -18,7 +19,7 @@ const sizeStyles = {
   xl: 'max-w-4xl',
 };
 
-export function Modal({ isOpen, onClose, title, children, footer, size = 'md' }: ModalProps) {
+export function Modal({ isOpen, onClose, title, children, footer, size = 'md', zIndex = 40, onAfterClose }: ModalProps & { onAfterClose?: () => void }) {
   // Close on Escape key
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
@@ -43,7 +44,7 @@ export function Modal({ isOpen, onClose, title, children, footer, size = 'md' }:
   }, [isOpen]);
 
   return (
-    <AnimatePresence>
+    <AnimatePresence onExitComplete={onAfterClose}>
       {isOpen && (
         <>
           {/* Backdrop */}
@@ -52,12 +53,13 @@ export function Modal({ isOpen, onClose, title, children, footer, size = 'md' }:
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.2 }}
-            className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm z-40"
+            className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm"
+            style={{ zIndex }}
             onClick={onClose}
           />
 
           {/* Modal */}
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="fixed inset-0 flex items-center justify-center p-4" style={{ zIndex: zIndex + 10 }}>
             <motion.div
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -111,7 +113,7 @@ export function Modal({ isOpen, onClose, title, children, footer, size = 'md' }:
 // Default footer with Cancel and Submit buttons
 interface ModalFooterProps {
   onCancel: () => void;
-  onSubmit: (e?: FormEvent) => void | Promise<void>;
+  onSubmit: (e?: any) => void | Promise<void>;
   submitText?: string;
   cancelText?: string;
   isLoading?: boolean;

@@ -1,10 +1,8 @@
-import { useState, useMemo, useCallback, useEffect, type FormEvent } from 'react'
+import { useState, useMemo, useCallback, useEffect } from 'react'
 import { useNavigate, useLocation, useSearchParams } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   useGoals,
-  useCreateGoal,
-  useUpdateGoal,
   useDeleteGoal,
   useAreas,
   useTasks,
@@ -14,9 +12,6 @@ import {
   useRegisterQuickAction,
 } from '../hooks'
 import {
-  Button,
-  Modal,
-  ModalFooter,
   Card,
   CardHeader,
   CardBody,
@@ -24,51 +19,24 @@ import {
   CardLayoutToolbar,
   ViewModeToggle,
   Tabs,
+  InlineCreateButton,
 } from '../components'
+import { useGlobalModal } from '../context/GlobalModalContext'
 import type { Goal } from '../services/goalsApi'
-import type { DashboardFilterKey } from '../features/dashboard/navigation'
-import { DASHBOARD_FILTER_LABELS } from '../features/dashboard/navigation'
-
-interface GoalFormData {
-  area_id: string
-  title: string
-  description: string
-  goal_type: string
-  start_date: string
-  due_date: string
-  status: string
-  priority: string
-  expected_outcome: string
-}
-
-const createEmptyGoalForm = (): GoalFormData => ({
-  area_id: '',
-  title: '',
-  description: '',
-  goal_type: 'Corto Plazo',
-  start_date: '',
-  due_date: '',
-  status: 'no_iniciada',
-  priority: 'media',
-  expected_outcome: '',
-})
+import { type DashboardFilterKey, DASHBOARD_FILTER_LABELS } from '../features/dashboard/navigation'
 
 function GoalsPage() {
   const { data: goals, isLoading, error } = useGoals()
   const { data: areas } = useAreas()
   const { data: tasks } = useTasks()
   const { data: progressLogs } = useProgressLogs()
-  const createMutation = useCreateGoal()
-  const updateMutation = useUpdateGoal()
   const deleteMutation = useDeleteGoal()
   const { showToast } = useToast()
 
   const navigate = useNavigate()
   const location = useLocation()
   const [activeTab, setActiveTab] = useState<'list' | 'by-area' | 'compliance'>('list')
-  const [showModal, setShowModal] = useState(false)
-  const [editingGoal, setEditingGoal] = useState<Goal | null>(null)
-  const [formData, setFormData] = useState<GoalFormData>(() => createEmptyGoalForm())
+  const { openModal } = useGlobalModal()
   const [searchTerm, setSearchTerm] = useState('')
   const [sortBy, setSortBy] = useState<'progress' | 'due_date' | 'title'>('progress')
   const { density, setDensity } = useCardLayout('goals')
@@ -96,35 +64,7 @@ function GoalsPage() {
     navigate('/analytics/compliance')
   }
 
-  const handleSubmit = async (e?: FormEvent) => {
-    e?.preventDefault()
-    try {
-      // Limpiar datos: convertir strings vacíos a null (PostgreSQL requiere null, no undefined)
-      const cleanData = {
-        area_id: formData.area_id,
-        title: formData.title,
-        description: formData.description || null,
-        goal_type: formData.goal_type || null,
-        start_date: formData.start_date || null,
-        due_date: formData.due_date || null,
-        status: formData.status,
-        priority: formData.priority,
-        expected_outcome: formData.expected_outcome || null,
-      };
 
-      if (editingGoal) {
-        await updateMutation.mutateAsync({ id: editingGoal.id, data: cleanData })
-        showToast('Meta actualizada exitosamente', 'success')
-      } else {
-        await createMutation.mutateAsync(cleanData)
-        showToast('Meta creada exitosamente', 'success')
-      }
-      resetForm()
-    } catch (err) {
-      showToast('Error al guardar meta', 'error')
-      console.error('Error al guardar meta:', err)
-    }
-  }
 
   const handleDelete = async (id: string) => {
     if (window.confirm('¿Estás seguro de eliminar esta meta?')) {
@@ -138,11 +78,7 @@ function GoalsPage() {
     }
   }
 
-  const resetForm = () => {
-    setShowModal(false)
-    setEditingGoal(null)
-    setFormData(createEmptyGoalForm())
-  }
+
 
   const handleClearDashboardFilter = () => {
     const next = new URLSearchParams(searchParams)
@@ -158,33 +94,33 @@ function GoalsPage() {
     return parsed.getFullYear() === now.getFullYear() && parsed.getMonth() === now.getMonth()
   }
 
-const isUpdatedInCurrentMonth = (value?: string | null) => {
-  if (!value) return false
-  const parsed = new Date(value)
-  if (Number.isNaN(parsed.getTime())) return false
-  const now = new Date()
-  return parsed.getFullYear() === now.getFullYear() && parsed.getMonth() === now.getMonth()
-}
+  const isUpdatedInCurrentMonth = (value?: string | null) => {
+    if (!value) return false
+    const parsed = new Date(value)
+    if (Number.isNaN(parsed.getTime())) return false
+    const now = new Date()
+    return parsed.getFullYear() === now.getFullYear() && parsed.getMonth() === now.getMonth()
+  }
 
-const isBeforeCurrentMonth = (value?: string | null) => {
-  if (!value) return false
-  const parsed = new Date(value)
-  if (Number.isNaN(parsed.getTime())) return false
-  const now = new Date()
-  const currentStart = new Date(now.getFullYear(), now.getMonth(), 1)
-  parsed.setHours(0, 0, 0, 0)
-  return parsed.getTime() < currentStart.getTime()
-}
+  const isBeforeCurrentMonth = (value?: string | null) => {
+    if (!value) return false
+    const parsed = new Date(value)
+    if (Number.isNaN(parsed.getTime())) return false
+    const now = new Date()
+    const currentStart = new Date(now.getFullYear(), now.getMonth(), 1)
+    parsed.setHours(0, 0, 0, 0)
+    return parsed.getTime() < currentStart.getTime()
+  }
 
-const isAfterCurrentMonth = (value?: string | null) => {
-  if (!value) return false
-  const parsed = new Date(value)
-  if (Number.isNaN(parsed.getTime())) return false
-  const now = new Date()
-  const nextMonthStart = new Date(now.getFullYear(), now.getMonth() + 1, 1)
-  parsed.setHours(0, 0, 0, 0)
-  return parsed.getTime() >= nextMonthStart.getTime()
-}
+  const isAfterCurrentMonth = (value?: string | null) => {
+    if (!value) return false
+    const parsed = new Date(value)
+    if (Number.isNaN(parsed.getTime())) return false
+    const now = new Date()
+    const nextMonthStart = new Date(now.getFullYear(), now.getMonth() + 1, 1)
+    parsed.setHours(0, 0, 0, 0)
+    return parsed.getTime() >= nextMonthStart.getTime()
+  }
 
   useEffect(() => {
     if (dashboardFilter) {
@@ -221,21 +157,9 @@ const isAfterCurrentMonth = (value?: string | null) => {
     return goal.status
   }, [])
 
-const handleEdit = useCallback((goal: Goal) => {
-  setEditingGoal(goal)
-  setFormData({
-    area_id: goal.area_id,
-    title: goal.title,
-    description: goal.description || '',
-    goal_type: goal.goal_type || 'Corto Plazo',
-    start_date: goal.start_date || '',
-    due_date: goal.due_date || '',
-    status: resolveGoalStatus(goal),
-    priority: goal.priority,
-    expected_outcome: goal.expected_outcome || '',
-  })
-  setShowModal(true)
-}, [resolveGoalStatus])
+  const handleEdit = useCallback((goal: Goal) => {
+    openModal('goal', 'edit', goal)
+  }, [openModal])
 
   const getAreaName = (areaId: string) => {
     return areas?.find(a => a.id === areaId)?.name || 'Sin área'
@@ -392,14 +316,9 @@ const handleEdit = useCallback((goal: Goal) => {
       ? 'grid gap-4 grid-cols-[repeat(auto-fit,minmax(260px,_1fr))] auto-rows-[1fr]'
       : 'grid gap-6 grid-cols-[repeat(auto-fit,minmax(300px,_1fr))] auto-rows-[1fr]'
 
-  const openCreateGoalModal = useCallback(() => {
-    setActiveTab('list')
-    setEditingGoal(null)
-    setFormData(createEmptyGoalForm())
-    setShowModal(true)
-  }, [])
 
-  useRegisterQuickAction('goal:create', openCreateGoalModal)
+
+  useRegisterQuickAction('goal:create', () => openModal('goal', 'create'))
 
   useEffect(() => {
     if (dashboardFocus === 'goal' && dashboardFocusId && goals) {
@@ -417,10 +336,10 @@ const handleEdit = useCallback((goal: Goal) => {
   useEffect(() => {
     const state = location.state as { quickAction?: string } | undefined
     if (state?.quickAction === 'goal:create') {
-      openCreateGoalModal()
+      openModal('goal', 'create')
       navigate(location.pathname, { replace: true, state: {} })
     }
-  }, [location.pathname, location.state, navigate, openCreateGoalModal])
+  }, [location.pathname, location.state, navigate, openModal])
 
   if (isLoading) {
     return (
@@ -451,7 +370,7 @@ const handleEdit = useCallback((goal: Goal) => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50">
       {/* Header */}
-      <motion.div 
+      <motion.div
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
         className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-8 py-8 shadow-lg"
@@ -461,9 +380,11 @@ const handleEdit = useCallback((goal: Goal) => {
             <h1 className="text-3xl font-bold mb-1">🎯 Metas</h1>
             <p className="text-indigo-100">Gestiona tus objetivos y alcanza tus sueños</p>
           </div>
-          <Button variant="secondary" onClick={openCreateGoalModal}>
-            + Nueva Meta
-          </Button>
+          <InlineCreateButton
+            type="goal"
+            label="+ Nueva Meta"
+            variant="secondary"
+          />
         </div>
       </motion.div>
 
@@ -738,7 +659,8 @@ const handleEdit = useCallback((goal: Goal) => {
                             </div>
                           </td>
                         </tr>
-                      )}
+                      )
+                    }
                     )}
                   </tbody>
                 </table>
@@ -756,158 +678,17 @@ const handleEdit = useCallback((goal: Goal) => {
                 ? 'No se encontraron metas con estos filtros'
                 : 'No hay metas registradas'}
             </p>
-            <Button variant="primary" onClick={() => setShowModal(true)} className="mt-4">
-              Crear nueva meta
-            </Button>
+            <InlineCreateButton
+              type="goal"
+              label="Crear nueva meta"
+              variant="primary"
+              className="mt-4"
+            />
           </motion.div>
         )}
       </div>
 
-      {/* Modal */}
-      <Modal
-        isOpen={showModal}
-        onClose={resetForm}
-        title={editingGoal ? 'Editar Meta' : 'Nueva Meta'}
-        size="lg"
-      >
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Área *
-              </label>
-              <select
-                required
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                value={formData.area_id}
-                onChange={(e) => setFormData({ ...formData, area_id: e.target.value })}
-              >
-                <option value="">Seleccionar área</option>
-                {areas?.map((area) => (
-                  <option key={area.id} value={area.id}>{area.name}</option>
-                ))}
-              </select>
-            </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Tipo de Meta
-              </label>
-              <select
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                value={formData.goal_type}
-                onChange={(e) => setFormData({ ...formData, goal_type: e.target.value })}
-              >
-                <option value="Corto Plazo">Corto Plazo</option>
-                <option value="Mediano Plazo">Mediano Plazo</option>
-                <option value="Largo Plazo">Largo Plazo</option>
-              </select>
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Título *
-            </label>
-            <input
-              type="text"
-              required
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-              value={formData.title}
-              onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Descripción
-            </label>
-            <textarea
-              rows={3}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-              value={formData.description}
-              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-            />
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Prioridad
-              </label>
-              <select
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                value={formData.priority}
-                onChange={(e) => setFormData({ ...formData, priority: e.target.value })}
-              >
-                <option value="baja">Baja</option>
-                <option value="media">Media</option>
-                <option value="alta">Alta</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Estado
-              </label>
-              <select
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                value={formData.status}
-                onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-              >
-                <option value="no_iniciada">No Iniciada</option>
-                <option value="en_progreso">En Progreso</option>
-                <option value="completada">Completada</option>
-              </select>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Fecha Inicio
-              </label>
-              <input
-                type="date"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                value={formData.start_date}
-                onChange={(e) => setFormData({ ...formData, start_date: e.target.value })}
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Fecha Vencimiento
-              </label>
-              <input
-                type="date"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                value={formData.due_date}
-                onChange={(e) => setFormData({ ...formData, due_date: e.target.value })}
-              />
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Resultado Esperado
-            </label>
-            <textarea
-              rows={2}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-              value={formData.expected_outcome}
-              onChange={(e) => setFormData({ ...formData, expected_outcome: e.target.value })}
-            />
-          </div>
-
-          <ModalFooter
-            onCancel={resetForm}
-            onSubmit={handleSubmit}
-            submitText={editingGoal ? 'Actualizar' : 'Crear'}
-            isLoading={createMutation.isPending || updateMutation.isPending}
-          />
-        </form>
-      </Modal>
     </div>
   )
 }

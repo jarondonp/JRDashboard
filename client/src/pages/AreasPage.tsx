@@ -1,4 +1,4 @@
-import { useMemo, useState, useCallback, useEffect, type FormEvent } from 'react'
+import { useMemo, useState, useCallback, useEffect } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
@@ -13,7 +13,6 @@ import {
 import {
   Button,
   Modal,
-  ModalFooter,
   Card,
   CardHeader,
   CardBody,
@@ -21,15 +20,8 @@ import {
   CardLayoutToolbar,
   ViewModeToggle,
 } from '../components'
+import { AreaForm } from '../components/forms/AreaForm'
 import type { Area, AreaInput } from '../services/areasApi'
-
-const createEmptyAreaInput = (): AreaInput => ({
-  name: '',
-  type: 'Personal',
-  color: '#3498db',
-  description: '',
-  icon: '',
-})
 
 function AreasPage() {
   const { data: areas, isLoading, error } = useAreas()
@@ -42,23 +34,22 @@ function AreasPage() {
 
   const [showModal, setShowModal] = useState(false)
   const [editingArea, setEditingArea] = useState<Area | null>(null)
-  const [formData, setFormData] = useState<AreaInput>(() => createEmptyAreaInput())
   const [searchTerm, setSearchTerm] = useState('')
   const [sortBy, setSortBy] = useState<'name' | 'type'>('name')
   const { density, setDensity } = useCardLayout('areas')
   const { mode: viewMode, setMode: setViewMode } = useViewMode('areas:view-mode', 'table')
 
-  const handleSubmit = async (e?: FormEvent) => {
-    e?.preventDefault()
+  const handleSubmit = async (data: AreaInput) => {
     try {
       if (editingArea) {
-        await updateMutation.mutateAsync({ id: editingArea.id, data: formData })
+        await updateMutation.mutateAsync({ id: editingArea.id, data })
         showToast('Área actualizada exitosamente', 'success')
       } else {
-        await createMutation.mutateAsync(formData)
+        await createMutation.mutateAsync(data)
         showToast('Área creada exitosamente', 'success')
       }
-      resetForm()
+      setShowModal(false)
+      setEditingArea(null)
     } catch (err) {
       showToast('Error al guardar área', 'error')
       console.error('Error al guardar área:', err)
@@ -67,13 +58,6 @@ function AreasPage() {
 
   const handleEdit = (area: Area) => {
     setEditingArea(area)
-    setFormData({
-      name: area.name,
-      type: area.type,
-      color: area.color,
-      description: area.description || '',
-      icon: area.icon || ''
-    })
     setShowModal(true)
   }
 
@@ -91,12 +75,10 @@ function AreasPage() {
   const resetForm = () => {
     setShowModal(false)
     setEditingArea(null)
-    setFormData(createEmptyAreaInput())
   }
 
   const openCreateAreaModal = useCallback(() => {
     setEditingArea(null)
-    setFormData(createEmptyAreaInput())
     setShowModal(true)
   }, [])
 
@@ -168,7 +150,7 @@ function AreasPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50">
       {/* Header */}
-      <motion.div 
+      <motion.div
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
         className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-8 py-8 shadow-lg"
@@ -359,83 +341,12 @@ function AreasPage() {
         title={editingArea ? 'Editar Área' : 'Nueva Área'}
         size="md"
       >
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Nombre *
-            </label>
-            <input
-              type="text"
-              required
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-              value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Tipo *
-            </label>
-            <select
-              required
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-              value={formData.type}
-              onChange={(e) => setFormData({ ...formData, type: e.target.value })}
-            >
-              <option value="Personal">Personal</option>
-              <option value="Profesional">Profesional</option>
-              <option value="Académico">Académico</option>
-              <option value="Salud">Salud</option>
-              <option value="Financiero">Financiero</option>
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Color *
-            </label>
-            <input
-              type="color"
-              required
-              className="w-full h-12 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-              value={formData.color}
-              onChange={(e) => setFormData({ ...formData, color: e.target.value })}
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Descripción
-            </label>
-            <textarea
-              rows={3}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-              value={formData.description}
-              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Icono (opcional)
-            </label>
-            <input
-              type="text"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-              value={formData.icon}
-              onChange={(e) => setFormData({ ...formData, icon: e.target.value })}
-              placeholder="Ej: 🎯, 💼, 📚"
-            />
-          </div>
-
-          <ModalFooter
-            onCancel={resetForm}
-            onSubmit={handleSubmit}
-            submitText={editingArea ? 'Actualizar' : 'Crear'}
-            isLoading={createMutation.isPending || updateMutation.isPending}
-          />
-        </form>
+        <AreaForm
+          initialData={editingArea}
+          onSubmit={handleSubmit}
+          onCancel={resetForm}
+          isLoading={createMutation.isPending || updateMutation.isPending}
+        />
       </Modal>
     </div>
   )

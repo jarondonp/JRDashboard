@@ -23,41 +23,46 @@ import AllAreasOverviewPage from './pages/AllAreasOverviewPage'
 import './App.css'
 import { Sidebar, QuickActionMenu } from './components'
 import { QuickActionProvider } from './hooks'
+import { GlobalModalProvider } from './context/GlobalModalContext'
+import { GlobalModal } from './components/GlobalModal'
 
 function App() {
   return (
     <BrowserRouter>
-      <QuickActionProvider>
-        <div className="app">
-          <Sidebar />
-          <main className="main">
-            <Routes>
-              <Route path="/" element={<DashboardPage />} />
-              <Route path="/areas" element={<AreasPage />} />
-              <Route path="/areas/:areaId/dashboard" element={<AreaDashboardPage />} />
-              <Route path="/areas/:areaId/panel" element={<AreaPanelPage />} />
-              <Route path="/goals" element={<GoalsPage />} />
-              <Route path="/goals/by-area" element={<GoalsByAreaPage />} />
-              <Route path="/tasks" element={<TasksPage />} />
-              <Route path="/tasks/overdue" element={<OverdueTasksPage />} />
-              <Route path="/progress" element={<ProgressPage />} />
-              <Route path="/timeline" element={<TimelinePage />} />
-              <Route path="/documents" element={<DocumentsPage />} />
-              <Route path="/documents/review" element={<DocumentsReviewPage />} />
-              <Route path="/analytics/compliance" element={<ComplianceDashboard />} />
-              <Route path="/reports" element={<ReportsPage />} />
-              <Route path="/panel/emotional" element={<EmotionalPanelPage />} />
-              <Route path="/panel/vocational" element={<VocationalPanelPage />} />
-              <Route path="/panel/financial" element={<FinancialPanelPage />} />
-              <Route path="/panel/migration" element={<MigrationPanelPage />} />
-              <Route path="/panel/scholarships" element={<ScholarshipsPanelPage />} />
-              <Route path="/panel/commercial" element={<CommercialPanelPage />} />
-              <Route path="/overview" element={<AllAreasOverviewPage />} />
-            </Routes>
-          </main>
-          <QuickActionMenu />
-        </div>
-      </QuickActionProvider>
+      <GlobalModalProvider>
+        <QuickActionProvider>
+          <div className="app">
+            <Sidebar />
+            <main className="main">
+              <Routes>
+                <Route path="/" element={<DashboardPage />} />
+                <Route path="/areas" element={<AreasPage />} />
+                <Route path="/areas/:areaId/dashboard" element={<AreaDashboardPage />} />
+                <Route path="/areas/:areaId/panel" element={<AreaPanelPage />} />
+                <Route path="/goals" element={<GoalsPage />} />
+                <Route path="/goals/by-area" element={<GoalsByAreaPage />} />
+                <Route path="/tasks" element={<TasksPage />} />
+                <Route path="/tasks/overdue" element={<OverdueTasksPage />} />
+                <Route path="/progress" element={<ProgressPage />} />
+                <Route path="/timeline" element={<TimelinePage />} />
+                <Route path="/documents" element={<DocumentsPage />} />
+                <Route path="/documents/review" element={<DocumentsReviewPage />} />
+                <Route path="/analytics/compliance" element={<ComplianceDashboard />} />
+                <Route path="/reports" element={<ReportsPage />} />
+                <Route path="/panel/emotional" element={<EmotionalPanelPage />} />
+                <Route path="/panel/vocational" element={<VocationalPanelPage />} />
+                <Route path="/panel/financial" element={<FinancialPanelPage />} />
+                <Route path="/panel/migration" element={<MigrationPanelPage />} />
+                <Route path="/panel/scholarships" element={<ScholarshipsPanelPage />} />
+                <Route path="/panel/commercial" element={<CommercialPanelPage />} />
+                <Route path="/overview" element={<AllAreasOverviewPage />} />
+              </Routes>
+            </main>
+            <QuickActionMenu />
+            <GlobalModal />
+          </div>
+        </QuickActionProvider>
+      </GlobalModalProvider>
     </BrowserRouter>
   )
 }

@@ -1,10 +1,8 @@
-import { useState, useMemo, useEffect, useCallback, type FormEvent } from 'react'
+import { useState, useMemo, useEffect, useCallback } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   useTasks,
-  useCreateTask,
-  useUpdateTask,
   useDeleteTask,
   useAreas,
   useGoals,
@@ -14,9 +12,6 @@ import {
   useRegisterQuickAction,
 } from '../hooks'
 import {
-  Button,
-  Modal,
-  ModalFooter,
   Card,
   CardHeader,
   CardBody,
@@ -24,23 +19,13 @@ import {
   CardLayoutToolbar,
   ViewModeToggle,
   Tabs,
+  InlineCreateButton,
 } from '../components'
+import { useGlobalModal } from '../context/GlobalModalContext'
 import type { Task } from '../services/tasksApi'
 import { useDashboardParams } from '../features/dashboard/useDashboardParams'
 import { filterTasksForDashboard } from '../features/dashboard/filters'
 import { isTaskDashboardFilter } from '../features/dashboard/navigation'
-
-interface TaskFormData {
-  area_id: string
-  goal_id: string
-  title: string
-  description: string
-  status: string
-  due_date: string
-  estimated_effort: number | ''
-  progress_percentage: number | ''
-  tags: string[]
-}
 
 const KANBAN_STATUSES = [
   { id: 'pendiente', label: 'Pendientes', icon: '📝', accent: '#6366F1' },
@@ -49,18 +34,6 @@ const KANBAN_STATUSES = [
   { id: 'completada', label: 'Completadas', icon: '✅', accent: '#10b981' },
 ]
 
-const createEmptyTaskForm = (): TaskFormData => ({
-  area_id: '',
-  goal_id: '',
-  title: '',
-  description: '',
-  status: 'pendiente',
-  due_date: '',
-  estimated_effort: '',
-  progress_percentage: 0,
-  tags: [],
-})
-
 function TasksPage() {
   const navigate = useNavigate()
   const location = useLocation()
@@ -68,8 +41,6 @@ function TasksPage() {
   const { data: areas } = useAreas()
   const { data: goals } = useGoals()
   const { data: progressLogs } = useProgressLogs()
-  const createMutation = useCreateTask()
-  const updateMutation = useUpdateTask()
   const deleteMutation = useDeleteTask()
   const { showToast } = useToast()
 
@@ -110,10 +81,7 @@ function TasksPage() {
   }, [progressLogs])
 
   const [activeTab, setActiveTab] = useState<'list' | 'overdue' | 'kanban'>('list')
-  const [showModal, setShowModal] = useState(false)
-  const [editingTask, setEditingTask] = useState<Task | null>(null)
-  const [formData, setFormData] = useState<TaskFormData>(() => createEmptyTaskForm())
-  const [tagInput, setTagInput] = useState('')
+  const { openModal } = useGlobalModal()
   const [searchTerm, setSearchTerm] = useState('')
   const [sortBy, setSortBy] = useState<'progress' | 'due_date' | 'title'>('progress')
   const { density, setDensity } = useCardLayout('tasks')
@@ -140,53 +108,10 @@ function TasksPage() {
     }
   }
 
-  const handleSubmit = async (e?: FormEvent) => {
-    e?.preventDefault()
-    try {
-      const submitData = {
-        area_id: formData.area_id,
-        goal_id: formData.goal_id || null,
-        title: formData.title,
-        description: formData.description || null,
-        status: formData.status,
-        due_date: formData.due_date || null,
-        estimated_effort: formData.estimated_effort ? Number(formData.estimated_effort) : null,
-        progress_percentage: formData.progress_percentage || 0,
-        tags: formData.tags.length > 0 ? formData.tags : []
-      }
-      
-      console.log('Submitting task data:', submitData)
-      
-      if (editingTask) {
-        await updateMutation.mutateAsync({ id: editingTask.id, data: submitData })
-        showToast('Tarea actualizada exitosamente', 'success')
-      } else {
-        await createMutation.mutateAsync(submitData)
-        showToast('Tarea creada exitosamente', 'success')
-      }
-      resetForm()
-    } catch (err) {
-      showToast('Error al guardar tarea', 'error')
-      console.error('Error al guardar tarea:', err)
-    }
-  }
+
 
   const handleEdit = (task: Task) => {
-    setEditingTask(task)
-    console.log('Editing task:', task)
-    console.log('Progress percentage:', task.progress_percentage)
-    setFormData({
-      area_id: task.area_id,
-      goal_id: task.goal_id || '',
-      title: task.title,
-      description: task.description || '',
-      status: task.status,
-      due_date: task.due_date || '',
-      estimated_effort: task.estimated_effort || '',
-      progress_percentage: task.progress_percentage ?? 0,
-      tags: task.tags || []
-    })
-    setShowModal(true)
+    openModal('task', 'edit', task)
   }
 
   const handleDelete = async (id: string) => {
@@ -201,23 +126,9 @@ function TasksPage() {
     }
   }
 
-  const resetForm = () => {
-    setShowModal(false)
-    setEditingTask(null)
-    setFormData(createEmptyTaskForm())
-    setTagInput('')
-  }
 
-  const addTag = () => {
-    if (tagInput.trim() && !formData.tags.includes(tagInput.trim())) {
-      setFormData({ ...formData, tags: [...formData.tags, tagInput.trim()] })
-      setTagInput('')
-    }
-  }
 
-  const removeTag = (tag: string) => {
-    setFormData({ ...formData, tags: formData.tags.filter(t => t !== tag) })
-  }
+
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -238,7 +149,7 @@ function TasksPage() {
     return goals?.find(g => g.id === goalId)?.title || 'Meta desconocida'
   }
 
-  const filteredGoals = goals?.filter(g => g.area_id === formData.area_id) || []
+
 
   const filteredTasksList = useMemo(() => {
     if (!tasks) return []
@@ -324,15 +235,9 @@ function TasksPage() {
     return baseColumns
   }, [filteredTasksList])
 
-  const openCreateTaskModal = useCallback(() => {
-    setActiveTab('list')
-    setEditingTask(null)
-    setFormData(createEmptyTaskForm())
-    setTagInput('')
-    setShowModal(true)
-  }, [])
 
-  useRegisterQuickAction('task:create', openCreateTaskModal)
+
+  useRegisterQuickAction('task:create', () => openModal('task', 'create'))
 
   useEffect(() => {
     const state = location.state as { tasksTab?: 'list' | 'overdue' | 'kanban'; quickAction?: string } | undefined
@@ -351,14 +256,14 @@ function TasksPage() {
     }
 
     if (state.quickAction === 'task:create') {
-      openCreateTaskModal()
+      openModal('task', 'create')
       shouldClearState = true
     }
 
     if (shouldClearState) {
       navigate(location.pathname, { replace: true, state: {} })
     }
-  }, [activeTab, location.pathname, location.state, navigate, openCreateTaskModal])
+  }, [activeTab, location.pathname, location.state, navigate, openModal])
 
   const gridClass =
     density === 'compact'
@@ -394,7 +299,7 @@ function TasksPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50">
       {/* Header */}
-      <motion.div 
+      <motion.div
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
         className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-8 py-8 shadow-lg"
@@ -404,9 +309,11 @@ function TasksPage() {
             <h1 className="text-3xl font-bold mb-1">✅ Tareas</h1>
             <p className="text-indigo-100">Gestiona tus tareas y actividades</p>
           </div>
-          <Button variant="secondary" onClick={openCreateTaskModal}>
-            + Nueva Tarea
-          </Button>
+          <InlineCreateButton
+            type="task"
+            label="+ Nueva Tarea"
+            variant="secondary"
+          />
         </div>
       </motion.div>
 
@@ -690,9 +597,12 @@ function TasksPage() {
                     ? 'No se encontraron tareas con estos filtros'
                     : 'No hay tareas registradas'}
                 </p>
-                <Button variant="primary" onClick={() => setShowModal(true)} className="mt-4">
-                  Crear nueva tarea
-                </Button>
+                <InlineCreateButton
+                  type="task"
+                  label="Crear nueva tarea"
+                  variant="primary"
+                  className="mt-4"
+                />
               </motion.div>
             )}
           </>
@@ -709,7 +619,16 @@ function TasksPage() {
                     </span>
                     {column.label}
                   </span>
-                  <span className="kanban-column-count">{column.tasks.length}</span>
+                  <div className="flex items-center gap-2">
+                    <span className="kanban-column-count">{column.tasks.length}</span>
+                    <InlineCreateButton
+                      type="task"
+                      initialData={{ status: column.id }}
+                      size="sm"
+                      variant="ghost"
+                      className="h-6 w-6 p-0 flex items-center justify-center rounded-full hover:bg-slate-200"
+                    />
+                  </div>
                 </div>
                 <div className="kanban-column-body">
                   {column.tasks.length > 0 ? (
@@ -814,177 +733,7 @@ function TasksPage() {
         )}
       </div>
 
-      {/* Modal */}
-      <Modal
-        isOpen={showModal}
-        onClose={resetForm}
-        title={editingTask ? 'Editar Tarea' : 'Nueva Tarea'}
-        size="lg"
-      >
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Área *
-              </label>
-              <select
-                required
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                value={formData.area_id}
-                onChange={(e) => setFormData({ ...formData, area_id: e.target.value, goal_id: '' })}
-              >
-                <option value="">Seleccionar área</option>
-                {areas?.map((area) => (
-                  <option key={area.id} value={area.id}>{area.name}</option>
-                ))}
-              </select>
-            </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Meta (opcional)
-              </label>
-              <select
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                value={formData.goal_id}
-                onChange={(e) => setFormData({ ...formData, goal_id: e.target.value })}
-                disabled={!formData.area_id}
-              >
-                <option value="">Sin meta</option>
-                {filteredGoals.map((goal) => (
-                  <option key={goal.id} value={goal.id}>{goal.title}</option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Título *
-            </label>
-            <input
-              type="text"
-              required
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-              value={formData.title}
-              onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Descripción
-            </label>
-            <textarea
-              rows={3}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-              value={formData.description}
-              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-            />
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Estado *
-              </label>
-              <select
-                required
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                value={formData.status}
-                onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-              >
-                <option value="pendiente">Pendiente</option>
-                <option value="en_progreso">En Progreso</option>
-                <option value="completada">Completada</option>
-                <option value="bloqueada">Bloqueada</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Progreso (%)
-              </label>
-              <input
-                type="number"
-                min="0"
-                max="100"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                value={formData.progress_percentage}
-                onChange={(e) => setFormData({ ...formData, progress_percentage: e.target.value ? parseInt(e.target.value) : 0 })}
-              />
-              <p className="mt-1 text-xs text-gray-500">
-                Este valor se actualiza automáticamente cuando registras avances en la sección de progreso.
-              </p>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Fecha Límite
-              </label>
-              <input
-                type="date"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                value={formData.due_date}
-                onChange={(e) => setFormData({ ...formData, due_date: e.target.value })}
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Esfuerzo (horas)
-              </label>
-              <input
-                type="number"
-                min="0"
-                step="0.5"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                value={formData.estimated_effort}
-                onChange={(e) => setFormData({ ...formData, estimated_effort: e.target.value ? parseFloat(e.target.value) : '' })}
-              />
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Etiquetas
-            </label>
-            <div className="flex flex-wrap gap-2 mb-2">
-              {formData.tags.map(tag => (
-                <span 
-                  key={tag} 
-                  className="px-2 py-1 bg-gray-100 text-gray-800 rounded-full text-xs cursor-pointer hover:bg-gray-200"
-                  onClick={() => removeTag(tag)}
-                >
-                  {tag} ×
-                </span>
-              ))}
-            </div>
-            <div className="flex gap-2">
-              <input
-                type="text"
-                className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                value={tagInput}
-                onChange={(e) => setTagInput(e.target.value)}
-                onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addTag())}
-                placeholder="Agregar etiqueta..."
-              />
-              <Button type="button" variant="secondary" onClick={addTag}>
-                +
-              </Button>
-            </div>
-          </div>
-
-          <ModalFooter
-            onCancel={resetForm}
-            onSubmit={handleSubmit}
-            submitText={editingTask ? 'Actualizar' : 'Crear'}
-            isLoading={createMutation.isPending || updateMutation.isPending}
-          />
-        </form>
-      </Modal>
     </div>
   )
 }

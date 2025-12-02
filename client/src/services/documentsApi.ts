@@ -3,6 +3,7 @@ import { apiGet, apiPost, apiPut, apiDelete } from './apiClient';
 export type DocumentInput = {
   area_id: string;
   goal_id?: string;
+  task_id?: string;
   title: string;
   description?: string;
   url?: string;
@@ -12,6 +13,7 @@ export type DocumentInput = {
 
 export type Document = DocumentInput & {
   id: string;
+  taskTitle?: string;
   created_at?: string;
   updated_at?: string;
 };

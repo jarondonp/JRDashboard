@@ -14,3 +14,5 @@ export { DataTable } from './DataTable';
 export { default as Sidebar } from './Sidebar';
 export { Tabs, TabsContent } from './Tabs';
 export { QuickActionMenu } from './QuickActionMenu';
+export { InlineCreateButton } from './InlineCreateButton';
+export * from './SmartSelect';

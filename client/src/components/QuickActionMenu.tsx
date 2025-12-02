@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { useQuickActions } from '../hooks';
-import { useToast } from './Toast';
+import { useGlobalModal } from '../context/GlobalModalContext';
 
 const QUICK_ACTIONS = [
   {
@@ -38,23 +38,30 @@ const QUICK_ACTIONS = [
 export function QuickActionMenu() {
   const [isOpen, setIsOpen] = useState(false);
   const { trigger } = useQuickActions();
-  const { showToast } = useToast();
+
   const navigate = useNavigate();
 
+  const { openModal } = useGlobalModal();
+
   const handleTrigger = (actionId: (typeof QUICK_ACTIONS)[number]['id']) => {
+    // Try to trigger registered action first (for context awareness)
     const executed = trigger(actionId);
-    if (!executed) {
-      showToast('Redirigiendo para crear desde la vista correspondiente…', 'info');
-      if (actionId === 'area:create') {
-        navigate('/areas', { state: { quickAction: actionId }, replace: false });
-      } else if (actionId === 'task:create') {
-        navigate('/tasks', { state: { quickAction: actionId }, replace: false });
-      } else if (actionId === 'goal:create') {
-        navigate('/goals', { state: { quickAction: actionId }, replace: false });
-      } else if (actionId === 'progress:create') {
-        navigate('/progress', { state: { quickAction: actionId }, replace: false });
-      }
+    if (executed) {
+      setIsOpen(false);
+      return;
     }
+
+    // Fallback to global modal or navigation
+    if (actionId === 'area:create') {
+      openModal('area', 'create');
+    } else if (actionId === 'task:create') {
+      openModal('task', 'create');
+    } else if (actionId === 'goal:create') {
+      openModal('goal', 'create');
+    } else if (actionId === 'progress:create') {
+      navigate('/progress', { state: { quickAction: actionId }, replace: false });
+    }
+
     setIsOpen(false);
   };
 

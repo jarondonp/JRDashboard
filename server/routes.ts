@@ -284,7 +284,7 @@ router.post('/progress-logs', async (req, res) => {
       return res.status(400).json({ error: err.message });
     }
     if (err instanceof ZodError) {
-      return res.status(400).json({ error: err.errors?.[0]?.message || 'Datos inválidos' });
+      return res.status(400).json({ error: err.issues?.[0]?.message || 'Datos inválidos' });
     }
     console.error('Error creating progress log:', err);
     res.status(500).json({ error: 'Error creating progress log' });
@@ -318,7 +318,7 @@ router.put('/progress-logs/:id', async (req, res) => {
       return res.status(400).json({ error: err.message });
     }
     if (err instanceof ZodError) {
-      return res.status(400).json({ error: err.errors?.[0]?.message || 'Datos inválidos' });
+      return res.status(400).json({ error: err.issues?.[0]?.message || 'Datos inválidos' });
     }
     console.error('Error updating progress log:', err);
     res.status(500).json({ error: 'Error updating progress log' });
@@ -398,7 +398,7 @@ router.get('/search', async (req, res) => {
     res.json(result);
   } catch (err) {
     if (err instanceof ZodError) {
-      return res.status(400).json({ error: err.errors?.[0]?.message || 'Consulta inválida' });
+      return res.status(400).json({ error: err.issues?.[0]?.message || 'Consulta inválida' });
     }
     console.error('Error ejecutando búsqueda global:', err);
     res.status(500).json({ error: 'Error ejecutando búsqueda global' });
