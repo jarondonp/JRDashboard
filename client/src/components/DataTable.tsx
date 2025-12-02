@@ -51,3 +51,4 @@ export function DataTable<T>({ items, columns, emptyMessage = 'Sin registros' }:
 }
 
 
+

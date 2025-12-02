@@ -37,3 +37,4 @@ export async function fetchGlobalSearch(query: string, limit?: number) {
 }
 
 
+
