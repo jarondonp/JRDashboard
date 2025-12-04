@@ -301,7 +301,7 @@ function GoalsByAreaPage() {
           </Card>
         </div>
 
-        <Card>
+        <Card className="overflow-visible">
           <CardBody className="space-y-6">
             <div className="flex flex-col lg:flex-row gap-6">
               {/* Search & Project Filter Column */}
@@ -431,8 +431,8 @@ function GoalsByAreaPage() {
                             <button
                               onClick={() => setViewMode('grid')}
                               className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all ${viewMode === 'grid'
-                                  ? 'bg-white text-indigo-600 shadow-sm'
-                                  : 'text-gray-500 hover:text-gray-700'
+                                ? 'bg-white text-indigo-600 shadow-sm'
+                                : 'text-gray-500 hover:text-gray-700'
                                 }`}
                             >
                               <span className="mr-1">⊞</span> Tarjetas
@@ -440,8 +440,8 @@ function GoalsByAreaPage() {
                             <button
                               onClick={() => setViewMode('list')}
                               className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all ${viewMode === 'list'
-                                  ? 'bg-white text-indigo-600 shadow-sm'
-                                  : 'text-gray-500 hover:text-gray-700'
+                                ? 'bg-white text-indigo-600 shadow-sm'
+                                : 'text-gray-500 hover:text-gray-700'
                                 }`}
                             >
                               <span className="mr-1">☰</span> Lista
@@ -558,8 +558,8 @@ function GoalsByAreaPage() {
 
                                   <div className="flex flex-wrap gap-2 text-xs">
                                     <span className={`px-2 py-1 rounded-full font-semibold ${goal.priority === 'alta' ? 'bg-red-50 text-red-700' :
-                                        goal.priority === 'media' ? 'bg-amber-50 text-amber-700' :
-                                          'bg-green-50 text-green-700'
+                                      goal.priority === 'media' ? 'bg-amber-50 text-amber-700' :
+                                        'bg-green-50 text-green-700'
                                       }`}>
                                       Prioridad {goal.priority}
                                     </span>
@@ -609,8 +609,8 @@ function GoalsByAreaPage() {
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap">
                                       <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${goal.status === 'completada' ? 'bg-emerald-100 text-emerald-800' :
-                                          goal.status === 'en_progreso' ? 'bg-blue-100 text-blue-800' :
-                                            'bg-gray-100 text-gray-800'
+                                        goal.status === 'en_progreso' ? 'bg-blue-100 text-blue-800' :
+                                          'bg-gray-100 text-gray-800'
                                         }`}>
                                         {goal.status.replace('_', ' ')}
                                       </span>
