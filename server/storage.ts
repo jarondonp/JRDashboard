@@ -1,6 +1,7 @@
 import { db } from './db';
 import { and, desc, eq, gte, lte, sql, like } from 'drizzle-orm';
 import { areas, goals, tasks, progress_logs, documents, reports, projects } from '../shared/schema';
+import { randomUUID } from 'crypto';
 
 export const TIMELINE_EVENT_TYPES = ['progress_log', 'task_completed', 'goal_completed', 'document_added'] as const;
 export type TimelineEventType = typeof TIMELINE_EVENT_TYPES[number];
@@ -41,7 +42,8 @@ export async function getAreaById(id: string) {
   return db.select().from(areas).where(eq(areas.id, id)).limit(1);
 }
 export async function createArea(data: any) {
-  return db.insert(areas).values(data).returning();
+  const areaData = { ...data, id: randomUUID() };
+  return db.insert(areas).values(areaData).returning();
 }
 export async function updateArea(id: string, data: any) {
   return db.update(areas).set(data).where(eq(areas.id, id)).returning();
