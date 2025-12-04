@@ -11,7 +11,8 @@ import {
   Tabs,
 } from '../components';
 import { LineChart, BarChart } from '../components/charts';
-import { useGoals, useAreas, useTasks } from '../hooks';
+import { useGoals, useAreas, useTasks, useProjects } from '../hooks';
+import { ProjectFilterDropdown } from '../components/ProjectFilterDropdown';
 
 type WindowOption = '30' | '60' | '90';
 
@@ -51,9 +52,11 @@ function ComplianceDashboard() {
   const { data: goals, isLoading: goalsLoading, error: goalsError } = useGoals();
   const { data: areas, isLoading: areasLoading } = useAreas();
   const { data: tasks, isLoading: tasksLoading } = useTasks();
+  const { data: projects } = useProjects();
 
   const [windowOption, setWindowOption] = useState<WindowOption>('60');
   const [selectedArea, setSelectedArea] = useState<string>('');
+  const [selectedProject, setSelectedProject] = useState<string>('');
   const [activeTab, setActiveTab] = useState<'list' | 'by-area' | 'compliance'>('compliance');
 
   const handleTabChange = (tabId: 'list' | 'by-area' | 'compliance') => {
@@ -80,10 +83,20 @@ function ComplianceDashboard() {
     return map;
   }, [areas]);
 
+  const projectMap = useMemo(() => {
+    const map = new Map<string, { code?: string; title: string }>();
+    (projects ?? []).forEach((project) => {
+      map.set(project.id, { code: project.code, title: project.title });
+    });
+    return map;
+  }, [projects]);
+
   const filteredGoals = useMemo(() => {
     if (!goals) return [];
     return goals.filter((goal) => {
       if (areaFilter && goal.area_id !== areaFilter) return false;
+      if (selectedProject && goal.project_id !== selectedProject) return false;
+
       const completedAt = normalizeDate(goal.updated_at);
       if (goal.status === 'completada' && completedAt) {
         return withinWindow(goal.updated_at, windowDays);
@@ -93,7 +106,7 @@ function ComplianceDashboard() {
       }
       return false;
     });
-  }, [goals, areaFilter, windowDays]);
+  }, [goals, areaFilter, selectedProject, windowDays]);
 
   const summary = useMemo(() => {
     if (!filteredGoals.length) {
@@ -137,6 +150,8 @@ function ComplianceDashboard() {
     goals.forEach((goal) => {
       if (!withinWindow(goal.updated_at, windowDays)) return;
       if (areaFilter && goal.area_id !== areaFilter) return;
+      if (selectedProject && goal.project_id !== selectedProject) return;
+
       const areaInfo = areaMap.get(goal.area_id);
       if (!areaInfo) return;
       const entry =
@@ -158,7 +173,7 @@ function ComplianceDashboard() {
         avgProgress: entry.total > 0 ? Math.round(entry.progressSum / entry.total) : 0,
       }))
       .sort((a, b) => b.completionRate - a.completionRate);
-  }, [areaMap, goals, windowDays, areaFilter]);
+  }, [areaMap, goals, windowDays, areaFilter, selectedProject]);
 
   const trendData = useMemo(() => {
     if (!goals) return [];
@@ -166,6 +181,8 @@ function ComplianceDashboard() {
     goals.forEach((goal) => {
       if (!withinWindow(goal.updated_at, windowDays)) return;
       if (areaFilter && goal.area_id !== areaFilter) return;
+      if (selectedProject && goal.project_id !== selectedProject) return;
+
       const updated = normalizeDate(goal.updated_at);
       const key = updated ? `${updated.getFullYear()}-${updated.getMonth() + 1}` : 'sin-fecha';
       const entry = grouped.get(key) ?? { completed: 0, total: 0 };
@@ -180,7 +197,7 @@ function ComplianceDashboard() {
         completadas: entry.completed,
       }))
       .sort((a, b) => a.label.localeCompare(b.label));
-  }, [goals, windowDays, areaFilter]);
+  }, [goals, windowDays, areaFilter, selectedProject]);
 
   const performanceList = useMemo(() => {
     if (!areaRankings.length) return [];
@@ -200,16 +217,21 @@ function ComplianceDashboard() {
     return filteredGoals
       .filter((goal) => (goal.status !== 'completada' && (goal.computed_progress ?? 0) < 50))
       .slice(0, 5)
-      .map((goal) => ({
-        id: goal.id,
-        title: goal.title,
-        subtitle: `Progreso ${goal.computed_progress ?? 0}% · Prioridad ${goal.priority}`,
-        badge: {
-          text: goal.status === 'en_progreso' ? 'En progreso' : 'Pendiente',
-          color: goal.status === 'en_progreso' ? ('yellow' as const) : ('red' as const),
-        },
-      }));
-  }, [filteredGoals]);
+      .map((goal) => {
+        const projectInfo = goal.project_id ? projectMap.get(goal.project_id) : null;
+        const projectPrefix = projectInfo?.code ? `[${projectInfo.code}] ` : '';
+
+        return {
+          id: goal.id,
+          title: goal.title,
+          subtitle: `${projectPrefix}Progreso ${goal.computed_progress ?? 0}% · Prioridad ${goal.priority}`,
+          badge: {
+            text: goal.status === 'en_progreso' ? 'En progreso' : 'Pendiente',
+            color: goal.status === 'en_progreso' ? ('yellow' as const) : ('red' as const),
+          },
+        };
+      });
+  }, [filteredGoals, projectMap]);
 
   const taskSummary = useMemo(() => {
     if (!tasks) {
@@ -223,7 +245,21 @@ function ComplianceDashboard() {
       };
     }
 
-    const filteredTasks = tasks.filter((task) => !areaFilter || task.area_id === areaFilter);
+    // Filter tasks by area and project
+    const filteredTasks = tasks.filter((task) => {
+      if (areaFilter && task.area_id !== areaFilter) return false;
+
+      // For project filtering, we need to check the associated goal's project_id
+      // Since we don't have direct access to goal details for every task here easily without a lookup,
+      // we can rely on the fact that we have 'goals' available.
+      if (selectedProject) {
+        const taskGoal = goals?.find(g => g.id === task.goal_id);
+        if (!taskGoal || taskGoal.project_id !== selectedProject) return false;
+      }
+
+      return true;
+    });
+
     const now = new Date();
 
     const summary = {
@@ -273,16 +309,20 @@ function ComplianceDashboard() {
         const diffDays = dueDate ? Math.ceil(diffMs / DAY_IN_MS) : undefined;
         const areaInfo = areaMap.get(task.area_id);
 
+        // Get project info for the task
+        const taskGoal = goals?.find(g => g.id === task.goal_id);
+        const projectInfo = taskGoal?.project_id ? projectMap.get(taskGoal.project_id) : null;
+        const projectPrefix = projectInfo?.code ? `[${projectInfo.code}] ` : '';
+
         const subtitleParts = [] as string[];
+        if (projectPrefix) subtitleParts.push(projectPrefix.trim());
+
         if (dueDate) {
           subtitleParts.push(isOverdue ? `Atrasada desde ${formatShortDate(dueDate)}` : `Vence ${formatShortDate(dueDate)}`);
         } else {
           subtitleParts.push('Sin fecha definida');
         }
         if (areaInfo) subtitleParts.push(areaInfo.name);
-        if (typeof task.progress_percentage === 'number') {
-          subtitleParts.push(`${task.progress_percentage}% avance`);
-        }
 
         let badgeText = 'Sin fecha';
         if (dueDate) {
@@ -303,9 +343,9 @@ function ComplianceDashboard() {
           subtitle: subtitleParts.join(' · '),
           badge: dueDate
             ? {
-                text: badgeText,
-                color: isOverdue ? ('red' as const) : ('yellow' as const),
-              }
+              text: badgeText,
+              color: isOverdue ? ('red' as const) : ('yellow' as const),
+            }
             : undefined,
           date: dueDate ? dueDate.toLocaleDateString('es-ES') : undefined,
         };
@@ -315,7 +355,7 @@ function ComplianceDashboard() {
       ...summary,
       dueSoonItems,
     };
-  }, [tasks, areaFilter, areaMap]);
+  }, [tasks, areaFilter, selectedProject, goals, areaMap, projectMap]);
 
   const activeTasksTotal = Math.max(taskSummary.total - taskSummary.completed, 0);
 
@@ -374,13 +414,13 @@ function ComplianceDashboard() {
             onChange={(nextId) => handleTabChange(nextId as 'list' | 'by-area' | 'compliance')}
           />
         </div>
-        <Card>
+        <Card className="overflow-visible">
           <CardBody className="space-y-4">
             <div className="flex flex-col lg:flex-row lg:items-end gap-4">
               <div className="flex-1 space-y-2">
                 <label className="block text-sm font-medium text-gray-700">Área</label>
                 <select
-                  className="w-full max-w-sm px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500"
+                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500"
                   value={selectedArea}
                   onChange={(event) => setSelectedArea(event.target.value)}
                 >
@@ -391,6 +431,15 @@ function ComplianceDashboard() {
                     </option>
                   ))}
                 </select>
+              </div>
+
+              <div className="flex-1 space-y-2">
+                <label className="block text-sm font-medium text-gray-700">Proyecto</label>
+                <ProjectFilterDropdown
+                  selectedProject={selectedProject}
+                  onChange={setSelectedProject}
+                  projects={projects ?? []}
+                />
               </div>
 
               <div className="flex-1 space-y-2">
