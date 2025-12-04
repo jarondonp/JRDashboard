@@ -18,6 +18,7 @@ function DashboardPage() {
   const [selectedProjectIds, setSelectedProjectIds] = useState<string[]>([]);
   const [showArchived, setShowArchived] = useState(false);
   const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
   const filterRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -52,7 +53,8 @@ function DashboardPage() {
   const projectMap = useMemo(() => {
     if (!projects) return {};
     return projects.reduce((acc, project) => {
-      acc[project.id] = project.title;
+      const codePrefix = project.code ? `[${project.code}] ` : '';
+      acc[project.id] = `${codePrefix}${project.title}`;
       return acc;
     }, {} as Record<string, string>);
   }, [projects]);
@@ -364,6 +366,17 @@ function DashboardPage() {
 
             {isFilterOpen && (
               <div className="absolute top-full left-0 mt-2 w-72 bg-white rounded-xl shadow-xl border border-indigo-100 z-50 p-2 max-h-96 overflow-y-auto">
+                <div className="p-2 border-b border-gray-100 mb-2 sticky top-0 bg-white z-10">
+                  <input
+                    type="text"
+                    placeholder="Buscar proyecto..."
+                    className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    onClick={(e) => e.stopPropagation()}
+                  />
+                </div>
+
                 <div className="p-2 border-b border-gray-100 mb-2">
                   <label className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 p-2 rounded-lg">
                     <input
@@ -391,23 +404,43 @@ function DashboardPage() {
                     />
                     <span className="text-sm text-gray-600">Global / Transversal</span>
                   </label>
-                  {projects?.map(project => (
-                    <label key={project.id} className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 p-2 rounded-lg">
-                      <input
-                        type="checkbox"
-                        checked={selectedProjectIds.includes(project.id)}
-                        onChange={(e) => {
-                          if (e.target.checked) {
-                            setSelectedProjectIds([...selectedProjectIds, project.id]);
-                          } else {
-                            setSelectedProjectIds(selectedProjectIds.filter(id => id !== project.id));
-                          }
-                        }}
-                        className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
-                      />
-                      <span className="text-sm text-gray-600 truncate">{project.title}</span>
-                    </label>
-                  ))}
+                  {projects
+                    ?.filter(project => {
+                      if (!searchTerm) return true;
+                      const term = searchTerm.toLowerCase();
+                      const titleMatch = project.title.toLowerCase().includes(term);
+                      const codeMatch = project.code?.toLowerCase().includes(term);
+                      return titleMatch || codeMatch;
+                    })
+                    .map(project => (
+                      <label key={project.id} className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 p-2 rounded-lg">
+                        <input
+                          type="checkbox"
+                          checked={selectedProjectIds.includes(project.id)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setSelectedProjectIds([...selectedProjectIds, project.id]);
+                            } else {
+                              setSelectedProjectIds(selectedProjectIds.filter(id => id !== project.id));
+                            }
+                          }}
+                          className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                        />
+                        <span className="text-sm text-gray-600 truncate">
+                          {project.code && <span className="font-mono text-xs text-indigo-500 mr-1">[{project.code}]</span>}
+                          {project.title}
+                        </span>
+                      </label>
+                    ))}
+                  {projects && projects.filter(p => {
+                    if (!searchTerm) return true;
+                    const term = searchTerm.toLowerCase();
+                    return p.title.toLowerCase().includes(term) || p.code?.toLowerCase().includes(term);
+                  }).length === 0 && (
+                      <div className="p-4 text-center text-sm text-gray-400">
+                        No se encontraron proyectos
+                      </div>
+                    )}
                 </div>
               </div>
             )}
