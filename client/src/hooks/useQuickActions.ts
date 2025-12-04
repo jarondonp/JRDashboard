@@ -9,7 +9,7 @@ import {
   type ReactNode,
 } from 'react';
 
-export type QuickActionType = 'goal:create' | 'task:create' | 'progress:create' | 'area:create';
+export type QuickActionType = 'goal:create' | 'task:create' | 'progress:create' | 'area:create' | 'project:create';
 type QuickActionHandler = () => void;
 
 interface QuickActionContextValue {

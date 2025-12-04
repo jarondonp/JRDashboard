@@ -5,6 +5,7 @@ import { SmartSelect } from '../SmartSelect'
 import type { Task, TaskInput } from '../../services/tasksApi'
 import { useAreas } from '../../hooks/useAreas'
 import { useGoals } from '../../hooks/useGoals'
+import { useProjects } from '../../hooks/useProjects'
 import { useGlobalModal } from '../../context/GlobalModalContext'
 
 interface TaskFormProps {
@@ -17,6 +18,7 @@ interface TaskFormProps {
 
 export const createEmptyTaskInput = (): TaskInput => ({
     area_id: '',
+    project_id: '',
     goal_id: '',
     title: '',
     description: '',
@@ -36,6 +38,7 @@ export function TaskForm({
 }: TaskFormProps) {
     const { data: areas } = useAreas()
     const { data: goals } = useGoals()
+    const { data: projects } = useProjects()
     const { openModal } = useGlobalModal()
     const [formData, setFormData] = useState<TaskInput>(createEmptyTaskInput())
     const [tagInput, setTagInput] = useState('')
@@ -44,6 +47,7 @@ export function TaskForm({
         if (initialData) {
             setFormData({
                 area_id: initialData.area_id || '',
+                project_id: initialData.project_id || '',
                 goal_id: initialData.goal_id || '',
                 title: initialData.title || '',
                 description: initialData.description || '',
@@ -59,11 +63,13 @@ export function TaskForm({
     }, [initialData])
 
     const filteredGoals = goals?.filter(g => g.area_id === formData.area_id) || []
+    const filteredProjects = projects?.filter(p => p.area_id === formData.area_id || !p.area_id) || []
 
     const handleSubmit = async (e: FormEvent) => {
         e.preventDefault()
         const cleanData: TaskInput = {
             ...formData,
+            project_id: formData.project_id || null,
             goal_id: formData.goal_id || null,
             description: formData.description || null,
             due_date: formData.due_date || null,
@@ -93,7 +99,7 @@ export function TaskForm({
     const handleCreateArea = () => {
         openModal('area', 'create', null, (newArea) => {
             if (newArea?.id) {
-                setFormData(prev => ({ ...prev, area_id: newArea.id, goal_id: '' }))
+                setFormData(prev => ({ ...prev, area_id: newArea.id, project_id: '', goal_id: '' }))
             }
         })
     }
@@ -107,6 +113,15 @@ export function TaskForm({
         })
     }
 
+    const handleCreateProject = () => {
+        if (!formData.area_id) return
+        openModal('project', 'create', { area_id: formData.area_id }, (newProject) => {
+            if (newProject?.id) {
+                setFormData(prev => ({ ...prev, project_id: newProject.id }))
+            }
+        })
+    }
+
     return (
         <form onSubmit={handleSubmit} className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -115,7 +130,7 @@ export function TaskForm({
                         label="Área *"
                         required
                         value={formData.area_id}
-                        onChange={(e) => setFormData({ ...formData, area_id: e.target.value, goal_id: '' })}
+                        onChange={(e) => setFormData({ ...formData, area_id: e.target.value, project_id: '', goal_id: '' })}
                         options={areas?.map(a => ({ value: a.id, label: a.name })) || []}
                         onCreate={handleCreateArea}
                         createLabel="Crear nueva Área"
@@ -130,6 +145,18 @@ export function TaskForm({
                         options={filteredGoals.map(g => ({ value: g.id, label: g.title }))}
                         onCreate={handleCreateGoal}
                         createLabel="Crear nueva Meta"
+                        disabled={!formData.area_id}
+                    />
+                </div>
+
+                <div>
+                    <SmartSelect
+                        label="Proyecto (opcional)"
+                        value={formData.project_id || ''}
+                        onChange={(e) => setFormData({ ...formData, project_id: e.target.value })}
+                        options={filteredProjects.map((p: any) => ({ value: p.id, label: p.area_id ? p.title : `${p.title} (Global)` }))}
+                        onCreate={handleCreateProject}
+                        createLabel="Crear nuevo Proyecto"
                         disabled={!formData.area_id}
                     />
                 </div>

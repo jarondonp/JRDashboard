@@ -3,6 +3,7 @@ import { ModalFooter } from '../Modal'
 import { SmartSelect } from '../SmartSelect'
 import type { Goal, GoalInput } from '../../services/goalsApi'
 import { useAreas } from '../../hooks/useAreas'
+import { useProjects } from '../../hooks/useProjects'
 import { useGlobalModal } from '../../context/GlobalModalContext'
 
 interface GoalFormProps {
@@ -15,6 +16,7 @@ interface GoalFormProps {
 
 export const createEmptyGoalInput = (): GoalInput => ({
     area_id: '',
+    project_id: '',
     title: '',
     description: '',
     goal_type: 'Corto Plazo',
@@ -33,6 +35,7 @@ export function GoalForm({
     submitText
 }: GoalFormProps) {
     const { data: areas } = useAreas()
+    const { data: projects } = useProjects()
     const { openModal } = useGlobalModal()
     const [formData, setFormData] = useState<GoalInput>(createEmptyGoalInput())
 
@@ -40,6 +43,7 @@ export function GoalForm({
         if (initialData) {
             setFormData({
                 area_id: initialData.area_id || '',
+                project_id: initialData.project_id || '',
                 title: initialData.title || '',
                 description: initialData.description || '',
                 goal_type: initialData.goal_type || 'Corto Plazo',
@@ -59,6 +63,7 @@ export function GoalForm({
         e.preventDefault()
         const cleanData: GoalInput = {
             ...formData,
+            project_id: formData.project_id || null,
             description: formData.description || null,
             goal_type: formData.goal_type || null,
             start_date: formData.start_date || null,
@@ -76,6 +81,17 @@ export function GoalForm({
         })
     }
 
+    const handleCreateProject = () => {
+        if (!formData.area_id) return
+        openModal('project', 'create', { area_id: formData.area_id }, (newProject) => {
+            if (newProject?.id) {
+                setFormData(prev => ({ ...prev, project_id: newProject.id }))
+            }
+        })
+    }
+
+    const filteredProjects = projects?.filter(p => p.area_id === formData.area_id || !p.area_id) || []
+
     return (
         <form onSubmit={handleSubmit} className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -91,6 +107,20 @@ export function GoalForm({
                     />
                 </div>
 
+                <div>
+                    <SmartSelect
+                        label="Proyecto"
+                        value={formData.project_id || ''}
+                        onChange={(e) => setFormData({ ...formData, project_id: e.target.value })}
+                        options={filteredProjects.map(p => ({ value: p.id, label: p.area_id ? p.title : `${p.title} (Global)` }))}
+                        onCreate={handleCreateProject}
+                        createLabel="Crear nuevo Proyecto"
+                        disabled={!formData.area_id}
+                    />
+                </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                         Tipo de Meta
@@ -162,21 +192,8 @@ export function GoalForm({
                         <option value="no_iniciada">No Iniciada</option>
                         <option value="en_progreso">En Progreso</option>
                         <option value="completada">Completada</option>
+                        <option value="cancelada">Cancelada</option>
                     </select>
-                </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Fecha Inicio
-                    </label>
-                    <input
-                        type="date"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-shadow"
-                        value={formData.start_date || ''}
-                        onChange={(e) => setFormData({ ...formData, start_date: e.target.value })}
-                    />
                 </div>
 
                 <div>

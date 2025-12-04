@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, type ReactNode } from 'react'
 
-export type ModalType = 'area' | 'goal' | 'task' | 'document' | null
+export type ModalType = 'area' | 'goal' | 'task' | 'document' | 'project' | null
 export type ModalMode = 'create' | 'edit'
 
 interface ModalState {

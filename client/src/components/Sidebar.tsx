@@ -42,6 +42,12 @@ const MENU_SECTIONS: MenuSection[] = [
         to: '/areas',
       },
       {
+        id: 'projects',
+        label: 'Proyectos',
+        icon: '🚀',
+        to: '/projects',
+      },
+      {
         id: 'goals',
         label: 'Metas',
         icon: '🎯',
@@ -218,8 +224,7 @@ function Sidebar() {
         }));
 
       const parentLinkClassName = ({ isActive: routeActive }: { isActive: boolean }) =>
-        `nav-link nav-parent-button nav-link-parent ${
-          routeActive || isActive(item.to) ? 'active' : ''
+        `nav-link nav-parent-button nav-link-parent ${routeActive || isActive(item.to) ? 'active' : ''
         }`;
 
       return (
@@ -280,8 +285,7 @@ function Sidebar() {
         <NavLink
           to={item.to ?? '#'}
           className={({ isActive: routeActive }) =>
-            `nav-link ${routeActive || isActive(item.to) ? 'active' : ''} ${
-              isChild ? 'nav-link-sub' : ''
+            `nav-link ${routeActive || isActive(item.to) ? 'active' : ''} ${isChild ? 'nav-link-sub' : ''
             }`
           }
           title={isCollapsed ? item.label : undefined}

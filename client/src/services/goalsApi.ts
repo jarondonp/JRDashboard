@@ -2,6 +2,7 @@ import { apiGet, apiPost, apiPut, apiDelete } from './apiClient';
 
 export type GoalInput = {
   area_id: string;
+  project_id?: string | null;
   title: string;
   description?: string | null;
   goal_type?: string | null;
@@ -17,6 +18,7 @@ export type Goal = GoalInput & {
   id: string;
   created_at?: string;
   updated_at?: string;
+  project_status?: string;
 };
 
 export async function fetchGoals(): Promise<Goal[]> {

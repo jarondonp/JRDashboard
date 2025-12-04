@@ -3,21 +3,28 @@ import { motion } from 'framer-motion';
 import { useMemo } from 'react';
 import { useAreaDashboard, useAreaMetrics } from '../hooks/useAreaDashboard';
 import { useDocuments } from '../hooks/useDocuments';
+import { useProjects } from '../hooks/useProjects';
 import { Card, CardBody } from '../components/Card';
 import { LineChart } from '../components/charts/LineChart';
 
 export default function AreaDashboardPage() {
   const { areaId } = useParams<{ areaId: string }>();
   const navigate = useNavigate();
-  
+
   const { data: dashboardData, isLoading: dashboardLoading, error: dashboardError } = useAreaDashboard(areaId || '');
   const { isLoading: metricsLoading } = useAreaMetrics(areaId || '');
   const { data: allDocuments } = useDocuments();
+  const { data: allProjects } = useProjects();
+
+  const areaProjects = useMemo(() => {
+    if (!allProjects || !areaId) return [];
+    return allProjects.filter(p => p.area_id === areaId && p.status !== 'archivado');
+  }, [allProjects, areaId]);
 
   // Timeline histórico (últimos 30 días de actividad)
   const timelineData = useMemo(() => {
     if (!dashboardData) return [];
-    
+
     const { progressLogs, tasks, goals } = dashboardData;
     const events: any[] = [];
 
@@ -56,7 +63,7 @@ export default function AreaDashboardPage() {
   // Tendencia de progreso (últimos 7 registros)
   const trendData = useMemo(() => {
     if (!dashboardData) return [];
-    
+
     const { progressLogs } = dashboardData;
     return progressLogs
       .slice(0, 7)
@@ -71,7 +78,7 @@ export default function AreaDashboardPage() {
   // Árbol de dependencias (metas → tareas)
   const dependencyTree = useMemo(() => {
     if (!dashboardData) return [];
-    
+
     const { goals, tasks } = dashboardData;
     return goals.map((goal: any) => ({
       ...goal,
@@ -82,10 +89,10 @@ export default function AreaDashboardPage() {
   // Documentos críticos del área
   const criticalDocuments = useMemo(() => {
     if (!allDocuments || !areaId) return [];
-    
+
     const areaDocs = allDocuments.filter((doc: any) => doc.area_id === areaId);
     const today = new Date();
-    
+
     return areaDocs.filter((doc: any) => {
       if (!doc.review_date) return false;
       const reviewDate = new Date(doc.review_date);
@@ -120,6 +127,12 @@ export default function AreaDashboardPage() {
 
   const { area, metrics, goals, tasks, progressLogs } = dashboardData;
   const areaColor = area.color || '#8b5cf6';
+
+  const linkedGlobalProjects = useMemo(() => {
+    if (!goals || !allProjects) return [];
+    const projectIds = new Set(goals.map((g: any) => g.project_id).filter(Boolean));
+    return allProjects.filter(p => p.area_id === null && projectIds.has(p.id));
+  }, [goals, allProjects]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50">
@@ -272,14 +285,14 @@ export default function AreaDashboardPage() {
                     >
                       <div className="flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center bg-indigo-100 text-indigo-600 font-bold text-sm">
                         {event.type === 'goal_completed' ? '🎯' :
-                         event.type === 'task_completed' ? '✅' : '📝'}
+                          event.type === 'task_completed' ? '✅' : '📝'}
                       </div>
                       <div className="flex-1">
                         <h4 className="font-semibold text-gray-900">{event.title}</h4>
                         <p className="text-xs text-gray-600 mt-1">
-                          {event.date.toLocaleDateString('es-ES', { 
-                            year: 'numeric', 
-                            month: 'long', 
+                          {event.date.toLocaleDateString('es-ES', {
+                            year: 'numeric',
+                            month: 'long',
                             day: 'numeric',
                             hour: '2-digit',
                             minute: '2-digit'
@@ -348,11 +361,10 @@ export default function AreaDashboardPage() {
                               className="flex items-center justify-between p-2 bg-indigo-50 rounded"
                             >
                               <span className="text-sm text-gray-800">{task.title}</span>
-                              <span className={`text-xs px-2 py-1 rounded-full ${
-                                task.status === 'completada' ? 'bg-green-100 text-green-800' :
+                              <span className={`text-xs px-2 py-1 rounded-full ${task.status === 'completada' ? 'bg-green-100 text-green-800' :
                                 task.status === 'en_progreso' ? 'bg-blue-100 text-blue-800' :
-                                'bg-gray-100 text-gray-800'
-                              }`}>
+                                  'bg-gray-100 text-gray-800'
+                                }`}>
                                 {task.status}
                               </span>
                             </div>
@@ -385,18 +397,17 @@ export default function AreaDashboardPage() {
                     const reviewDate = new Date(doc.review_date);
                     const today = new Date();
                     const daysUntil = Math.ceil((reviewDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-                    
+
                     return (
                       <motion.div
                         key={doc.id}
                         initial={{ opacity: 0, x: -20 }}
                         animate={{ opacity: 1, x: 0 }}
                         transition={{ delay: idx * 0.05 }}
-                        className={`flex items-center justify-between p-3 rounded-lg border-l-4 ${
-                          daysUntil <= 3 ? 'bg-red-50 border-red-500' :
+                        className={`flex items-center justify-between p-3 rounded-lg border-l-4 ${daysUntil <= 3 ? 'bg-red-50 border-red-500' :
                           daysUntil <= 7 ? 'bg-yellow-50 border-yellow-500' :
-                          'bg-blue-50 border-blue-500'
-                        }`}
+                            'bg-blue-50 border-blue-500'
+                          }`}
                       >
                         <div>
                           <h4 className="font-semibold text-gray-900">{doc.title}</h4>
@@ -404,11 +415,10 @@ export default function AreaDashboardPage() {
                             Tipo: {doc.document_type} | Revisión: {reviewDate.toLocaleDateString('es-ES')}
                           </p>
                         </div>
-                        <span className={`text-xs px-3 py-1 rounded-full font-semibold ${
-                          daysUntil <= 3 ? 'bg-red-100 text-red-800' :
+                        <span className={`text-xs px-3 py-1 rounded-full font-semibold ${daysUntil <= 3 ? 'bg-red-100 text-red-800' :
                           daysUntil <= 7 ? 'bg-yellow-100 text-yellow-800' :
-                          'bg-blue-100 text-blue-800'
-                        }`}>
+                            'bg-blue-100 text-blue-800'
+                          }`}>
                           {daysUntil <= 0 ? '¡HOY!' : `${daysUntil} días`}
                         </span>
                       </motion.div>
@@ -419,6 +429,98 @@ export default function AreaDashboardPage() {
             </Card>
           </motion.div>
         )}
+
+        {/* NUEVA SECCIÓN: Contribuciones a Proyectos Globales */}
+        {linkedGlobalProjects.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.16 }}
+            className="mb-8"
+          >
+            <h2 className="text-2xl font-bold text-gray-800 mb-4">🌍 Contribuciones a Proyectos Globales</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {linkedGlobalProjects.map((project, index) => (
+                <motion.div
+                  key={project.id}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: index * 0.05 }}
+                  onClick={() => navigate(`/projects/${project.id}`)}
+                  className="cursor-pointer"
+                >
+                  <Card hover>
+                    <CardBody>
+                      <div className="flex justify-between items-start mb-2">
+                        <h3 className="font-semibold text-gray-800">{project.title}</h3>
+                        <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800">
+                          Global
+                        </span>
+                      </div>
+                      {project.description && (
+                        <p className="text-sm text-gray-600 mb-3 line-clamp-2">{project.description}</p>
+                      )}
+                      <div className="text-xs text-gray-500">
+                        {project.start_date && <span>Inicio: {new Date(project.start_date).toLocaleDateString()}</span>}
+                      </div>
+                    </CardBody>
+                  </Card>
+                </motion.div>
+              ))}
+            </div>
+          </motion.div>
+        )}
+
+        {/* Proyectos del Área */}
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.18 }}
+          className="mb-8"
+        >
+          <h2 className="text-2xl font-bold text-gray-800 mb-4">Proyectos Activos</h2>
+          {areaProjects.length === 0 ? (
+            <Card>
+              <CardBody>
+                <p className="text-gray-500 text-center">No hay proyectos activos en esta área</p>
+              </CardBody>
+            </Card>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {areaProjects.map((project, index) => (
+                <motion.div
+                  key={project.id}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: index * 0.05 }}
+                  onClick={() => navigate(`/projects/${project.id}`)}
+                  className="cursor-pointer"
+                >
+                  <Card hover>
+                    <CardBody>
+                      <div className="flex justify-between items-start mb-2">
+                        <h3 className="font-semibold text-gray-800">{project.title}</h3>
+                        <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${project.status === 'activo' ? 'bg-green-100 text-green-800' :
+                          project.status === 'en_pausa' ? 'bg-yellow-100 text-yellow-800' :
+                            project.status === 'completado' ? 'bg-blue-100 text-blue-800' :
+                              'bg-gray-100 text-gray-800'
+                          }`}>
+                          {project.status || 'activo'}
+                        </span>
+                      </div>
+                      {project.description && (
+                        <p className="text-sm text-gray-600 mb-3 line-clamp-2">{project.description}</p>
+                      )}
+                      <div className="text-xs text-gray-500">
+                        {project.start_date && <span>Inicio: {new Date(project.start_date).toLocaleDateString()}</span>}
+                      </div>
+                    </CardBody>
+                  </Card>
+                </motion.div>
+              ))}
+            </div>
+          )}
+        </motion.div>
 
         {/* Metas del Área */}
         <motion.div
@@ -462,18 +564,16 @@ export default function AreaDashboardPage() {
                         </div>
                       </div>
                       <div className="flex gap-2 text-xs mt-2">
-                        <span className={`px-2 py-1 rounded-full ${
-                          goal.status === 'completada' ? 'bg-green-100 text-green-800' :
+                        <span className={`px-2 py-1 rounded-full ${goal.status === 'completada' ? 'bg-green-100 text-green-800' :
                           goal.status === 'en_progreso' ? 'bg-blue-100 text-blue-800' :
-                          'bg-gray-100 text-gray-800'
-                        }`}>
+                            'bg-gray-100 text-gray-800'
+                          }`}>
                           {goal.status}
                         </span>
-                        <span className={`px-2 py-1 rounded-full ${
-                          goal.priority === 'alta' ? 'bg-red-100 text-red-800' :
+                        <span className={`px-2 py-1 rounded-full ${goal.priority === 'alta' ? 'bg-red-100 text-red-800' :
                           goal.priority === 'media' ? 'bg-yellow-100 text-yellow-800' :
-                          'bg-green-100 text-green-800'
-                        }`}>
+                            'bg-green-100 text-green-800'
+                          }`}>
                           {goal.priority}
                         </span>
                       </div>
@@ -526,11 +626,10 @@ export default function AreaDashboardPage() {
                         </div>
                       </div>
                       <div className="flex gap-2 text-xs mt-2">
-                        <span className={`px-2 py-1 rounded-full ${
-                          task.status === 'completada' ? 'bg-green-100 text-green-800' :
+                        <span className={`px-2 py-1 rounded-full ${task.status === 'completada' ? 'bg-green-100 text-green-800' :
                           task.status === 'en_progreso' ? 'bg-blue-100 text-blue-800' :
-                          'bg-gray-100 text-gray-800'
-                        }`}>
+                            'bg-gray-100 text-gray-800'
+                          }`}>
                           {task.status}
                         </span>
                       </div>
@@ -579,11 +678,10 @@ export default function AreaDashboardPage() {
                             <span className="text-xs bg-indigo-100 text-indigo-800 px-2 py-1 rounded">
                               Ánimo: {log.mood}/5
                             </span>
-                            <span className={`text-xs px-2 py-1 rounded ${
-                              log.impact_level >= 4 ? 'bg-green-100 text-green-800' :
+                            <span className={`text-xs px-2 py-1 rounded ${log.impact_level >= 4 ? 'bg-green-100 text-green-800' :
                               log.impact_level >= 2 ? 'bg-yellow-100 text-yellow-800' :
-                              'bg-blue-100 text-blue-800'
-                            }`}>
+                                'bg-blue-100 text-blue-800'
+                              }`}>
                               Impacto: {log.impact_level}/5
                             </span>
                           </div>

@@ -2,6 +2,7 @@ import { apiGet, apiPost, apiPut, apiDelete } from './apiClient';
 
 export type TaskInput = {
   area_id: string;
+  project_id?: string | null;
   goal_id?: string | null;
   title: string;
   description?: string | null;
@@ -16,6 +17,7 @@ export type Task = TaskInput & {
   id: string;
   created_at?: string;
   updated_at?: string;
+  project_status?: string;
 };
 
 export async function fetchTasks(): Promise<Task[]> {

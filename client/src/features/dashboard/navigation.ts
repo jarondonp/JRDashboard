@@ -1,5 +1,5 @@
 import { useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 
 export type DashboardFilterKey =
   | 'goals-overview'
@@ -178,6 +178,7 @@ const focusRoute = (type: FocusType, id: string): FilterRoute => {
 
 export function useDashboardNavigation() {
   const navigate = useNavigate();
+  const location = useLocation();
 
   const openFilter = useCallback(
     (key: DashboardFilterKey) => {
@@ -189,26 +190,26 @@ export function useDashboardNavigation() {
 
   const openGoalDetail = useCallback(
     (goalId: string) => {
-      const route = focusRoute('goal', goalId);
-      navigate({ pathname: route.path, search: route.search });
+      const search = createSearch({ dashboardFocus: 'goal', dashboardId: goalId });
+      navigate({ pathname: location.pathname, search });
     },
-    [navigate],
+    [navigate, location.pathname],
   );
 
   const openTaskDetail = useCallback(
     (taskId: string) => {
-      const route = focusRoute('task', taskId);
-      navigate({ pathname: route.path, search: route.search });
+      const search = createSearch({ dashboardFocus: 'task', dashboardId: taskId });
+      navigate({ pathname: location.pathname, search });
     },
-    [navigate],
+    [navigate, location.pathname],
   );
 
   const openProgressLogDetail = useCallback(
     (progressId: string) => {
-      const route = focusRoute('progress-log', progressId);
-      navigate({ pathname: route.path, search: route.search });
+      const search = createSearch({ dashboardFocus: 'progress-log', dashboardId: progressId });
+      navigate({ pathname: location.pathname, search });
     },
-    [navigate],
+    [navigate, location.pathname],
   );
 
   return {

@@ -1,26 +1,45 @@
-import { useMemo } from 'react';
+import { useMemo, useState, useRef, useEffect } from 'react';
 import { MetricCard, ListCard, Card, CardBody } from '../components';
-import { 
-  useMonthlyStats, 
-  useRecentProgress, 
-  useCriticalDocuments, 
+import {
+  useMonthlyStats,
+  useRecentProgress,
+  useCriticalDocuments,
   useOpenTasks,
   useGoals,
   useTasks,
-  useProgressLogs
+  useProgressLogs,
+  useProjects
 } from '../hooks';
 import { motion } from 'framer-motion';
 import { useDashboardNavigation } from '../features/dashboard/navigation';
 import { filterTasksForDashboard } from '../features/dashboard/filters';
 
 function DashboardPage() {
-  const { data: monthlyStats, isLoading: loadingStats } = useMonthlyStats();
+  const [selectedProjectIds, setSelectedProjectIds] = useState<string[]>([]);
+  const [showArchived, setShowArchived] = useState(false);
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const filterRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (filterRef.current && !filterRef.current.contains(event.target as Node)) {
+        setIsFilterOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
+
+  const { data: monthlyStats, isLoading: loadingStats } = useMonthlyStats({ includeArchived: showArchived, projectIds: selectedProjectIds });
   const { data: recentProgress, isLoading: loadingProgress } = useRecentProgress();
   const { data: criticalDocs, isLoading: loadingDocs } = useCriticalDocuments();
-  const { data: openTasks, isLoading: loadingTasks } = useOpenTasks();
+  const { data: openTasks, isLoading: loadingTasks } = useOpenTasks({ includeArchived: showArchived, projectIds: selectedProjectIds });
   const { data: goals } = useGoals();
   const { data: tasks } = useTasks();
   const { data: progressLogs } = useProgressLogs();
+  const { data: projects } = useProjects();
   const {
     openFilter,
     openGoalDetail,
@@ -29,6 +48,14 @@ function DashboardPage() {
   } = useDashboardNavigation();
 
   const isLoading = loadingStats || loadingProgress || loadingDocs || loadingTasks;
+
+  const projectMap = useMemo(() => {
+    if (!projects) return {};
+    return projects.reduce((acc, project) => {
+      acc[project.id] = project.title;
+      return acc;
+    }, {} as Record<string, string>);
+  }, [projects]);
 
   // Calcular cumplimiento global de TODAS las metas (no solo del mes)
   const globalCompletion = goals && goals.length > 0
@@ -227,9 +254,19 @@ function DashboardPage() {
   }
 
   // Preparar datos para metas en progreso
-  const goalsInProgress = goals?.filter(g => 
-    g.status === 'en_progreso' || g.status === 'in_progress'
-  ).slice(0, 5).map(goal => ({
+  const goalsInProgress = goals?.filter(g => {
+    if (g.status !== 'en_progreso' && g.status !== 'in_progress') return false;
+
+    if (selectedProjectIds.length > 0) {
+      if (g.project_id && !selectedProjectIds.includes(g.project_id)) return false;
+      if (!g.project_id && !selectedProjectIds.includes('global')) return false;
+    }
+
+    if (!showArchived) {
+      if (g.project_status === 'archived' || g.project_status === 'cancelled') return false;
+    }
+    return true;
+  }).slice(0, 5).map(goal => ({
     id: goal.id,
     title: goal.title,
     subtitle: `Prioridad: ${goal.priority}`,
@@ -237,13 +274,24 @@ function DashboardPage() {
       text: `${goal.computed_progress || 0}%`,
       color: (goal.computed_progress || 0) > 50 ? 'green' as const : 'yellow' as const
     },
-    date: goal.due_date || undefined
+    date: goal.due_date || undefined,
+    project: goal.project_id ? (projectMap[goal.project_id] || 'Proyecto desconocido') : undefined
   })) || [];
 
   // Preparar datos para tareas pendientes
-  const pendingTasks = tasks?.filter(t => 
-    t.status !== 'completada' && t.status !== 'completed'
-  ).slice(0, 5).map(task => {
+  const pendingTasks = tasks?.filter(t => {
+    if (t.status === 'completada' || t.status === 'completed') return false;
+
+    if (selectedProjectIds.length > 0) {
+      if (t.project_id && !selectedProjectIds.includes(t.project_id)) return false;
+      if (!t.project_id && !selectedProjectIds.includes('global')) return false;
+    }
+
+    if (!showArchived) {
+      if (t.project_status === 'archived' || t.project_status === 'cancelled') return false;
+    }
+    return true;
+  }).slice(0, 5).map(task => {
     const latestLog = latestLogsByTask[task.id]
     const subtitleParts: string[] = []
     if (task.description) subtitleParts.push(task.description)
@@ -259,10 +307,11 @@ function DashboardPage() {
           (task.progress_percentage ?? 0) >= 80
             ? ('green' as const)
             : (task.progress_percentage ?? 0) > 0
-            ? ('purple' as const)
-            : ('blue' as const),
+              ? ('purple' as const)
+              : ('blue' as const),
       },
-      date: task.due_date || undefined
+      date: task.due_date || undefined,
+      project: task.project_id ? (projectMap[task.project_id] || 'Proyecto desconocido') : undefined
     };
   }) || [];
 
@@ -281,7 +330,7 @@ function DashboardPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50">
       {/* Header with gradient */}
-      <motion.div 
+      <motion.div
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
@@ -294,6 +343,92 @@ function DashboardPage() {
           </p>
         </div>
       </motion.div>
+
+      <div className="max-w-7xl mx-auto px-8 py-4">
+        <div className="flex flex-wrap items-center gap-4 bg-white p-4 rounded-xl shadow-sm border border-indigo-100">
+          <div className="relative" ref={filterRef}>
+            <button
+              onClick={() => setIsFilterOpen(!isFilterOpen)}
+              className="flex items-center gap-2 px-4 py-2 bg-indigo-50 text-indigo-700 rounded-lg hover:bg-indigo-100 transition-colors border border-indigo-200"
+            >
+              <span>📁 Filtrar Proyectos</span>
+              {selectedProjectIds.length > 0 && (
+                <span className="bg-indigo-600 text-white text-xs px-2 py-0.5 rounded-full">
+                  {selectedProjectIds.length}
+                </span>
+              )}
+              <svg className={`w-4 h-4 transition-transform ${isFilterOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+
+            {isFilterOpen && (
+              <div className="absolute top-full left-0 mt-2 w-72 bg-white rounded-xl shadow-xl border border-indigo-100 z-50 p-2 max-h-96 overflow-y-auto">
+                <div className="p-2 border-b border-gray-100 mb-2">
+                  <label className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 p-2 rounded-lg">
+                    <input
+                      type="checkbox"
+                      checked={selectedProjectIds.length === 0}
+                      onChange={() => setSelectedProjectIds([])}
+                      className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                    />
+                    <span className="text-sm font-medium text-gray-700">Todos los proyectos</span>
+                  </label>
+                </div>
+                <div className="space-y-1">
+                  <label className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 p-2 rounded-lg">
+                    <input
+                      type="checkbox"
+                      checked={selectedProjectIds.includes('global')}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setSelectedProjectIds([...selectedProjectIds, 'global']);
+                        } else {
+                          setSelectedProjectIds(selectedProjectIds.filter(id => id !== 'global'));
+                        }
+                      }}
+                      className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                    />
+                    <span className="text-sm text-gray-600">Global / Transversal</span>
+                  </label>
+                  {projects?.map(project => (
+                    <label key={project.id} className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 p-2 rounded-lg">
+                      <input
+                        type="checkbox"
+                        checked={selectedProjectIds.includes(project.id)}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setSelectedProjectIds([...selectedProjectIds, project.id]);
+                          } else {
+                            setSelectedProjectIds(selectedProjectIds.filter(id => id !== project.id));
+                          }
+                        }}
+                        className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                      />
+                      <span className="text-sm text-gray-600 truncate">{project.title}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div className="h-8 w-px bg-gray-200 mx-2"></div>
+
+          <label className="flex items-center gap-2 cursor-pointer select-none">
+            <div className="relative">
+              <input
+                type="checkbox"
+                className="sr-only peer"
+                checked={showArchived}
+                onChange={(e) => setShowArchived(e.target.checked)}
+              />
+              <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-indigo-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
+            </div>
+            <span className="text-sm font-medium text-gray-700">Ver Archivados</span>
+          </label>
+        </div>
+      </div>
 
       <div className="max-w-7xl mx-auto px-8 py-8 space-y-8">
         {/* Sección 1: Estado General del Sistema */}

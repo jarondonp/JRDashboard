@@ -4,11 +4,13 @@ import { AreaForm } from './forms/AreaForm'
 import { GoalForm } from './forms/GoalForm'
 import { TaskForm } from './forms/TaskForm'
 import { DocumentForm } from './forms/DocumentForm'
+import { ProjectForm } from './forms/ProjectForm'
 import {
     useCreateArea, useUpdateArea,
     useCreateGoal, useUpdateGoal,
     useCreateTask, useUpdateTask,
-    useCreateDocument, useUpdateDocument
+    useCreateDocument, useUpdateDocument,
+    useCreateProject, useUpdateProject
 } from '../hooks'
 import { useToast } from './Toast'
 
@@ -64,6 +66,10 @@ function GlobalModalItem({
     // Document Mutations
     const createDocument = useCreateDocument()
     const updateDocument = useUpdateDocument()
+
+    // Project Mutations
+    const createProject = useCreateProject()
+    const updateProject = useUpdateProject()
 
     const handleAreaSubmit = async (data: any) => {
         try {
@@ -137,6 +143,24 @@ function GlobalModalItem({
         }
     }
 
+    const handleProjectSubmit = async (data: any) => {
+        try {
+            let result;
+            if (mode === 'edit' && initialData?.id) {
+                result = await updateProject.mutateAsync({ id: initialData.id, data })
+                showToast('Proyecto actualizado exitosamente', 'success')
+            } else {
+                result = await createProject.mutateAsync(data)
+                showToast('Proyecto creado exitosamente', 'success')
+            }
+            if (onSuccess) onSuccess(result)
+            onClose()
+        } catch (error) {
+            console.error(error)
+            showToast('Error al guardar proyecto', 'error')
+        }
+    }
+
     const getTitle = () => {
         const action = mode === 'create' ? 'Nueva' : 'Editar'
         switch (type) {
@@ -144,6 +168,7 @@ function GlobalModalItem({
             case 'goal': return `${action} Meta`
             case 'task': return `${action} Tarea`
             case 'document': return `${mode === 'create' ? 'Nuevo' : 'Editar'} Documento`
+            case 'project': return `${action} Proyecto`
             default: return ''
         }
     }
@@ -187,6 +212,14 @@ function GlobalModalItem({
                     onSubmit={handleDocumentSubmit}
                     onCancel={onClose}
                     isLoading={createDocument.isPending || updateDocument.isPending}
+                />
+            )}
+            {type === 'project' && (
+                <ProjectForm
+                    initialData={initialData}
+                    onSubmit={handleProjectSubmit}
+                    onCancel={onClose}
+                    isLoading={createProject.isPending || updateProject.isPending}
                 />
             )}
         </Modal>

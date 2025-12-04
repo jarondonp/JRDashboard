@@ -20,10 +20,34 @@ export const insertAreaSchema = z.object({
   icon: z.string().optional(),
 });
 
+// Projects
+export const projects = pgTable('projects', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  area_id: uuid('area_id'), // Nullable for global projects
+  code: text('code').unique(), // Project code (e.g. P0001)
+  title: text('title').notNull(),
+  description: text('description'),
+  status: text('status').notNull().default('active'), // active, paused, completed, archived
+  start_date: date('start_date'),
+  end_date: date('end_date'),
+  created_at: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updated_at: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+});
+export const insertProjectSchema = z.object({
+  area_id: z.string().optional().nullable(),
+  code: z.string().optional(),
+  title: z.string(),
+  description: z.string().optional().nullable(),
+  status: z.string().optional(),
+  start_date: z.string().optional().nullable(),
+  end_date: z.string().optional().nullable(),
+});
+
 // Goals
 export const goals = pgTable('goals', {
-  id: uuid('id').primaryKey(),
+  id: uuid('id').primaryKey().defaultRandom(),
   area_id: uuid('area_id').notNull(),
+  project_id: uuid('project_id'),
   title: text('title').notNull(),
   description: text('description'),
   goal_type: text('goal_type'),
@@ -38,6 +62,7 @@ export const goals = pgTable('goals', {
 });
 export const insertGoalSchema = z.object({
   area_id: z.string(),
+  project_id: z.string().optional().nullable(),
   title: z.string(),
   description: z.string().nullable().optional(),
   goal_type: z.string().nullable().optional(),
@@ -46,13 +71,14 @@ export const insertGoalSchema = z.object({
   status: z.string(),
   priority: z.string(),
   expected_outcome: z.string().nullable().optional(),
-  computed_progress: z.number().optional(),
+  computed_progress: z.number().nullable().optional(),
 });
 
 // Tasks
 export const tasks = pgTable('tasks', {
-  id: uuid('id').primaryKey(),
+  id: uuid('id').primaryKey().defaultRandom(),
   area_id: uuid('area_id').notNull(),
+  project_id: uuid('project_id'),
   goal_id: uuid('goal_id'),
   title: text('title').notNull(),
   description: text('description'),
@@ -66,6 +92,7 @@ export const tasks = pgTable('tasks', {
 });
 export const insertTaskSchema = z.object({
   area_id: z.string(),
+  project_id: z.string().nullable().optional(),
   goal_id: z.string().nullable().optional(),
   title: z.string(),
   description: z.string().nullable().optional(),
@@ -78,7 +105,7 @@ export const insertTaskSchema = z.object({
 
 // Progress Logs
 export const progress_logs = pgTable('progress_logs', {
-  id: uuid('id').primaryKey(),
+  id: uuid('id').primaryKey().defaultRandom(),
   area_id: uuid('area_id').notNull(),
   goal_id: uuid('goal_id'),
   task_id: uuid('task_id'),
@@ -105,8 +132,9 @@ export const insertProgressLogSchema = z.object({
 
 // Documents
 export const documents = pgTable('documents', {
-  id: uuid('id').primaryKey(),
+  id: uuid('id').primaryKey().defaultRandom(),
   area_id: uuid('area_id').notNull(),
+  project_id: uuid('project_id'),
   goal_id: uuid('goal_id'),
   task_id: uuid('task_id'),
   title: text('title').notNull(),
@@ -119,6 +147,7 @@ export const documents = pgTable('documents', {
 });
 export const insertDocumentSchema = z.object({
   area_id: z.string(),
+  project_id: z.string().optional().nullable(),
   goal_id: z.string().optional(),
   task_id: z.string().optional(),
   title: z.string(),
@@ -130,7 +159,7 @@ export const insertDocumentSchema = z.object({
 
 // Reports
 export const reports = pgTable('reports', {
-  id: uuid('id').primaryKey(),
+  id: uuid('id').primaryKey().defaultRandom(),
   title: text('title').notNull(),
   report_type: text('report_type').notNull(),
   area_id: uuid('area_id'),

@@ -7,6 +7,7 @@ export type TimelineEventType = typeof TIMELINE_EVENT_TYPES[number];
 export interface TimelineEventEntity {
   id: string;
   title: string | null;
+  code?: string;
 }
 
 export interface TimelineEventArea {
@@ -23,6 +24,7 @@ export interface TimelineEvent {
   area: TimelineEventArea;
   goal?: TimelineEventEntity | null;
   task?: TimelineEventEntity | null;
+  project?: TimelineEventEntity | null;
   date: string;
   createdAt: string;
   meta?: Record<string, unknown>;
@@ -42,6 +44,7 @@ export interface FetchTimelineParams {
   pageSize?: number;
   cursor?: string;
   areaId?: string;
+  projectId?: string;
   eventTypes?: TimelineEventType[];
   from?: string;
   to?: string;
@@ -58,6 +61,9 @@ export async function fetchTimeline(params: FetchTimelineParams = {}): Promise<T
   }
   if (params.areaId) {
     searchParams.set('areaId', params.areaId);
+  }
+  if (params.projectId) {
+    searchParams.set('projectId', params.projectId);
   }
   if (params.eventTypes && params.eventTypes.length > 0) {
     params.eventTypes.forEach((type) => searchParams.append('eventType', type));

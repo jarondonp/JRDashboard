@@ -6,6 +6,7 @@ import {
   useDeleteDocument,
   useAreas,
   useGoals,
+  useProjects,
   useCardLayout,
   useViewMode,
 } from '../hooks'
@@ -28,6 +29,7 @@ function DocumentsPage() {
   const { data: documents, isLoading, error } = useDocuments()
   const { data: areas } = useAreas()
   const { data: goals } = useGoals()
+  const { data: projects } = useProjects()
 
   const deleteMutation = useDeleteDocument()
   const { showToast } = useToast()
@@ -65,6 +67,11 @@ function DocumentsPage() {
   const getGoalTitle = (goalId?: string) => {
     if (!goalId) return null
     return goals?.find(g => g.id === goalId)?.title || 'Meta desconocida'
+  }
+
+  const getProjectCode = (projectId?: string | null) => {
+    if (!projectId) return null
+    return projects?.find(p => p.id === projectId)?.code
   }
 
   const getDocTypeColor = (type: string) => {
@@ -236,7 +243,14 @@ function DocumentsPage() {
                       <Card hover className="h-full" minHeightClass="min-h-[230px]">
                         <CardHeader>
                           <div className="flex justify-between items-start">
-                            <h3 className="text-lg font-semibold text-gray-800 flex-1">{doc.title}</h3>
+                            <h3 className="text-lg font-semibold text-gray-800 flex-1">
+                              {getProjectCode(doc.project_id) && (
+                                <span className="mr-2 text-indigo-600 font-mono text-sm bg-indigo-50 px-1.5 py-0.5 rounded">
+                                  [{getProjectCode(doc.project_id)}]
+                                </span>
+                              )}
+                              {doc.title}
+                            </h3>
                             <div className="flex gap-2 ml-2">
                               <button
                                 onClick={() => handleEdit(doc)}
@@ -326,6 +340,11 @@ function DocumentsPage() {
                       {documentsToRender.map((doc) => (
                         <tr key={doc.id} className="hover:bg-indigo-50/40 transition">
                           <td className="px-4 py-3 font-semibold text-gray-800">
+                            {getProjectCode(doc.project_id) && (
+                              <span className="mr-2 text-indigo-600 font-mono text-xs bg-indigo-50 px-1.5 py-0.5 rounded">
+                                [{getProjectCode(doc.project_id)}]
+                              </span>
+                            )}
                             {doc.title}
                           </td>
                           <td className="px-4 py-3">

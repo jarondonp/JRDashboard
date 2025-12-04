@@ -44,7 +44,7 @@ export async function updateGoalProgress(goalId: string): Promise<void> {
   const progress = await calculateGoalProgress(goalId);
   console.log('Calculated progress:', progress);
 
-  const updates: Partial<typeof goals.$inferUpdate> = {
+  const updates: Partial<typeof goals.$inferInsert> = {
     computed_progress: progress,
     updated_at: new Date(),
   };

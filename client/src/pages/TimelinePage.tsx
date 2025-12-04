@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Button, Card, CardBody } from '../components';
-import { useAreas, useTimeline } from '../hooks';
+import { useAreas, useTimeline, useProjects } from '../hooks';
 import type { TimelineEvent, TimelineEventType } from '../services/timelineApi';
 import { ALL_TIMELINE_EVENT_TYPES } from '../hooks/useTimeline';
 
@@ -95,16 +95,20 @@ interface TimelineGroup {
 
 function TimelinePage() {
   const { data: areasData } = useAreas();
+  const { data: projectsData } = useProjects();
   const [selectedArea, setSelectedArea] = useState<string>('');
+  const [selectedProject, setSelectedProject] = useState<string>('');
   const [range, setRange] = useState<TimelineRange>('30d');
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedTypes, setSelectedTypes] = useState<TimelineEventType[]>(ALL_TIMELINE_EVENT_TYPES);
 
   const fromIso = useMemo(() => getRangeStart(range), [range]);
   const areaFilter = selectedArea || undefined;
+  const projectFilter = selectedProject || undefined;
 
   const timelineQuery = useTimeline({
     areaId: areaFilter,
+    projectId: projectFilter,
     eventTypes: selectedTypes,
     from: fromIso,
     pageSize: 25,
@@ -173,6 +177,7 @@ function TimelinePage() {
 
   const resetFilters = () => {
     setSelectedArea('');
+    setSelectedProject('');
     setRange('30d');
     setSearchTerm('');
     setSelectedTypes(ALL_TIMELINE_EVENT_TYPES);
@@ -217,6 +222,24 @@ function TimelinePage() {
                   {(areasData ?? []).map((area) => (
                     <option key={area.id} value={area.id}>
                       {area.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="flex-1 space-y-3">
+                <label className="block text-sm font-medium text-gray-700">
+                  Proyecto
+                </label>
+                <select
+                  className="w-full max-w-sm px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  value={selectedProject}
+                  onChange={(e) => setSelectedProject(e.target.value)}
+                >
+                  <option value="">Todos los proyectos</option>
+                  {(projectsData ?? []).map((project) => (
+                    <option key={project.id} value={project.id}>
+                      {project.title}
                     </option>
                   ))}
                 </select>
@@ -464,6 +487,11 @@ function TimelinePage() {
                                 {event.task && (
                                   <span className="font-medium text-gray-600">
                                     ✅ Tarea: {event.task.title ?? 'Sin título'}
+                                  </span>
+                                )}
+                                {event.project && (
+                                  <span className="font-medium text-gray-600">
+                                    📁 Proyecto: {event.project.code ? <span className="font-mono text-xs bg-indigo-50 text-indigo-700 px-1 py-0.5 rounded mr-1">[{event.project.code}]</span> : ''}{event.project.title ?? 'Sin título'}
                                   </span>
                                 )}
                               </div>

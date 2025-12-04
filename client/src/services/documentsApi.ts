@@ -2,7 +2,8 @@ import { apiGet, apiPost, apiPut, apiDelete } from './apiClient';
 
 export type DocumentInput = {
   area_id: string;
-  goal_id?: string;
+  project_id?: string | null;
+  goal_id?: string | null;
   task_id?: string;
   title: string;
   description?: string;

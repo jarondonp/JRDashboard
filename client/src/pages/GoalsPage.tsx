@@ -10,6 +10,7 @@ import {
   useCardLayout,
   useViewMode,
   useRegisterQuickAction,
+  useProjects,
 } from '../hooks'
 import {
   Card,
@@ -30,6 +31,7 @@ function GoalsPage() {
   const { data: areas } = useAreas()
   const { data: tasks } = useTasks()
   const { data: progressLogs } = useProgressLogs()
+  const { data: projects } = useProjects()
   const deleteMutation = useDeleteGoal()
   const { showToast } = useToast()
 
@@ -38,6 +40,7 @@ function GoalsPage() {
   const [activeTab, setActiveTab] = useState<'list' | 'by-area' | 'compliance'>('list')
   const { openModal } = useGlobalModal()
   const [searchTerm, setSearchTerm] = useState('')
+  const [selectedProjectId, setSelectedProjectId] = useState<string>('')
   const [sortBy, setSortBy] = useState<'progress' | 'due_date' | 'title'>('progress')
   const { density, setDensity } = useCardLayout('goals')
   const { mode: viewMode, setMode: setViewMode } = useViewMode('goals:view-mode', 'table')
@@ -165,6 +168,16 @@ function GoalsPage() {
     return areas?.find(a => a.id === areaId)?.name || 'Sin área'
   }
 
+  const getProjectName = (projectId?: string | null) => {
+    if (!projectId) return 'Global'
+    return projects?.find(p => p.id === projectId)?.title || 'Proyecto desconocido'
+  }
+
+  const getProjectCode = (projectId?: string | null) => {
+    if (!projectId) return null
+    return projects?.find(p => p.id === projectId)?.code
+  }
+
   const formatDate = (value?: string | null) => {
     if (!value) return 'Sin fecha'
     const parsed = new Date(value)
@@ -280,20 +293,31 @@ function GoalsPage() {
   const filteredGoals = useMemo(() => {
     const dataset = goalsForView
     if (dataset.length === 0) return []
-    const normalizedSearch = searchTerm.trim().toLowerCase()
-    if (!normalizedSearch) return [...dataset]
 
     return dataset.filter((goal) => {
+      // Always check project filter first
+      const matchesProject = selectedProjectId ? goal.project_id === selectedProjectId : true
+      if (!matchesProject) return false
+
+      // Then apply search filter if search term exists
+      const normalizedSearch = searchTerm.trim().toLowerCase()
+      if (!normalizedSearch) return true // No search term, just use project filter
+
       const title = goal.title.toLowerCase()
       const description = (goal.description || '').toLowerCase()
       const areaName = getAreaName(goal.area_id).toLowerCase()
-      return (
+      const projectName = getProjectName(goal.project_id).toLowerCase()
+
+      const matchesSearch = (
         title.includes(normalizedSearch) ||
         description.includes(normalizedSearch) ||
-        areaName.includes(normalizedSearch)
+        areaName.includes(normalizedSearch) ||
+        projectName.includes(normalizedSearch)
       )
+
+      return matchesSearch
     })
-  }, [goalsForView, searchTerm, areas])
+  }, [goalsForView, searchTerm, areas, selectedProjectId, projects])
 
   const sortedGoals = useMemo(() => {
     return [...filteredGoals].sort((a, b) => {
@@ -416,6 +440,20 @@ function GoalsPage() {
             density={density}
             onDensityChange={setDensity}
           />
+
+          <div className="flex items-center gap-2">
+            <select
+              value={selectedProjectId}
+              onChange={(e) => setSelectedProjectId(e.target.value)}
+              className="rounded-lg border-gray-300 text-sm focus:ring-indigo-500 focus:border-indigo-500"
+            >
+              <option value="">Todos los proyectos</option>
+              {projects?.map(project => (
+                <option key={project.id} value={project.id}>{project.title}</option>
+              ))}
+            </select>
+          </div>
+
           <ViewModeToggle mode={viewMode} onChange={setViewMode} />
         </div>
 
@@ -459,7 +497,14 @@ function GoalsPage() {
                       <Card hover className="h-full" minHeightClass="min-h-[260px]">
                         <CardHeader>
                           <div className="flex justify-between items-start">
-                            <h3 className="text-lg font-semibold text-gray-800 flex-1">{goal.title}</h3>
+                            <h3 className="text-lg font-semibold text-gray-800 flex-1">
+                              {getProjectCode(goal.project_id) && (
+                                <span className="mr-2 text-indigo-600 font-mono text-sm bg-indigo-50 px-1.5 py-0.5 rounded">
+                                  [{getProjectCode(goal.project_id)}]
+                                </span>
+                              )}
+                              {goal.title}
+                            </h3>
                             <div className="flex gap-2 ml-2">
                               <button
                                 onClick={() => handleEdit(goal)}
@@ -480,6 +525,9 @@ function GoalsPage() {
                           <div className="space-y-3">
                             <p className="text-sm text-gray-600">
                               <strong>Área:</strong> {getAreaName(goal.area_id)}
+                            </p>
+                            <p className="text-sm text-gray-600">
+                              <strong>Proyecto:</strong> {getProjectName(goal.project_id)}
                             </p>
                             {goal.description && (
                               <p className="text-sm text-gray-700">{goal.description}</p>
@@ -565,6 +613,7 @@ function GoalsPage() {
                     <tr className="text-left text-xs font-semibold uppercase tracking-wide text-indigo-600">
                       <th className="px-4 py-3">Meta</th>
                       <th className="px-4 py-3">Área</th>
+                      <th className="px-4 py-3">Proyecto</th>
                       <th className="px-4 py-3">Estado</th>
                       <th className="px-4 py-3">Prioridad</th>
                       <th className="px-4 py-3">Progreso</th>
@@ -582,7 +631,14 @@ function GoalsPage() {
                         <tr key={goal.id} className="hover:bg-indigo-50/40 transition">
                           <td className="px-4 py-3">
                             <div className="flex flex-col">
-                              <span className="font-semibold text-gray-800">{goal.title}</span>
+                              <span className="font-semibold text-gray-800">
+                                {getProjectCode(goal.project_id) && (
+                                  <span className="mr-2 text-indigo-600 font-mono text-xs bg-indigo-50 px-1.5 py-0.5 rounded">
+                                    [{getProjectCode(goal.project_id)}]
+                                  </span>
+                                )}
+                                {goal.title}
+                              </span>
                               {goal.description && (
                                 <span className="text-xs text-gray-500 line-clamp-2">{goal.description}</span>
                               )}
@@ -591,6 +647,11 @@ function GoalsPage() {
                           <td className="px-4 py-3">
                             <span className="inline-flex items-center rounded-full bg-indigo-100 px-2 py-0.5 text-xs font-medium text-indigo-700">
                               {getAreaName(goal.area_id)}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3">
+                            <span className="inline-flex items-center rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-700">
+                              {getProjectName(goal.project_id)}
                             </span>
                           </td>
                           <td className="px-4 py-3">

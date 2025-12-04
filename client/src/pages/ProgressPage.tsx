@@ -9,6 +9,7 @@ import {
   useAreas,
   useGoals,
   useTasks,
+  useProjects,
   useCardLayout,
   useViewMode,
   useRegisterQuickAction,
@@ -60,6 +61,7 @@ function ProgressPage() {
   const { data: areas } = useAreas()
   const { data: goals } = useGoals()
   const { data: tasks } = useTasks()
+  const { data: projects } = useProjects()
   const createMutation = useCreateProgressLog()
   const updateMutation = useUpdateProgressLog()
   const deleteMutation = useDeleteProgressLog()
@@ -162,6 +164,22 @@ function ProgressPage() {
     return tasks?.find(t => t.id === taskId)?.title || 'Tarea desconocida'
   }
 
+  const getProjectCodeForLog = (log: ProgressLog) => {
+    if (log.task_id) {
+      const task = tasks?.find(t => t.id === log.task_id)
+      if (task?.project_id) {
+        return projects?.find(p => p.id === task.project_id)?.code
+      }
+    }
+    if (log.goal_id) {
+      const goal = goals?.find(g => g.id === log.goal_id)
+      if (goal?.project_id) {
+        return projects?.find(p => p.id === goal.project_id)?.code
+      }
+    }
+    return null
+  }
+
   const getMoodEmoji = (mood?: number) => {
     if (!mood) return ''
     if (mood === 5) return '😄'
@@ -186,6 +204,30 @@ function ProgressPage() {
       }
       return true
     }) || []
+
+  // Compute the project associated with the selected task or goal
+  const selectedProject = useMemo(() => {
+    let projectId: string | null = null
+
+    // Try to get project from selected task first
+    if (formData.task_id) {
+      const task = tasks?.find(t => t.id === formData.task_id)
+      projectId = task?.project_id || null
+    }
+
+    // If no task or task has no project, try the goal
+    if (!projectId && formData.goal_id) {
+      const goal = goals?.find(g => g.id === formData.goal_id)
+      projectId = goal?.project_id || null
+    }
+
+    // Find the project info
+    if (projectId && projects) {
+      return projects.find(p => p.id === projectId) || null
+    }
+
+    return null
+  }, [formData.task_id, formData.goal_id, tasks, goals, projects])
 
   const filteredLogs = useMemo(() => {
     if (!logs) return []
@@ -311,7 +353,7 @@ function ProgressPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50">
       {/* Header */}
-      <motion.div 
+      <motion.div
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
         className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-8 py-8 shadow-lg"
@@ -374,234 +416,245 @@ function ProgressPage() {
             </button>
           </div>
         )}
- 
+
         <TabsContent>
-        {activeTab === 'logs' ? (
-          sortedLogs.length > 0 ? (
-            viewMode === 'cards' ? (
-              <motion.div
-                className={`${gridClass} mt-6`}
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: 0.2 }}
-              >
-                <AnimatePresence>
-                  {sortedLogs.map((log, index) => (
-                    <motion.div
-                      key={log.id}
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, scale: 0.9 }}
-                      transition={{ delay: index * 0.05 }}
-                    >
-                      <Card hover className="h-full" minHeightClass="min-h-[260px]">
-                        <CardHeader>
-                          <div className="flex justify-between items-start">
-                            <h3 className="text-lg font-semibold text-gray-800 flex-1">{log.title}</h3>
-                            <div className="flex gap-2 ml-2">
-                              <button
-                                onClick={() => handleEdit(log)}
-                                className="text-indigo-600 hover:text-indigo-800 transition-colors"
-                              >
-                                ✏️
-                              </button>
-                              <button
-                                onClick={() => handleDelete(log.id)}
-                                className="text-red-600 hover:text-red-800 transition-colors"
-                              >
-                                🗑️
-                              </button>
-                            </div>
-                          </div>
-                        </CardHeader>
-                        <CardBody>
-                          <div className="space-y-3">
-                            <p className="text-sm text-gray-600">
-                              <strong>Área:</strong> {getAreaName(log.area_id)}
-                            </p>
-                            {log.goal_id && (
-                              <p className="text-sm text-gray-600">
-                                <strong>Meta:</strong> {getGoalTitle(log.goal_id)}
-                              </p>
-                            )}
-                            {log.task_id && (
-                              <p className="text-sm text-gray-600">
-                                <strong>Tarea:</strong> {getTaskTitle(log.task_id)}
-                              </p>
-                            )}
-                            {log.note && (
-                              <p className="text-sm text-gray-700">{log.note}</p>
-                            )}
-
-                            <div className="flex flex-wrap gap-2">
-                              {log.mood && (
-                                <span className="px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
-                                  Mood: {getMoodEmoji(log.mood)} {log.mood}/5
-                                </span>
-                              )}
-                              {log.impact_level && (
-                                <span className={`px-2 py-1 rounded-full text-xs font-medium ${log.impact_level >= 4 ? 'bg-green-100 text-green-800' : log.impact_level >= 2 ? 'bg-yellow-100 text-yellow-800' : 'bg-blue-100 text-blue-800'}`}>
-                                  Impacto: {log.impact_level}/5
-                                </span>
-                              )}
-                              {typeof log.task_progress === 'number' && (
-                                <span className="px-2 py-1 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800">
-                                  Progreso tarea: {log.task_progress}%
-                                </span>
-                              )}
-                            </div>
-
-                            {log.date && (
-                              <div className="text-xs text-gray-500 pt-2 border-t">
-                                <p>Fecha: {new Date(log.date).toLocaleDateString()}</p>
+          {activeTab === 'logs' ? (
+            sortedLogs.length > 0 ? (
+              viewMode === 'cards' ? (
+                <motion.div
+                  className={`${gridClass} mt-6`}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ delay: 0.2 }}
+                >
+                  <AnimatePresence>
+                    {sortedLogs.map((log, index) => (
+                      <motion.div
+                        key={log.id}
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, scale: 0.9 }}
+                        transition={{ delay: index * 0.05 }}
+                      >
+                        <Card hover className="h-full" minHeightClass="min-h-[260px]">
+                          <CardHeader>
+                            <div className="flex justify-between items-start">
+                              <h3 className="text-lg font-semibold text-gray-800 flex-1">
+                                {getProjectCodeForLog(log) && (
+                                  <span className="mr-2 text-indigo-600 font-mono text-sm bg-indigo-50 px-1.5 py-0.5 rounded">
+                                    [{getProjectCodeForLog(log)}]
+                                  </span>
+                                )}
+                                {log.title}
+                              </h3>
+                              <div className="flex gap-2 ml-2">
+                                <button
+                                  onClick={() => handleEdit(log)}
+                                  className="text-indigo-600 hover:text-indigo-800 transition-colors"
+                                >
+                                  ✏️
+                                </button>
+                                <button
+                                  onClick={() => handleDelete(log.id)}
+                                  className="text-red-600 hover:text-red-800 transition-colors"
+                                >
+                                  🗑️
+                                </button>
                               </div>
-                            )}
-                          </div>
-                        </CardBody>
-                      </Card>
-                    </motion.div>
-                  ))}
-                </AnimatePresence>
-              </motion.div>
-            ) : (
-              <motion.div
-                className="mt-6 overflow-hidden rounded-2xl border border-indigo-100 bg-white shadow-sm"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: 0.1 }}
-              >
-                <div className="overflow-x-auto">
-                  <table className="min-w-full divide-y divide-indigo-100">
-                    <thead className="bg-indigo-50/60">
-                      <tr className="text-left text-xs font-semibold uppercase tracking-wide text-indigo-600">
-                        <th className="px-4 py-3">Título</th>
-                        <th className="px-4 py-3">Área</th>
-                        <th className="px-4 py-3">Meta</th>
-                        <th className="px-4 py-3">Tarea</th>
-                        <th className="px-4 py-3">Mood / Impacto</th>
-                        <th className="px-4 py-3">Fecha</th>
-                        <th className="px-4 py-3">Nota</th>
-                        <th className="px-4 py-3 text-right">Acciones</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-indigo-50 text-sm text-gray-700">
-                      {sortedLogs.map((log) => (
-                        <tr key={log.id} className="hover:bg-indigo-50/40 transition">
-                          <td className="px-4 py-3 font-semibold text-gray-800">
-                            {log.title}
-                          </td>
-                          <td className="px-4 py-3">
-                            <span className="inline-flex items-center rounded-full bg-indigo-100 px-2 py-0.5 text-xs font-medium text-indigo-700">
-                              {getAreaName(log.area_id)}
-                            </span>
-                          </td>
-                          <td className="px-4 py-3 text-xs text-gray-600">
-                            {log.goal_id ? getGoalTitle(log.goal_id) : '—'}
-                          </td>
-                          <td className="px-4 py-3 text-xs text-gray-600">
-                            {log.task_id ? getTaskTitle(log.task_id) : '—'}
-                          </td>
-                          <td className="px-4 py-3 text-xs text-gray-600">
-                            <div className="flex flex-wrap items-center gap-2">
-                              {log.mood && (
-                                <span className="inline-flex items-center gap-1 rounded-full bg-purple-100 px-2 py-0.5 text-[10px] font-medium text-purple-800">
-                                  {getMoodEmoji(log.mood)} {log.mood}/5
+                            </div>
+                          </CardHeader>
+                          <CardBody>
+                            <div className="space-y-3">
+                              <p className="text-sm text-gray-600">
+                                <strong>Área:</strong> {getAreaName(log.area_id)}
+                              </p>
+                              {log.goal_id && (
+                                <p className="text-sm text-gray-600">
+                                  <strong>Meta:</strong> {getGoalTitle(log.goal_id)}
+                                </p>
+                              )}
+                              {log.task_id && (
+                                <p className="text-sm text-gray-600">
+                                  <strong>Tarea:</strong> {getTaskTitle(log.task_id)}
+                                </p>
+                              )}
+                              {log.note && (
+                                <p className="text-sm text-gray-700">{log.note}</p>
+                              )}
+
+                              <div className="flex flex-wrap gap-2">
+                                {log.mood && (
+                                  <span className="px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                                    Mood: {getMoodEmoji(log.mood)} {log.mood}/5
+                                  </span>
+                                )}
+                                {log.impact_level && (
+                                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${log.impact_level >= 4 ? 'bg-green-100 text-green-800' : log.impact_level >= 2 ? 'bg-yellow-100 text-yellow-800' : 'bg-blue-100 text-blue-800'}`}>
+                                    Impacto: {log.impact_level}/5
+                                  </span>
+                                )}
+                                {typeof log.task_progress === 'number' && (
+                                  <span className="px-2 py-1 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800">
+                                    Progreso tarea: {log.task_progress}%
+                                  </span>
+                                )}
+                              </div>
+
+                              {log.date && (
+                                <div className="text-xs text-gray-500 pt-2 border-t">
+                                  <p>Fecha: {new Date(log.date).toLocaleDateString()}</p>
+                                </div>
+                              )}
+                            </div>
+                          </CardBody>
+                        </Card>
+                      </motion.div>
+                    ))}
+                  </AnimatePresence>
+                </motion.div>
+              ) : (
+                <motion.div
+                  className="mt-6 overflow-hidden rounded-2xl border border-indigo-100 bg-white shadow-sm"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ delay: 0.1 }}
+                >
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full divide-y divide-indigo-100">
+                      <thead className="bg-indigo-50/60">
+                        <tr className="text-left text-xs font-semibold uppercase tracking-wide text-indigo-600">
+                          <th className="px-4 py-3">Título</th>
+                          <th className="px-4 py-3">Área</th>
+                          <th className="px-4 py-3">Meta</th>
+                          <th className="px-4 py-3">Tarea</th>
+                          <th className="px-4 py-3">Mood / Impacto</th>
+                          <th className="px-4 py-3">Fecha</th>
+                          <th className="px-4 py-3">Nota</th>
+                          <th className="px-4 py-3 text-right">Acciones</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-indigo-50 text-sm text-gray-700">
+                        {sortedLogs.map((log) => (
+                          <tr key={log.id} className="hover:bg-indigo-50/40 transition">
+                            <td className="px-4 py-3 font-semibold text-gray-800">
+                              {getProjectCodeForLog(log) && (
+                                <span className="mr-2 text-indigo-600 font-mono text-xs bg-indigo-50 px-1.5 py-0.5 rounded">
+                                  [{getProjectCodeForLog(log)}]
                                 </span>
                               )}
-                              {log.impact_level && (
-                                <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium ${
-                                  log.impact_level >= 4
+                              {log.title}
+                            </td>
+                            <td className="px-4 py-3">
+                              <span className="inline-flex items-center rounded-full bg-indigo-100 px-2 py-0.5 text-xs font-medium text-indigo-700">
+                                {getAreaName(log.area_id)}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3 text-xs text-gray-600">
+                              {log.goal_id ? getGoalTitle(log.goal_id) : '—'}
+                            </td>
+                            <td className="px-4 py-3 text-xs text-gray-600">
+                              {log.task_id ? getTaskTitle(log.task_id) : '—'}
+                            </td>
+                            <td className="px-4 py-3 text-xs text-gray-600">
+                              <div className="flex flex-wrap items-center gap-2">
+                                {log.mood && (
+                                  <span className="inline-flex items-center gap-1 rounded-full bg-purple-100 px-2 py-0.5 text-[10px] font-medium text-purple-800">
+                                    {getMoodEmoji(log.mood)} {log.mood}/5
+                                  </span>
+                                )}
+                                {log.impact_level && (
+                                  <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium ${log.impact_level >= 4
                                     ? 'bg-green-100 text-green-800'
                                     : log.impact_level >= 2
-                                    ? 'bg-yellow-100 text-yellow-800'
-                                    : 'bg-blue-100 text-blue-800'
-                                }`}
+                                      ? 'bg-yellow-100 text-yellow-800'
+                                      : 'bg-blue-100 text-blue-800'
+                                    }`}
+                                  >
+                                    Impacto: {log.impact_level}/5
+                                  </span>
+                                )}
+                                {typeof log.task_progress === 'number' && (
+                                  <span className="inline-flex items-center rounded-full bg-indigo-100 px-2 py-0.5 text-[10px] font-medium text-indigo-800">
+                                    Progreso tarea: {log.task_progress}%
+                                  </span>
+                                )}
+                              </div>
+                            </td>
+                            <td className="px-4 py-3 text-xs text-gray-600">
+                              {log.date ? formatDate(log.date) : formatDate(log.created_at)}
+                            </td>
+                            <td className="px-4 py-3 text-xs text-gray-600">
+                              {log.note ? log.note : <span className="text-gray-400">Sin nota</span>}
+                            </td>
+                            <td className="px-4 py-3 text-right">
+                              <div className="inline-flex items-center gap-2">
+                                <button
+                                  onClick={() => handleEdit(log)}
+                                  className="text-indigo-600 hover=text-indigo-800 transition-colors"
                                 >
-                                  Impacto: {log.impact_level}/5
-                                </span>
-                              )}
-                              {typeof log.task_progress === 'number' && (
-                                <span className="inline-flex items-center rounded-full bg-indigo-100 px-2 py-0.5 text-[10px] font-medium text-indigo-800">
-                                  Progreso tarea: {log.task_progress}%
-                                </span>
-                              )}
-                            </div>
-                          </td>
-                          <td className="px-4 py-3 text-xs text-gray-600">
-                            {log.date ? formatDate(log.date) : formatDate(log.created_at)}
-                          </td>
-                          <td className="px-4 py-3 text-xs text-gray-600">
-                            {log.note ? log.note : <span className="text-gray-400">Sin nota</span>}
-                          </td>
-                          <td className="px-4 py-3 text-right">
-                            <div className="inline-flex items-center gap-2">
-                              <button
-                                onClick={() => handleEdit(log)}
-                                className="text-indigo-600 hover=text-indigo-800 transition-colors"
-                              >
-                                ✏️ Editar
-                              </button>
-                              <button
-                                onClick={() => handleDelete(log.id)}
-                                className="text-red-600 hover:text-red-800 transition-colors"
-                              >
-                                🗑️ Eliminar
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                                  ✏️ Editar
+                                </button>
+                                <button
+                                  onClick={() => handleDelete(log.id)}
+                                  className="text-red-600 hover:text-red-800 transition-colors"
+                                >
+                                  🗑️ Eliminar
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </motion.div>
+              )
+            ) : (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="mt-10 text-center"
+              >
+                <p className="text-gray-500 text-lg">
+                  Aún no has registrado avances.
+                </p>
+                <Button variant="primary" onClick={() => setShowModal(true)} className="mt-4">
+                  Registrar primer avance
+                </Button>
               </motion.div>
             )
           ) : (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              className="mt-10 text-center"
-            >
-              <p className="text-gray-500 text-lg">
-                Aún no has registrado avances.
-              </p>
-              <Button variant="primary" onClick={() => setShowModal(true)} className="mt-4">
-                Registrar primer avance
-              </Button>
-            </motion.div>
-          )
-        ) : (
-          <div className="mt-8 grid gap-6 md:grid-cols-2">
-            <Card minHeightClass="min-h-[160px]">
-              <CardBody>
-                <h3 className="text-sm font-semibold text-indigo-600 uppercase tracking-wide">Promedio de Mood</h3>
-                <p className="mt-3 text-4xl font-bold text-gray-800">
-                  {moodStats.average > 0 ? `${moodStats.average.toFixed(1)} / 5` : 'Sin datos'}
-                </p>
-                <p className="mt-2 text-sm text-gray-500">
-                  {sortedLogs.length} registros con mood registrado.
-                </p>
-              </CardBody>
-            </Card>
+            <div className="mt-8 grid gap-6 md:grid-cols-2">
+              <Card minHeightClass="min-h-[160px]">
+                <CardBody>
+                  <h3 className="text-sm font-semibold text-indigo-600 uppercase tracking-wide">Promedio de Mood</h3>
+                  <p className="mt-3 text-4xl font-bold text-gray-800">
+                    {moodStats.average > 0 ? `${moodStats.average.toFixed(1)} / 5` : 'Sin datos'}
+                  </p>
+                  <p className="mt-2 text-sm text-gray-500">
+                    {sortedLogs.length} registros con mood registrado.
+                  </p>
+                </CardBody>
+              </Card>
 
-            <Card minHeightClass="min-h-[160px]">
-              <CardBody>
-                <h3 className="text-sm font-semibold text-indigo-600 uppercase tracking-wide">Distribución</h3>
-                <div className="mt-4 flex flex-wrap gap-3 text-sm text-gray-600">
-                  {[5, 4, 3, 2, 1].map((value) => (
-                    <div key={value} className="flex items-center gap-2">
-                      <span className="text-lg">{getMoodEmoji(value)}</span>
-                      <span>{value}/5</span>
-                      <span className="text-xs text-gray-400">
-                        {moodStats.counts[value] ?? 0} registros
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </CardBody>
-            </Card>
-          </div>
-        )}
+              <Card minHeightClass="min-h-[160px]">
+                <CardBody>
+                  <h3 className="text-sm font-semibold text-indigo-600 uppercase tracking-wide">Distribución</h3>
+                  <div className="mt-4 flex flex-wrap gap-3 text-sm text-gray-600">
+                    {[5, 4, 3, 2, 1].map((value) => (
+                      <div key={value} className="flex items-center gap-2">
+                        <span className="text-lg">{getMoodEmoji(value)}</span>
+                        <span>{value}/5</span>
+                        <span className="text-xs text-gray-400">
+                          {moodStats.counts[value] ?? 0} registros
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </CardBody>
+              </Card>
+            </div>
+          )}
         </TabsContent>
       </div>
 
@@ -687,6 +740,13 @@ function ProgressPage() {
                   ? 'No hay tareas vinculadas a esta meta. Puedes crear nuevas desde la sección de Tareas.'
                   : 'No hay tareas registradas para el área seleccionada.'}
               </p>
+            )}
+            {selectedProject && (
+              <div className="mt-3 inline-flex items-center gap-2 px-3 py-2 bg-indigo-50 text-indigo-700 rounded-lg text-sm">
+                <span>📁</span>
+                <span className="font-medium">Proyecto:</span>
+                <span>{selectedProject.title}</span>
+              </div>
             )}
           </div>
 

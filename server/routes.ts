@@ -1,14 +1,14 @@
 import { Router } from 'express';
 import { ZodError, z } from 'zod';
 import * as storage from './storage';
-import { insertAreaSchema, insertGoalSchema, insertTaskSchema, insertProgressLogSchema, insertDocumentSchema, insertReportSchema } from '../shared/schema';
+import { insertAreaSchema, insertGoalSchema, insertTaskSchema, insertProgressLogSchema, insertDocumentSchema, insertReportSchema, insertProjectSchema } from '../shared/schema';
 import { updateGoalProgress, updateTaskProgressByStatus, recalculateTaskProgress } from './progressCalculator';
 
 const router = Router();
 
 type ProgressLogPayload = z.infer<typeof insertProgressLogSchema>;
 
-class ProgressLogValidationError extends Error {}
+class ProgressLogValidationError extends Error { }
 
 const sanitizeId = (value?: string | null): string | undefined => {
   if (value === undefined || value === null) return undefined;
@@ -72,6 +72,7 @@ const timelineQuerySchema = z.object({
   pageSize: z.coerce.number().min(1).max(100).default(20),
   cursor: z.string().optional(),
   areaId: z.string().optional(),
+  projectId: z.string().optional(),
   eventType: z.union([z.array(z.string()), z.string()]).optional(),
   from: z.string().optional(),
   to: z.string().optional(),
@@ -121,6 +122,52 @@ router.put('/areas/:id', async (req, res) => {
 router.delete('/areas/:id', async (req, res) => {
   try {
     await storage.deleteArea(req.params.id);
+    res.status(204).end();
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+
+// Projects
+router.get('/projects', async (req, res) => {
+  try {
+    const result = await storage.getProjects();
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ error: 'Error fetching projects' });
+  }
+});
+router.get('/projects/:id', async (req, res) => {
+  try {
+    const result = await storage.getProjectById(req.params.id);
+    if (!result.length) return res.status(404).json({ error: 'Project not found' });
+    res.json(result[0]);
+  } catch (err) {
+    res.status(500).json({ error: 'Error fetching project' });
+  }
+});
+router.post('/projects', async (req, res) => {
+  try {
+    const data = insertProjectSchema.parse(req.body);
+    const result = await storage.createProject(data);
+    res.status(201).json(result[0]);
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+router.put('/projects/:id', async (req, res) => {
+  try {
+    const data = insertProjectSchema.parse(req.body);
+    const result = await storage.updateProject(req.params.id, data);
+    res.json(result[0]);
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+router.delete('/projects/:id', async (req, res) => {
+  try {
+    await storage.deleteProject(req.params.id);
     res.status(204).end();
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -198,12 +245,12 @@ router.post('/tasks', async (req, res) => {
   try {
     const data = insertTaskSchema.parse(req.body);
     const result = await storage.createTask(data);
-    
+
     // Actualizar progreso automáticamente si tiene goal_id
     if (result[0].goal_id) {
       await updateGoalProgress(result[0].goal_id);
     }
-    
+
     res.status(201).json(result[0]);
   } catch (err) {
     res.status(400).json({ error: err.message });
@@ -213,17 +260,17 @@ router.put('/tasks/:id', async (req, res) => {
   try {
     const data = insertTaskSchema.parse(req.body);
     console.log('Updating task:', req.params.id, 'with data:', data);
-    
+
     // Primero actualizar la tarea con los datos del formulario
     const result = await storage.updateTask(req.params.id, data);
     console.log('Task updated:', result[0]);
-    
+
     // Actualizar progreso de la meta si tiene goal_id
     if (result[0].goal_id) {
       console.log('Updating goal progress for:', result[0].goal_id);
       await updateGoalProgress(result[0].goal_id);
     }
-    
+
     res.json(result[0]);
   } catch (err) {
     console.error('Error updating task:', err);
@@ -235,14 +282,14 @@ router.delete('/tasks/:id', async (req, res) => {
     // Obtener la tarea antes de eliminarla para saber su goal_id
     const task = await storage.getTaskById(req.params.id);
     const goalId = task[0]?.goal_id;
-    
+
     await storage.deleteTask(req.params.id);
-    
+
     // Recalcular progreso de la meta si tenía goal_id
     if (goalId) {
       await updateGoalProgress(goalId);
     }
-    
+
     res.status(204).end();
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -438,6 +485,9 @@ router.get('/timeline', async (req, res) => {
     const trimmedAreaId = parsed.areaId?.trim();
     const areaFilter = trimmedAreaId && trimmedAreaId.length > 0 ? trimmedAreaId : undefined;
 
+    const trimmedProjectId = parsed.projectId?.trim();
+    const projectFilter = trimmedProjectId && trimmedProjectId.length > 0 ? trimmedProjectId : undefined;
+
     if (fromDate && toDate && fromDate > toDate) {
       return res.status(400).json({ error: 'El parámetro "from" no puede ser mayor que "to"' });
     }
@@ -446,6 +496,7 @@ router.get('/timeline', async (req, res) => {
       limit: parsed.pageSize,
       cursor: parsed.cursor,
       areaId: areaFilter,
+      projectId: projectFilter,
       eventTypes,
       from: fromDate,
       to: toDate,

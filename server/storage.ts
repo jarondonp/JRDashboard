@@ -1,6 +1,6 @@
 import { db } from './db';
-import { and, desc, eq, gte, lte, sql } from 'drizzle-orm';
-import { areas, goals, tasks, progress_logs, documents, reports } from '../shared/schema';
+import { and, desc, eq, gte, lte, sql, like } from 'drizzle-orm';
+import { areas, goals, tasks, progress_logs, documents, reports, projects } from '../shared/schema';
 
 export const TIMELINE_EVENT_TYPES = ['progress_log', 'task_completed', 'goal_completed', 'document_added'] as const;
 export type TimelineEventType = typeof TIMELINE_EVENT_TYPES[number];
@@ -17,6 +17,7 @@ export interface TimelineEvent {
   };
   goal?: { id: string; title: string | null } | null;
   task?: { id: string; title: string | null } | null;
+  project?: { id: string; title: string | null; code?: string } | null;
   date: string;
   createdAt: string;
   meta?: Record<string, unknown>;
@@ -26,6 +27,7 @@ export interface TimelineQueryParams {
   limit: number;
   cursor?: string;
   areaId?: string;
+  projectId?: string;
   eventTypes?: TimelineEventType[];
   from?: Date;
   to?: Date;
@@ -48,11 +50,62 @@ export async function deleteArea(id: string) {
   return db.delete(areas).where(eq(areas.id, id));
 }
 
+// Projects
+export async function getProjects() {
+  return db.select().from(projects);
+}
+export async function getProjectById(id: string) {
+  return db.select().from(projects).where(eq(projects.id, id)).limit(1);
+}
+export async function getNextProjectCode() {
+  const lastProject = await db
+    .select({ code: projects.code })
+    .from(projects)
+    .where(like(projects.code, 'P%'))
+    .orderBy(desc(projects.code))
+    .limit(1);
+
+  if (!lastProject.length || !lastProject[0].code) {
+    return 'P0001';
+  }
+
+  const lastCode = lastProject[0].code;
+  // Extract number part assuming format PXXXX
+  const match = lastCode.match(/^P(\d+)$/);
+  if (!match) return 'P0001';
+
+  const num = parseInt(match[1], 10);
+  const nextNum = num + 1;
+  return `P${nextNum.toString().padStart(4, '0')}`;
+}
+
+export async function createProject(data: any) {
+  let projectData = { ...data };
+
+  if (!projectData.code) {
+    projectData.code = await getNextProjectCode();
+  }
+
+  return db.insert(projects).values(projectData).returning();
+}
+export async function updateProject(id: string, data: any) {
+  return db.update(projects).set(data).where(eq(projects.id, id)).returning();
+}
+export async function deleteProject(id: string) {
+  // Unlink children first (set project_id to null)
+  await db.update(goals).set({ project_id: null }).where(eq(goals.project_id, id));
+  await db.update(tasks).set({ project_id: null }).where(eq(tasks.project_id, id));
+  await db.update(documents).set({ project_id: null }).where(eq(documents.project_id, id));
+
+  return db.delete(projects).where(eq(projects.id, id));
+}
+
 // Goals
 export async function getGoals() {
   return db.select({
     id: goals.id,
     area_id: goals.area_id,
+    project_id: goals.project_id,
     title: goals.title,
     description: goals.description,
     goal_type: goals.goal_type,
@@ -63,8 +116,10 @@ export async function getGoals() {
     expected_outcome: goals.expected_outcome,
     computed_progress: goals.computed_progress,
     created_at: goals.created_at,
-    updated_at: goals.updated_at
-  }).from(goals);
+    updated_at: goals.updated_at,
+    project_status: projects.status
+  }).from(goals)
+    .leftJoin(projects, eq(goals.project_id, projects.id));
 }
 export async function getGoalById(id: string) {
   return db.select({
@@ -87,7 +142,16 @@ export async function createGoal(data: any) {
   return db.insert(goals).values(data).returning();
 }
 export async function updateGoal(id: string, data: any) {
-  return db.update(goals).set(data).where(eq(goals.id, id)).returning();
+  const result = await db.update(goals).set(data).where(eq(goals.id, id)).returning();
+
+  // Si se actualizó el proyecto, actualizar también las tareas asociadas
+  if (data.project_id !== undefined) {
+    await db.update(tasks)
+      .set({ project_id: data.project_id })
+      .where(eq(tasks.goal_id, id));
+  }
+
+  return result;
 }
 export async function deleteGoal(id: string) {
   return db.delete(goals).where(eq(goals.id, id));
@@ -98,6 +162,7 @@ export async function getTasks() {
   const result = await db.select({
     id: tasks.id,
     area_id: tasks.area_id,
+    project_id: tasks.project_id,
     goal_id: tasks.goal_id,
     title: tasks.title,
     description: tasks.description,
@@ -107,8 +172,10 @@ export async function getTasks() {
     progress_percentage: tasks.progress_percentage,
     tags: tasks.tags,
     created_at: tasks.created_at,
-    updated_at: tasks.updated_at
-  }).from(tasks);
+    updated_at: tasks.updated_at,
+    project_status: projects.status
+  }).from(tasks)
+    .leftJoin(projects, eq(tasks.project_id, projects.id));
   console.log('Storage getTasks - Sample task:', result[0]);
   return result;
 }
@@ -116,6 +183,7 @@ export async function getTaskById(id: string) {
   return db.select({
     id: tasks.id,
     area_id: tasks.area_id,
+    project_id: tasks.project_id,
     goal_id: tasks.goal_id,
     title: tasks.title,
     description: tasks.description,
@@ -129,6 +197,13 @@ export async function getTaskById(id: string) {
   }).from(tasks).where(eq(tasks.id, id)).limit(1);
 }
 export async function createTask(data: any) {
+  // Si hay una meta asignada pero no un proyecto, heredar el proyecto de la meta
+  if (data.goal_id && !data.project_id) {
+    const [goal] = await db.select().from(goals).where(eq(goals.id, data.goal_id)).limit(1);
+    if (goal && goal.project_id) {
+      data.project_id = goal.project_id;
+    }
+  }
   return db.insert(tasks).values(data).returning();
 }
 export async function updateTask(id: string, data: any) {
@@ -497,10 +572,10 @@ export async function getTimelineEvents(params: TimelineQueryParams) {
 
   const events: InternalTimelineEvent[] = [];
 
-  const { areaId, from: fromDate, to: toDate } = params;
+  const { areaId, projectId, from: fromDate, to: toDate } = params;
 
   if (eventTypes.has('progress_log')) {
-    let query = db
+    let query: any = db
       .select({
         id: progress_logs.id,
         areaId: progress_logs.area_id,
@@ -508,8 +583,12 @@ export async function getTimelineEvents(params: TimelineQueryParams) {
         areaColor: areas.color,
         goalId: progress_logs.goal_id,
         goalTitle: goals.title,
+        goalProjectId: goals.project_id,
         taskId: progress_logs.task_id,
         taskTitle: tasks.title,
+        taskProjectId: tasks.project_id,
+        projectTitle: projects.title,
+        projectCode: projects.code,
         title: progress_logs.title,
         note: progress_logs.note,
         date: progress_logs.date,
@@ -521,10 +600,12 @@ export async function getTimelineEvents(params: TimelineQueryParams) {
       .from(progress_logs)
       .innerJoin(areas, eq(areas.id, progress_logs.area_id))
       .leftJoin(goals, eq(goals.id, progress_logs.goal_id))
-      .leftJoin(tasks, eq(tasks.id, progress_logs.task_id));
+      .leftJoin(tasks, eq(tasks.id, progress_logs.task_id))
+      .leftJoin(projects, sql`${projects.id} = COALESCE(${tasks.project_id}, ${goals.project_id})`);
 
     const conditions = [];
     if (areaId) conditions.push(eq(progress_logs.area_id, areaId));
+    if (projectId) conditions.push(sql`COALESCE(${tasks.project_id}, ${goals.project_id}) = ${projectId}`);
     if (fromDate) conditions.push(gte(progress_logs.created_at, fromDate));
     if (toDate) conditions.push(lte(progress_logs.created_at, toDate));
     if (conditions.length) {
@@ -538,6 +619,7 @@ export async function getTimelineEvents(params: TimelineQueryParams) {
       const eventDate = normalizeDate(row.date) ?? createdAt;
       if (!shouldIncludeDate(eventDate, fromDate, toDate)) continue;
 
+      const projectId = row.taskProjectId ?? row.goalProjectId;
       events.push({
         id: `progress_log:${row.id}`,
         sortId: row.id,
@@ -552,6 +634,7 @@ export async function getTimelineEvents(params: TimelineQueryParams) {
         },
         goal: row.goalId ? { id: row.goalId, title: row.goalTitle ?? null } : null,
         task: row.taskId ? { id: row.taskId, title: row.taskTitle ?? null } : null,
+        project: projectId ? { id: projectId, title: row.projectTitle ?? null, code: row.projectCode } : null,
         date: eventDate.toISOString(),
         createdAt: createdAt.toISOString(),
         meta: buildMeta({
@@ -564,14 +647,17 @@ export async function getTimelineEvents(params: TimelineQueryParams) {
   }
 
   if (eventTypes.has('task_completed')) {
-    let query = db
+    let query: any = db
       .select({
         id: tasks.id,
         areaId: tasks.area_id,
+        projectId: tasks.project_id,
         areaName: areas.name,
         areaColor: areas.color,
         goalId: tasks.goal_id,
         goalTitle: goals.title,
+        projectTitle: projects.title,
+        projectCode: projects.code,
         title: tasks.title,
         description: tasks.description,
         updatedAt: tasks.updated_at,
@@ -582,10 +668,12 @@ export async function getTimelineEvents(params: TimelineQueryParams) {
       })
       .from(tasks)
       .innerJoin(areas, eq(areas.id, tasks.area_id))
-      .leftJoin(goals, eq(goals.id, tasks.goal_id));
+      .leftJoin(goals, eq(goals.id, tasks.goal_id))
+      .leftJoin(projects, eq(projects.id, tasks.project_id));
 
     const conditions = [eq(tasks.status, 'completada')];
     if (areaId) conditions.push(eq(tasks.area_id, areaId));
+    if (projectId) conditions.push(eq(tasks.project_id, projectId));
     if (fromDate) conditions.push(gte(tasks.updated_at, fromDate));
     if (toDate) conditions.push(lte(tasks.updated_at, toDate));
     if (conditions.length) {
@@ -612,6 +700,7 @@ export async function getTimelineEvents(params: TimelineQueryParams) {
         },
         goal: row.goalId ? { id: row.goalId, title: row.goalTitle ?? null } : null,
         task: { id: row.id, title: row.title },
+        project: row.projectId ? { id: row.projectId, title: row.projectTitle ?? null, code: row.projectCode } : null,
         date: updatedAt.toISOString(),
         createdAt: updatedAt.toISOString(),
         meta: buildMeta({
@@ -624,12 +713,15 @@ export async function getTimelineEvents(params: TimelineQueryParams) {
   }
 
   if (eventTypes.has('goal_completed')) {
-    let query = db
+    let query: any = db
       .select({
         id: goals.id,
         areaId: goals.area_id,
+        projectId: goals.project_id,
         areaName: areas.name,
         areaColor: areas.color,
+        projectTitle: projects.title,
+        projectCode: projects.code,
         title: goals.title,
         description: goals.description,
         updatedAt: goals.updated_at,
@@ -638,10 +730,12 @@ export async function getTimelineEvents(params: TimelineQueryParams) {
         priority: goals.priority,
       })
       .from(goals)
-      .innerJoin(areas, eq(areas.id, goals.area_id));
+      .innerJoin(areas, eq(areas.id, goals.area_id))
+      .leftJoin(projects, eq(projects.id, goals.project_id));
 
     const conditions = [eq(goals.status, 'completada')];
     if (areaId) conditions.push(eq(goals.area_id, areaId));
+    if (projectId) conditions.push(eq(goals.project_id, projectId));
     if (fromDate) conditions.push(gte(goals.updated_at, fromDate));
     if (toDate) conditions.push(lte(goals.updated_at, toDate));
     if (conditions.length) {
@@ -667,6 +761,7 @@ export async function getTimelineEvents(params: TimelineQueryParams) {
           color: row.areaColor ?? DEFAULT_AREA_COLOR,
         },
         goal: { id: row.id, title: row.title },
+        project: row.projectId ? { id: row.projectId, title: row.projectTitle ?? null, code: row.projectCode } : null,
         date: completedAt.toISOString(),
         createdAt: completedAt.toISOString(),
         meta: buildMeta({
@@ -678,16 +773,19 @@ export async function getTimelineEvents(params: TimelineQueryParams) {
   }
 
   if (eventTypes.has('document_added')) {
-    let query = db
+    let query: any = db
       .select({
         id: documents.id,
         areaId: documents.area_id,
+        projectId: documents.project_id,
         areaName: areas.name,
         areaColor: areas.color,
         goalId: documents.goal_id,
         goalTitle: goals.title,
         taskId: documents.task_id,
         taskTitle: tasks.title,
+        projectTitle: projects.title,
+        projectCode: projects.code,
         title: documents.title,
         description: documents.description,
         docType: documents.doc_type,
@@ -698,10 +796,12 @@ export async function getTimelineEvents(params: TimelineQueryParams) {
       .from(documents)
       .innerJoin(areas, eq(areas.id, documents.area_id))
       .leftJoin(goals, eq(goals.id, documents.goal_id))
-      .leftJoin(tasks, eq(tasks.id, documents.task_id));
+      .leftJoin(tasks, eq(tasks.id, documents.task_id))
+      .leftJoin(projects, eq(projects.id, documents.project_id));
 
     const conditions = [];
     if (areaId) conditions.push(eq(documents.area_id, areaId));
+    if (projectId) conditions.push(eq(documents.project_id, projectId));
     if (fromDate) conditions.push(gte(documents.created_at, fromDate));
     if (toDate) conditions.push(lte(documents.created_at, toDate));
     if (conditions.length) {
@@ -728,6 +828,7 @@ export async function getTimelineEvents(params: TimelineQueryParams) {
         },
         goal: row.goalId ? { id: row.goalId, title: row.goalTitle ?? null } : null,
         task: row.taskId ? { id: row.taskId, title: row.taskTitle ?? null } : null,
+        project: row.projectId ? { id: row.projectId, title: row.projectTitle ?? null, code: row.projectCode } : null,
         date: createdAt.toISOString(),
         createdAt: createdAt.toISOString(),
         meta: buildMeta({

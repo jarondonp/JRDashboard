@@ -34,6 +34,7 @@ function AreasPage() {
 
   const [showModal, setShowModal] = useState(false)
   const [editingArea, setEditingArea] = useState<Area | null>(null)
+  const [areaToDelete, setAreaToDelete] = useState<string | null>(null)
   const [searchTerm, setSearchTerm] = useState('')
   const [sortBy, setSortBy] = useState<'name' | 'type'>('name')
   const { density, setDensity } = useCardLayout('areas')
@@ -61,15 +62,26 @@ function AreasPage() {
     setShowModal(true)
   }
 
-  const handleDelete = async (id: string) => {
-    if (window.confirm('¿Estás seguro de eliminar esta área?')) {
-      try {
-        await deleteMutation.mutateAsync(id)
-        showToast('Área eliminada', 'success')
-      } catch (err) {
-        console.error('Error al eliminar área:', err)
-      }
+  const handleDelete = (id: string) => {
+    setAreaToDelete(id)
+  }
+
+  const confirmDelete = async () => {
+    if (!areaToDelete) return
+
+    try {
+      await deleteMutation.mutateAsync(areaToDelete)
+      showToast('Área eliminada exitosamente', 'success')
+      setAreaToDelete(null)
+    } catch (err: any) {
+      const errorMessage = err?.message || 'Error desconocido'
+      console.error('Error al eliminar área:', err)
+      showToast(`Error al eliminar área: ${errorMessage}`, 'error')
     }
+  }
+
+  const cancelDelete = () => {
+    setAreaToDelete(null)
   }
 
   const resetForm = () => {
@@ -347,6 +359,32 @@ function AreasPage() {
           onCancel={resetForm}
           isLoading={createMutation.isPending || updateMutation.isPending}
         />
+      </Modal>
+
+      {/* Delete Confirmation Modal */}
+      <Modal
+        isOpen={!!areaToDelete}
+        onClose={cancelDelete}
+        title="Confirmar Eliminación"
+        size="sm"
+      >
+        <div className="space-y-4">
+          <p className="text-gray-700">
+            ¿Estás seguro de que deseas eliminar esta área? Esta acción no se puede deshacer.
+          </p>
+          <div className="flex gap-3 justify-end">
+            <Button variant="secondary" onClick={cancelDelete}>
+              Cancelar
+            </Button>
+            <Button
+              variant="danger"
+              onClick={confirmDelete}
+              disabled={deleteMutation.isPending}
+            >
+              {deleteMutation.isPending ? 'Eliminando...' : 'Eliminar'}
+            </Button>
+          </div>
+        </div>
       </Modal>
     </div>
   )

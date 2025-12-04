@@ -3,6 +3,8 @@ import DashboardPage from './pages/DashboardPage'
 import AreasPage from './pages/AreasPage'
 import AreaDashboardPage from './pages/AreaDashboardPage'
 import AreaPanelPage from './pages/AreaPanelPage'
+import ProjectsPage from './pages/ProjectsPage'
+import ProjectDetailPage from './pages/ProjectDetailPage'
 import GoalsPage from './pages/GoalsPage'
 import GoalsByAreaPage from './pages/GoalsByAreaPage'
 import TasksPage from './pages/TasksPage'
@@ -37,8 +39,11 @@ function App() {
               <Routes>
                 <Route path="/" element={<DashboardPage />} />
                 <Route path="/areas" element={<AreasPage />} />
+                <Route path="/areas" element={<AreasPage />} />
                 <Route path="/areas/:areaId/dashboard" element={<AreaDashboardPage />} />
                 <Route path="/areas/:areaId/panel" element={<AreaPanelPage />} />
+                <Route path="/projects" element={<ProjectsPage />} />
+                <Route path="/projects/:id" element={<ProjectDetailPage />} />
                 <Route path="/goals" element={<GoalsPage />} />
                 <Route path="/goals/by-area" element={<GoalsByAreaPage />} />
                 <Route path="/tasks" element={<TasksPage />} />

@@ -4,6 +4,9 @@ import type { Document, DocumentInput } from '../../services/documentsApi'
 import { useAreas } from '../../hooks/useAreas'
 import { useGoals } from '../../hooks/useGoals'
 import { useTasks } from '../../hooks/useTasks'
+import { useProjects } from '../../hooks/useProjects'
+import { useGlobalModal } from '../../context/GlobalModalContext'
+import { SmartSelect } from '../SmartSelect'
 
 interface DocumentFormProps {
     initialData?: Document | null
@@ -15,6 +18,7 @@ interface DocumentFormProps {
 
 export const createEmptyDocumentInput = (): DocumentInput => ({
     area_id: '',
+    project_id: '',
     goal_id: '',
     task_id: '',
     title: '',
@@ -34,12 +38,15 @@ export function DocumentForm({
     const { data: areas } = useAreas()
     const { data: goals } = useGoals()
     const { data: tasks } = useTasks()
+    const { data: projects } = useProjects()
+    const { openModal } = useGlobalModal()
     const [formData, setFormData] = useState<DocumentInput>(createEmptyDocumentInput())
 
     useEffect(() => {
         if (initialData) {
             setFormData({
                 area_id: initialData.area_id,
+                project_id: initialData.project_id || '',
                 goal_id: initialData.goal_id || '',
                 task_id: initialData.task_id || '',
                 title: initialData.title,
@@ -54,6 +61,7 @@ export function DocumentForm({
     }, [initialData])
 
     const filteredGoals = goals?.filter(g => g.area_id === formData.area_id) || []
+    const filteredProjects = projects?.filter(p => p.area_id === formData.area_id || !p.area_id) || []
 
     const filteredTasks = tasks?.filter(t => {
         if (t.area_id !== formData.area_id) return false
@@ -65,43 +73,62 @@ export function DocumentForm({
         e.preventDefault()
         const cleanData: DocumentInput = {
             ...formData,
-            goal_id: formData.goal_id || undefined, // undefined for optional fields in DocumentInput?
+            project_id: formData.project_id || undefined,
+            goal_id: formData.goal_id || undefined,
             task_id: formData.task_id || undefined,
             description: formData.description || undefined,
             url: formData.url || undefined,
             review_date: formData.review_date || undefined,
         }
-        // Note: DocumentInput uses optional fields (?), so undefined is correct.
-        // But if backend expects null, we might need to cast or change type.
-        // In schema.ts, they are optional() which means undefined is fine for Zod.
-        // But storage might expect null?
-        // Let's check schema.ts again.
-        // insertDocumentSchema: goal_id: z.string().optional()
-        // So undefined is fine.
-
         await onSubmit(cleanData)
+    }
+
+    const handleCreateArea = () => {
+        openModal('area', 'create', null, (newArea) => {
+            if (newArea?.id) {
+                setFormData(prev => ({ ...prev, area_id: newArea.id, project_id: '', goal_id: '', task_id: '' }))
+            }
+        })
+    }
+
+    const handleCreateProject = () => {
+        if (!formData.area_id) return
+        openModal('project', 'create', { area_id: formData.area_id }, (newProject) => {
+            if (newProject?.id) {
+                setFormData(prev => ({ ...prev, project_id: newProject.id }))
+            }
+        })
     }
 
     return (
         <form onSubmit={handleSubmit} className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Área *
-                    </label>
-                    <select
+                    <SmartSelect
+                        label="Área *"
                         required
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                         value={formData.area_id}
-                        onChange={(e) => setFormData({ ...formData, area_id: e.target.value, goal_id: '', task_id: '' })}
-                    >
-                        <option value="">Seleccionar área</option>
-                        {areas?.map((area) => (
-                            <option key={area.id} value={area.id}>{area.name}</option>
-                        ))}
-                    </select>
+                        onChange={(e) => setFormData({ ...formData, area_id: e.target.value, project_id: '', goal_id: '', task_id: '' })}
+                        options={areas?.map(a => ({ value: a.id, label: a.name })) || []}
+                        onCreate={handleCreateArea}
+                        createLabel="Crear nueva Área"
+                    />
                 </div>
 
+                <div>
+                    <SmartSelect
+                        label="Proyecto (opcional)"
+                        value={formData.project_id || ''}
+                        onChange={(e) => setFormData({ ...formData, project_id: e.target.value })}
+                        options={filteredProjects.map(p => ({ value: p.id, label: p.area_id ? p.title : `${p.title} (Global)` }))}
+                        onCreate={handleCreateProject}
+                        createLabel="Crear nuevo Proyecto"
+                        disabled={!formData.area_id}
+                    />
+                </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                         Meta (opcional)
@@ -118,23 +145,23 @@ export function DocumentForm({
                         ))}
                     </select>
                 </div>
-            </div>
 
-            <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Tarea (opcional)
-                </label>
-                <select
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-shadow"
-                    value={formData.task_id || ''}
-                    onChange={(e) => setFormData({ ...formData, task_id: e.target.value })}
-                    disabled={!formData.area_id}
-                >
-                    <option value="">Sin tarea</option>
-                    {filteredTasks.map((task) => (
-                        <option key={task.id} value={task.id}>{task.title}</option>
-                    ))}
-                </select>
+                <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Tarea (opcional)
+                    </label>
+                    <select
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-shadow"
+                        value={formData.task_id || ''}
+                        onChange={(e) => setFormData({ ...formData, task_id: e.target.value })}
+                        disabled={!formData.area_id}
+                    >
+                        <option value="">Sin tarea</option>
+                        {filteredTasks.map((task) => (
+                            <option key={task.id} value={task.id}>{task.title}</option>
+                        ))}
+                    </select>
+                </div>
             </div>
 
             <div>

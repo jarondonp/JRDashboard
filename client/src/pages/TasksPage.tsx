@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useCallback } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
@@ -10,6 +10,7 @@ import {
   useCardLayout,
   useViewMode,
   useRegisterQuickAction,
+  useProjects,
 } from '../hooks'
 import {
   Card,
@@ -41,6 +42,7 @@ function TasksPage() {
   const { data: areas } = useAreas()
   const { data: goals } = useGoals()
   const { data: progressLogs } = useProgressLogs()
+  const { data: projects } = useProjects()
   const deleteMutation = useDeleteTask()
   const { showToast } = useToast()
 
@@ -83,6 +85,7 @@ function TasksPage() {
   const [activeTab, setActiveTab] = useState<'list' | 'overdue' | 'kanban'>('list')
   const { openModal } = useGlobalModal()
   const [searchTerm, setSearchTerm] = useState('')
+  const [selectedProjectId, setSelectedProjectId] = useState<string>('')
   const [sortBy, setSortBy] = useState<'progress' | 'due_date' | 'title'>('progress')
   const { density, setDensity } = useCardLayout('tasks')
   const { mode: viewMode, setMode: setViewMode } = useViewMode('tasks:view-mode', 'table')
@@ -149,26 +152,45 @@ function TasksPage() {
     return goals?.find(g => g.id === goalId)?.title || 'Meta desconocida'
   }
 
+  const getProjectName = (projectId?: string | null) => {
+    if (!projectId) return 'Global'
+    return projects?.find(p => p.id === projectId)?.title || 'Proyecto desconocido'
+  }
+
+  const getProjectCode = (projectId?: string | null) => {
+    if (!projectId) return null
+    return projects?.find(p => p.id === projectId)?.code
+  }
+
 
 
   const filteredTasksList = useMemo(() => {
     if (!tasks) return []
-    const normalizedSearch = searchTerm.trim().toLowerCase()
-    if (!normalizedSearch) return [...tasks]
 
     return tasks.filter((task) => {
+      // Always check project filter first
+      const matchesProject = selectedProjectId ? task.project_id === selectedProjectId : true
+      if (!matchesProject) return false
+
+      // Then apply search filter if search term exists
+      const normalizedSearch = searchTerm.trim().toLowerCase()
+      if (!normalizedSearch) return true // No search term, just use project filter
+
       const title = task.title.toLowerCase()
       const description = (task.description || '').toLowerCase()
       const status = task.status.toLowerCase()
       const areaName = getAreaName(task.area_id).toLowerCase()
       const goalTitle = task.goal_id ? (getGoalTitle(task.goal_id) || '').toLowerCase() : ''
+      const projectName = getProjectName(task.project_id).toLowerCase()
       const tags = (task.tags || []).join(' ').toLowerCase()
 
-      return [title, description, status, areaName, goalTitle, tags].some((value) =>
+      const matchesSearch = [title, description, status, areaName, goalTitle, projectName, tags].some((value) =>
         value.includes(normalizedSearch),
       )
+
+      return matchesSearch
     })
-  }, [tasks, searchTerm, areas, goals])
+  }, [tasks, searchTerm, areas, goals, selectedProjectId, projects])
 
   const dashboardFilteredTasks = useMemo(() => {
     return filterTasksForDashboard(filteredTasksList, taskDashboardFilter)
@@ -345,6 +367,20 @@ function TasksPage() {
             density={density}
             onDensityChange={setDensity}
           />
+
+          <div className="flex items-center gap-2">
+            <select
+              value={selectedProjectId}
+              onChange={(e) => setSelectedProjectId(e.target.value)}
+              className="rounded-lg border-gray-300 text-sm focus:ring-indigo-500 focus:border-indigo-500"
+            >
+              <option value="">Todos los proyectos</option>
+              {projects?.map(project => (
+                <option key={project.id} value={project.id}>{project.title}</option>
+              ))}
+            </select>
+          </div>
+
           {activeTab === 'list' && <ViewModeToggle mode={viewMode} onChange={setViewMode} />}
         </div>
         {activeDashboardFilterLabel && (
@@ -387,7 +423,14 @@ function TasksPage() {
                           <Card hover className="h-full" minHeightClass="min-h-[260px]">
                             <CardHeader>
                               <div className="flex justify-between items-start">
-                                <h3 className="text-lg font-semibold text-gray-800 flex-1">{task.title}</h3>
+                                <h3 className="text-lg font-semibold text-gray-800 flex-1">
+                                  {getProjectCode(task.project_id) && (
+                                    <span className="mr-2 text-indigo-600 font-mono text-sm bg-indigo-50 px-1.5 py-0.5 rounded">
+                                      [{getProjectCode(task.project_id)}]
+                                    </span>
+                                  )}
+                                  {task.title}
+                                </h3>
                                 <div className="flex gap-2 ml-2">
                                   <button
                                     onClick={() => handleEdit(task)}
@@ -414,6 +457,9 @@ function TasksPage() {
                                     <strong>Meta:</strong> {getGoalTitle(task.goal_id)}
                                   </p>
                                 )}
+                                <p className="text-sm text-gray-600">
+                                  <strong>Proyecto:</strong> {getProjectName(task.project_id)}
+                                </p>
                                 {task.description && (
                                   <p className="text-sm text-gray-700">{task.description}</p>
                                 )}
@@ -483,6 +529,7 @@ function TasksPage() {
                           <th className="px-4 py-3">Tarea</th>
                           <th className="px-4 py-3">Área</th>
                           <th className="px-4 py-3">Meta</th>
+                          <th className="px-4 py-3">Proyecto</th>
                           <th className="px-4 py-3">Estado</th>
                           <th className="px-4 py-3">Progreso</th>
                           <th className="px-4 py-3">Fechas</th>
@@ -498,7 +545,14 @@ function TasksPage() {
                             <tr key={task.id} className="hover:bg-indigo-50/40 transition">
                               <td className="px-4 py-3">
                                 <div className="flex flex-col">
-                                  <span className="font-semibold text-gray-800">{task.title}</span>
+                                  <span className="font-semibold text-gray-800">
+                                    {getProjectCode(task.project_id) && (
+                                      <span className="mr-2 text-indigo-600 font-mono text-xs bg-indigo-50 px-1.5 py-0.5 rounded">
+                                        [{getProjectCode(task.project_id)}]
+                                      </span>
+                                    )}
+                                    {task.title}
+                                  </span>
                                   {task.description && (
                                     <span className="text-xs text-gray-500 line-clamp-2">{task.description}</span>
                                   )}
@@ -511,6 +565,11 @@ function TasksPage() {
                               </td>
                               <td className="px-4 py-3 text-xs text-gray-600">
                                 {task.goal_id ? getGoalTitle(task.goal_id) : '—'}
+                              </td>
+                              <td className="px-4 py-3 text-xs text-gray-600">
+                                <span className="inline-flex items-center rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-700">
+                                  {getProjectName(task.project_id)}
+                                </span>
                               </td>
                               <td className="px-4 py-3">
                                 <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${getStatusColor(task.status)}`}>
@@ -639,7 +698,14 @@ function TasksPage() {
                         <Card key={task.id} hover className="kanban-card" minHeightClass="min-h-[190px]">
                           <CardHeader>
                             <div className="flex items-start justify-between gap-2">
-                              <h3 className="flex-1 text-sm font-semibold text-gray-800 line-clamp-2">{task.title}</h3>
+                              <h3 className="flex-1 text-sm font-semibold text-gray-800 line-clamp-2">
+                                {getProjectCode(task.project_id) && (
+                                  <span className="mr-1 text-indigo-600 font-mono text-xs bg-indigo-50 px-1 py-0.5 rounded">
+                                    [{getProjectCode(task.project_id)}]
+                                  </span>
+                                )}
+                                {task.title}
+                              </h3>
                               <div className="flex gap-2 text-sm">
                                 <button
                                   onClick={() => handleEdit(task)}
@@ -669,6 +735,9 @@ function TasksPage() {
                                     {getGoalTitle(task.goal_id)}
                                   </span>
                                 )}
+                                <span className="inline-flex items-center rounded-full bg-blue-100 px-2 py-0.5 font-medium text-blue-700">
+                                  {getProjectName(task.project_id)}
+                                </span>
                                 <span className={`inline-flex items-center rounded-full px-2 py-0.5 font-medium capitalize ${statusColor}`}>
                                   {task.status.replace('_', ' ')}
                                 </span>

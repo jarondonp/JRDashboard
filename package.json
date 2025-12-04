@@ -1,6 +1,7 @@
 {
   "scripts": {
-    "seed:personal": "ts-node server/seedPersonalData.ts"
+    "seed:personal": "ts-node server/seedPersonalData.ts",
+    "dev": "ts-node server/index.ts"
   },
   "dependencies": {
     "dotenv": "^17.2.3",
@@ -12,6 +13,7 @@
   "devDependencies": {
     "@types/express": "^5.0.5",
     "@types/node": "^24.10.1",
+    "drizzle-kit": "^0.31.7",
     "ts-node": "^10.9.2",
     "typescript": "^5.6.3"
   }

@@ -6,6 +6,7 @@ export const ALL_TIMELINE_EVENT_TYPES: TimelineEventType[] = [...TIMELINE_EVENT_
 
 export interface UseTimelineParams {
   areaId?: string;
+  projectId?: string;
   eventTypes?: TimelineEventType[];
   from?: string;
   to?: string;
@@ -14,7 +15,7 @@ export interface UseTimelineParams {
 }
 
 export function useTimeline(params: UseTimelineParams) {
-  const { areaId, from, to, pageSize = 20, enabled = true } = params;
+  const { areaId, projectId, from, to, pageSize = 20, enabled = true } = params;
   const eventTypes = params.eventTypes;
 
   const eventTypesKey = eventTypes && eventTypes.length
@@ -32,6 +33,7 @@ export function useTimeline(params: UseTimelineParams) {
       'timeline',
       {
         areaId: areaId ?? null,
+        projectId: projectId ?? null,
         eventTypes: normalizedEventTypes ?? null,
         from: from ?? null,
         to: to ?? null,
@@ -42,6 +44,7 @@ export function useTimeline(params: UseTimelineParams) {
       fetchTimeline({
         cursor: typeof pageParam === 'string' ? pageParam : undefined,
         areaId: areaId || undefined,
+        projectId: projectId || undefined,
         eventTypes: normalizedEventTypes,
         from,
         to,

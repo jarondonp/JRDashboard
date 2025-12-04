@@ -20,6 +20,13 @@ const QUICK_ACTIONS = [
     accent: 'from-sky-500 to-indigo-500',
   },
   {
+    id: 'project:create' as const,
+    title: 'Nuevo proyecto',
+    subtitle: 'Inicia un esfuerzo coordinado',
+    icon: '🚀',
+    accent: 'from-orange-500 to-amber-500',
+  },
+  {
     id: 'goal:create' as const,
     title: 'Nueva meta',
     subtitle: 'Define un objetivo estratégico',
@@ -58,6 +65,8 @@ export function QuickActionMenu() {
       openModal('task', 'create');
     } else if (actionId === 'goal:create') {
       openModal('goal', 'create');
+    } else if (actionId === 'project:create') {
+      openModal('project', 'create');
     } else if (actionId === 'progress:create') {
       navigate('/progress', { state: { quickAction: actionId }, replace: false });
     }

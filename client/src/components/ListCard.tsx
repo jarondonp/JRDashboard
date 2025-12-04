@@ -4,6 +4,7 @@ interface ListItem {
   id: string;
   title: string;
   subtitle?: string;
+  project?: string;
   badge?: {
     text: string;
     color: 'blue' | 'green' | 'yellow' | 'red' | 'purple' | 'gray';
@@ -19,12 +20,12 @@ interface ListCardProps {
   onItemClick?: (id: string) => void;
 }
 
-export function ListCard({ 
-  title, 
-  items, 
+export function ListCard({
+  title,
+  items,
   emptyMessage = 'No hay elementos para mostrar',
   maxItems = 5,
-  onItemClick 
+  onItemClick
 }: ListCardProps) {
   const displayItems = items.slice(0, maxItems);
   const hasMore = items.length > maxItems;
@@ -41,14 +42,21 @@ export function ListCard({
         ) : (
           <ul className="list-card__list">
             {displayItems.map((item) => (
-              <li 
-                key={item.id} 
+              <li
+                key={item.id}
                 className="list-card__item"
                 onClick={() => onItemClick?.(item.id)}
                 style={{ cursor: onItemClick ? 'pointer' : 'default' }}
               >
                 <div className="list-card__item-content">
-                  <div className="list-card__item-title">{item.title}</div>
+                  <div className="list-card__item-header">
+                    <div className="list-card__item-title">{item.title}</div>
+                    {item.project && (
+                      <span className="list-card__project-badge">
+                        {item.project}
+                      </span>
+                    )}
+                  </div>
                   {item.subtitle && (
                     <div className="list-card__item-subtitle">{item.subtitle}</div>
                   )}
