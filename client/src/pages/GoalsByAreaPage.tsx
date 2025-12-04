@@ -9,11 +9,13 @@ import {
   Tabs,
   InlineCreateButton,
 } from '../components';
-import { useAreas, useGoals, useTasks } from '../hooks';
+import { useAreas, useGoals, useTasks, useProjects } from '../hooks';
 import type { Goal } from '../services/goalsApi';
+import { ProjectFilterDropdown } from '../components/ProjectFilterDropdown';
 
 type StatusFilter = 'all' | 'completada' | 'en_progreso' | 'pendiente';
 type PriorityFilter = 'all' | 'alta' | 'media' | 'baja';
+type ViewMode = 'grid' | 'list';
 
 const DEFAULT_AREA_COLOR = '#6366F1';
 
@@ -69,11 +71,14 @@ function GoalsByAreaPage() {
   const { data: areas, isLoading: loadingAreas } = useAreas();
   const { data: goals, isLoading: loadingGoals, error } = useGoals();
   const { data: tasks, isLoading: loadingTasks } = useTasks();
+  const { data: projects } = useProjects();
 
   const [activeTab, setActiveTab] = useState<'list' | 'by-area' | 'compliance'>('by-area');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [priorityFilter, setPriorityFilter] = useState<PriorityFilter>('all');
   const [searchTerm, setSearchTerm] = useState('');
+  const [selectedProject, setSelectedProject] = useState<string>('');
+  const [viewMode, setViewMode] = useState<ViewMode>('grid');
 
   const handleTabChange = (tabId: 'list' | 'by-area' | 'compliance') => {
     setActiveTab(tabId);
@@ -123,6 +128,7 @@ function GoalsByAreaPage() {
     goals.forEach((goal) => {
       if (statusFilter !== 'all' && goal.status !== statusFilter) return;
       if (priorityFilter !== 'all' && goal.priority !== priorityFilter) return;
+      if (selectedProject && goal.project_id !== selectedProject) return;
 
       const searchMatch =
         !normalizedSearch ||
@@ -186,7 +192,7 @@ function GoalsByAreaPage() {
     }));
 
     return summaries.sort((a, b) => b.avgProgress - a.avgProgress);
-  }, [areas, goals, statusFilter, priorityFilter, searchTerm, tasksByArea, tasksByGoal]);
+  }, [areas, goals, statusFilter, priorityFilter, searchTerm, selectedProject, tasksByArea, tasksByGoal]);
 
   const overallSummary = useMemo(() => {
     const totals = filteredSummaries.reduce(
@@ -210,6 +216,11 @@ function GoalsByAreaPage() {
           : 0,
     };
   }, [filteredSummaries]);
+
+  const getProjectInfo = (projectId?: string | null) => {
+    if (!projectId || !projects) return null;
+    return projects.find(p => p.id === projectId);
+  };
 
   const isLoading = loadingAreas || loadingGoals || loadingTasks;
 
@@ -291,62 +302,81 @@ function GoalsByAreaPage() {
         </div>
 
         <Card>
-          <CardBody className="space-y-4">
-            <div className="grid grid-cols-1 xl:grid-cols-4 gap-4">
-              <div className="space-y-2">
-                <label className="block text-sm font-medium text-gray-700">Buscar</label>
-                <input
-                  type="search"
-                  value={searchTerm}
-                  onChange={(event) => setSearchTerm(event.target.value)}
-                  placeholder="Filtra por título o descripción..."
-                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <label className="block text-sm font-medium text-gray-700">Estado</label>
-                <div className="flex flex-wrap gap-2">
-                  {(Object.keys(STATUS_LABELS) as StatusFilter[]).map((key) => (
-                    <Button
-                      key={key}
-                      size="sm"
-                      variant={statusFilter === key ? 'primary' : 'ghost'}
-                      onClick={() => setStatusFilter(key)}
-                    >
-                      {STATUS_LABELS[key]}
-                    </Button>
-                  ))}
+          <CardBody className="space-y-6">
+            <div className="flex flex-col lg:flex-row gap-6">
+              {/* Search & Project Filter Column */}
+              <div className="flex-1 space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <label className="block text-sm font-medium text-gray-700">Buscar</label>
+                    <input
+                      type="search"
+                      value={searchTerm}
+                      onChange={(event) => setSearchTerm(event.target.value)}
+                      placeholder="Filtra por título o descripción..."
+                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="block text-sm font-medium text-gray-700">Proyecto</label>
+                    <ProjectFilterDropdown
+                      selectedProject={selectedProject}
+                      onChange={setSelectedProject}
+                      projects={projects ?? []}
+                    />
+                  </div>
                 </div>
               </div>
 
-              <div className="space-y-2">
-                <label className="block text-sm font-medium text-gray-700">Prioridad</label>
-                <div className="flex flex-wrap gap-2">
-                  {(Object.keys(PRIORITY_LABELS) as PriorityFilter[]).map((key) => (
-                    <Button
-                      key={key}
-                      size="sm"
-                      variant={priorityFilter === key ? 'secondary' : 'ghost'}
-                      onClick={() => setPriorityFilter(key)}
-                    >
-                      {PRIORITY_LABELS[key]}
-                    </Button>
-                  ))}
+              {/* Filters Column */}
+              <div className="flex-1 space-y-4">
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium text-gray-700">Estado</label>
+                  <div className="flex flex-wrap gap-2">
+                    {(Object.keys(STATUS_LABELS) as StatusFilter[]).map((key) => (
+                      <Button
+                        key={key}
+                        size="sm"
+                        variant={statusFilter === key ? 'primary' : 'ghost'}
+                        onClick={() => setStatusFilter(key)}
+                      >
+                        {STATUS_LABELS[key]}
+                      </Button>
+                    ))}
+                  </div>
                 </div>
-              </div>
 
-              <div className="flex items-end">
-                <Button
-                  variant="ghost"
-                  onClick={() => {
-                    setStatusFilter('all');
-                    setPriorityFilter('all');
-                    setSearchTerm('');
-                  }}
-                >
-                  Limpiar filtros
-                </Button>
+                <div className="flex items-center justify-between">
+                  <div className="space-y-2">
+                    <label className="block text-sm font-medium text-gray-700">Prioridad</label>
+                    <div className="flex flex-wrap gap-2">
+                      {(Object.keys(PRIORITY_LABELS) as PriorityFilter[]).map((key) => (
+                        <Button
+                          key={key}
+                          size="sm"
+                          variant={priorityFilter === key ? 'secondary' : 'ghost'}
+                          onClick={() => setPriorityFilter(key)}
+                        >
+                          {PRIORITY_LABELS[key]}
+                        </Button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      setStatusFilter('all');
+                      setPriorityFilter('all');
+                      setSearchTerm('');
+                      setSelectedProject('');
+                    }}
+                    className="text-gray-500 hover:text-gray-700"
+                  >
+                    Limpiar filtros
+                  </Button>
+                </div>
               </div>
             </div>
           </CardBody>
@@ -361,7 +391,7 @@ function GoalsByAreaPage() {
             </CardBody>
           </Card>
         ) : (
-          <div className="space-y-6">
+          <div className="space-y-8">
             {filteredSummaries.map((areaSummary) => {
               const tasksCompletionRate =
                 areaSummary.tasksTotal > 0
@@ -374,13 +404,13 @@ function GoalsByAreaPage() {
                   initial={{ opacity: 0, y: 15 }}
                   animate={{ opacity: 1, y: 0 }}
                 >
-                  <Card className="border border-indigo-100 shadow-md">
-                    <CardHeader>
+                  <Card className="border border-indigo-100 shadow-md overflow-hidden">
+                    <CardHeader className="bg-gradient-to-r from-white to-gray-50 border-b border-gray-100">
                       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                         <div>
                           <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
                             <span
-                              className="inline-block w-3 h-3 rounded-full"
+                              className="inline-block w-4 h-4 rounded-full shadow-sm"
                               style={{ backgroundColor: areaSummary.areaColor ?? DEFAULT_AREA_COLOR }}
                             />
                             {areaSummary.areaName}
@@ -392,32 +422,53 @@ function GoalsByAreaPage() {
                               variant="ghost"
                             />
                           </h2>
-                          <p className="text-sm text-gray-500">
+                          <p className="text-sm text-gray-500 mt-1">
                             {areaSummary.totalGoals} metas · {areaSummary.tasksTotal} tareas asignadas
                           </p>
                         </div>
-                        <div className="flex flex-wrap gap-2 text-sm">
-                          <span className="px-3 py-1 rounded-full bg-emerald-50 text-emerald-700 font-semibold">
-                            {areaSummary.completedGoals} completadas
-                          </span>
-                          <span className="px-3 py-1 rounded-full bg-indigo-50 text-indigo-700 font-semibold">
-                            {areaSummary.inProgressGoals} en progreso
-                          </span>
-                          <span className="px-3 py-1 rounded-full bg-amber-50 text-amber-700 font-semibold">
-                            {areaSummary.pendingGoals} pendientes
-                          </span>
-                          <span className="px-3 py-1 rounded-full bg-purple-50 text-purple-700 font-semibold">
-                            Promedio {areaSummary.avgProgress}%
-                          </span>
+                        <div className="flex flex-col items-end gap-3">
+                          <div className="flex bg-gray-100 p-1 rounded-lg">
+                            <button
+                              onClick={() => setViewMode('grid')}
+                              className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all ${viewMode === 'grid'
+                                  ? 'bg-white text-indigo-600 shadow-sm'
+                                  : 'text-gray-500 hover:text-gray-700'
+                                }`}
+                            >
+                              <span className="mr-1">⊞</span> Tarjetas
+                            </button>
+                            <button
+                              onClick={() => setViewMode('list')}
+                              className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all ${viewMode === 'list'
+                                  ? 'bg-white text-indigo-600 shadow-sm'
+                                  : 'text-gray-500 hover:text-gray-700'
+                                }`}
+                            >
+                              <span className="mr-1">☰</span> Lista
+                            </button>
+                          </div>
+                          <div className="flex flex-wrap gap-2 text-xs">
+                            <span className="px-3 py-1 rounded-full bg-emerald-50 text-emerald-700 font-semibold border border-emerald-100">
+                              {areaSummary.completedGoals} completadas
+                            </span>
+                            <span className="px-3 py-1 rounded-full bg-indigo-50 text-indigo-700 font-semibold border border-indigo-100">
+                              {areaSummary.inProgressGoals} en progreso
+                            </span>
+                            <span className="px-3 py-1 rounded-full bg-purple-50 text-purple-700 font-semibold border border-purple-100">
+                              Promedio {areaSummary.avgProgress}%
+                            </span>
+                          </div>
                         </div>
                       </div>
                     </CardHeader>
-                    <CardBody className="space-y-6">
+
+                    <CardBody className="space-y-6 bg-white/50">
                       <div>
-                        <p className="text-xs font-semibold uppercase text-gray-500 mb-2">
-                          Avance global del área
-                        </p>
-                        <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
+                        <div className="flex justify-between text-xs font-semibold uppercase text-gray-500 mb-2">
+                          <span>Avance global del área</span>
+                          <span>{areaSummary.avgProgress}%</span>
+                        </div>
+                        <div className="w-full bg-gray-200 rounded-full h-2.5 overflow-hidden shadow-inner">
                           <motion.div
                             initial={{ width: 0 }}
                             animate={{ width: `${areaSummary.avgProgress}%` }}
@@ -427,105 +478,164 @@ function GoalsByAreaPage() {
                         </div>
                       </div>
 
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {areaSummary.goals.map((goal) => {
-                          const tasksStats = tasksByGoal.get(goal.id!) ?? { total: 0, completed: 0 };
-                          const tasksRate =
-                            tasksStats.total > 0
-                              ? Math.round((tasksStats.completed / tasksStats.total) * 100)
-                              : 0;
+                      {viewMode === 'grid' ? (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          {areaSummary.goals.map((goal) => {
+                            const tasksStats = tasksByGoal.get(goal.id!) ?? { total: 0, completed: 0 };
+                            const tasksRate =
+                              tasksStats.total > 0
+                                ? Math.round((tasksStats.completed / tasksStats.total) * 100)
+                                : 0;
+                            const project = getProjectInfo(goal.project_id);
 
-                          return (
-                            <Card key={goal.id} className="border border-gray-100">
-                              <CardHeader>
-                                <div className="flex justify-between items-start gap-3">
-                                  <div>
-                                    <h3 className="text-lg font-semibold text-gray-800">{goal.title}</h3>
-                                    {goal.goal_type && (
-                                      <span className="text-xs font-semibold px-2 py-1 rounded-full bg-indigo-50 text-indigo-700">
-                                        {goal.goal_type}
-                                      </span>
-                                    )}
-                                  </div>
-                                  <span
-                                    className={`px-2 py-1 rounded-full text-xs font-semibold ${goal.status === 'completada'
+                            return (
+                              <Card key={goal.id} className="border border-gray-100 hover:shadow-md transition-shadow duration-200">
+                                <CardHeader className="pb-3">
+                                  <div className="flex justify-between items-start gap-3">
+                                    <div className="space-y-1">
+                                      {project && (
+                                        <div className="flex items-center gap-1.5 mb-1">
+                                          {project.code && (
+                                            <span className="font-mono text-[10px] bg-indigo-50 text-indigo-600 px-1.5 py-0.5 rounded border border-indigo-100">
+                                              {project.code}
+                                            </span>
+                                          )}
+                                          <span className="text-xs text-gray-500 font-medium truncate max-w-[150px]">
+                                            {project.title}
+                                          </span>
+                                        </div>
+                                      )}
+                                      <h3 className="text-lg font-semibold text-gray-800 leading-tight">{goal.title}</h3>
+                                      {goal.goal_type && (
+                                        <span className="inline-block text-[10px] font-semibold px-2 py-0.5 rounded-full bg-gray-100 text-gray-600">
+                                          {goal.goal_type}
+                                        </span>
+                                      )}
+                                    </div>
+                                    <span
+                                      className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wide ${goal.status === 'completada'
                                         ? 'bg-emerald-100 text-emerald-700'
                                         : goal.status === 'en_progreso'
                                           ? 'bg-blue-100 text-blue-700'
                                           : 'bg-gray-100 text-gray-700'
-                                      }`}
-                                  >
-                                    {goal.status.replace('_', ' ')}
-                                  </span>
-                                </div>
-                              </CardHeader>
-                              <CardBody className="space-y-4">
-                                {goal.description && (
-                                  <p className="text-sm text-gray-600">{goal.description}</p>
-                                )}
-
-                                <div>
-                                  <p className="text-xs font-semibold text-gray-500 uppercase">Progreso</p>
-                                  <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
-                                    <motion.div
-                                      initial={{ width: 0 }}
-                                      animate={{ width: `${goal.progress}%` }}
-                                      transition={{ duration: 0.6 }}
-                                      className="h-full rounded-full bg-gradient-to-r from-indigo-500 to-purple-500"
-                                    />
+                                        }`}
+                                    >
+                                      {goal.status.replace('_', ' ')}
+                                    </span>
                                   </div>
-                                  <p className="text-xs text-gray-500 mt-1">{goal.progress}% completado</p>
-                                </div>
+                                </CardHeader>
+                                <CardBody className="space-y-4 pt-0">
+                                  {goal.description && (
+                                    <p className="text-sm text-gray-600 line-clamp-2">{goal.description}</p>
+                                  )}
 
-                                <div className="grid grid-cols-2 gap-3 text-xs text-gray-500">
                                   <div>
-                                    <p className="font-semibold text-gray-700">Inicio</p>
-                                    <p>{formatDate(goal.start_date)}</p>
+                                    <div className="flex justify-between text-xs text-gray-500 mb-1">
+                                      <span>Progreso</span>
+                                      <span className="font-medium">{goal.progress}%</span>
+                                    </div>
+                                    <div className="w-full bg-gray-100 rounded-full h-1.5 overflow-hidden">
+                                      <motion.div
+                                        initial={{ width: 0 }}
+                                        animate={{ width: `${goal.progress}%` }}
+                                        transition={{ duration: 0.6 }}
+                                        className={`h-full rounded-full ${goal.status === 'completada' ? 'bg-emerald-500' : 'bg-indigo-500'
+                                          }`}
+                                      />
+                                    </div>
                                   </div>
-                                  <div>
-                                    <p className="font-semibold text-gray-700">Vencimiento</p>
-                                    <p>{formatDate(goal.due_date)}</p>
+
+                                  <div className="flex items-center justify-between text-xs text-gray-500 bg-gray-50 p-2 rounded-lg">
+                                    <div className="text-center flex-1 border-r border-gray-200">
+                                      <p className="font-semibold text-gray-700">Inicio</p>
+                                      <p>{formatDate(goal.start_date)}</p>
+                                    </div>
+                                    <div className="text-center flex-1">
+                                      <p className="font-semibold text-gray-700">Vencimiento</p>
+                                      <p>{formatDate(goal.due_date)}</p>
+                                    </div>
                                   </div>
-                                </div>
 
-                                <div className="flex flex-wrap gap-2 text-xs">
-                                  <span className="px-2 py-1 rounded-full bg-purple-100 text-purple-700 font-semibold">
-                                    Prioridad {goal.priority}
-                                  </span>
-                                  <span className="px-2 py-1 rounded-full bg-emerald-100 text-emerald-700 font-semibold">
-                                    Tareas: {tasksStats.completed}/{tasksStats.total}
-                                  </span>
-                                  <span className="px-2 py-1 rounded-full bg-sky-100 text-sky-700 font-semibold">
-                                    Avance tareas {tasksRate}%
-                                  </span>
-                                </div>
-
-                                {goal.tags && goal.tags.length > 0 && (
-                                  <div className="flex flex-wrap gap-2 text-xs text-gray-500">
-                                    {goal.tags.map((tag, index) => (
-                                      <span key={`${goal.id}-tag-${index}`} className="px-2 py-1 rounded-full bg-gray-100 text-gray-700">
-                                        #{tag}
+                                  <div className="flex flex-wrap gap-2 text-xs">
+                                    <span className={`px-2 py-1 rounded-full font-semibold ${goal.priority === 'alta' ? 'bg-red-50 text-red-700' :
+                                        goal.priority === 'media' ? 'bg-amber-50 text-amber-700' :
+                                          'bg-green-50 text-green-700'
+                                      }`}>
+                                      Prioridad {goal.priority}
+                                    </span>
+                                    <span className="px-2 py-1 rounded-full bg-slate-100 text-slate-700 font-semibold">
+                                      Tareas: {tasksStats.completed}/{tasksStats.total}
+                                    </span>
+                                  </div>
+                                </CardBody>
+                              </Card>
+                            );
+                          })}
+                        </div>
+                      ) : (
+                        <div className="overflow-x-auto rounded-lg border border-gray-200">
+                          <table className="min-w-full divide-y divide-gray-200">
+                            <thead className="bg-gray-50">
+                              <tr>
+                                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Meta</th>
+                                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Proyecto</th>
+                                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Estado</th>
+                                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Progreso</th>
+                                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Vencimiento</th>
+                              </tr>
+                            </thead>
+                            <tbody className="bg-white divide-y divide-gray-200">
+                              {areaSummary.goals.map((goal) => {
+                                const project = getProjectInfo(goal.project_id);
+                                return (
+                                  <tr key={goal.id} className="hover:bg-gray-50 transition-colors">
+                                    <td className="px-6 py-4">
+                                      <div className="text-sm font-medium text-gray-900">{goal.title}</div>
+                                      {goal.description && (
+                                        <div className="text-xs text-gray-500 truncate max-w-xs">{goal.description}</div>
+                                      )}
+                                    </td>
+                                    <td className="px-6 py-4 whitespace-nowrap">
+                                      {project ? (
+                                        <div className="flex flex-col">
+                                          {project.code && (
+                                            <span className="text-[10px] font-mono text-indigo-600">{project.code}</span>
+                                          )}
+                                          <span className="text-sm text-gray-600 truncate max-w-[120px]">{project.title}</span>
+                                        </div>
+                                      ) : (
+                                        <span className="text-xs text-gray-400">-</span>
+                                      )}
+                                    </td>
+                                    <td className="px-6 py-4 whitespace-nowrap">
+                                      <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${goal.status === 'completada' ? 'bg-emerald-100 text-emerald-800' :
+                                          goal.status === 'en_progreso' ? 'bg-blue-100 text-blue-800' :
+                                            'bg-gray-100 text-gray-800'
+                                        }`}>
+                                        {goal.status.replace('_', ' ')}
                                       </span>
-                                    ))}
-                                  </div>
-                                )}
-                              </CardBody>
-                            </Card>
-                          );
-                        })}
-                      </div>
-
-                      <div className="flex flex-wrap gap-2 text-xs text-gray-500">
-                        <span>Metas completadas: {areaSummary.completedGoals}/{areaSummary.totalGoals}</span>
-                        <span>·</span>
-                        <span>Tareas completadas: {areaSummary.tasksCompleted}/{areaSummary.tasksTotal}</span>
-                        <span>·</span>
-                        <span>Progreso promedio: {areaSummary.avgProgress}%</span>
-                        <span>·</span>
-                        <span>
-                          Cumplimiento de tareas: {tasksCompletionRate}% {areaSummary.tasksTotal === 0 ? '(sin tareas vinculadas)' : ''}
-                        </span>
-                      </div>
+                                    </td>
+                                    <td className="px-6 py-4 whitespace-nowrap">
+                                      <div className="flex items-center gap-2">
+                                        <div className="w-16 bg-gray-200 rounded-full h-1.5 overflow-hidden">
+                                          <div
+                                            className={`h-full rounded-full ${goal.status === 'completada' ? 'bg-emerald-500' : 'bg-indigo-500'}`}
+                                            style={{ width: `${goal.progress}%` }}
+                                          />
+                                        </div>
+                                        <span className="text-xs text-gray-500">{goal.progress}%</span>
+                                      </div>
+                                    </td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                      {formatDate(goal.due_date)}
+                                    </td>
+                                  </tr>
+                                );
+                              })}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
                     </CardBody>
                   </Card>
                 </motion.div>
