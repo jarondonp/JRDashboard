@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useRef, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Button, Card, CardBody } from '../components';
 import { useAreas, useTimeline, useProjects } from '../hooks';
@@ -101,6 +101,23 @@ function TimelinePage() {
   const [range, setRange] = useState<TimelineRange>('30d');
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedTypes, setSelectedTypes] = useState<TimelineEventType[]>(ALL_TIMELINE_EVENT_TYPES);
+
+  // Custom dropdown state
+  const [isProjectFilterOpen, setIsProjectFilterOpen] = useState(false);
+  const [projectSearchTerm, setProjectSearchTerm] = useState('');
+  const projectFilterRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (projectFilterRef.current && !projectFilterRef.current.contains(event.target as Node)) {
+        setIsProjectFilterOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
 
   const fromIso = useMemo(() => getRangeStart(range), [range]);
   const areaFilter = selectedArea || undefined;
@@ -231,18 +248,90 @@ function TimelinePage() {
                 <label className="block text-sm font-medium text-gray-700">
                   Proyecto
                 </label>
-                <select
-                  className="w-full max-w-sm px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  value={selectedProject}
-                  onChange={(e) => setSelectedProject(e.target.value)}
-                >
-                  <option value="">Todos los proyectos</option>
-                  {(projectsData ?? []).map((project) => (
-                    <option key={project.id} value={project.id}>
-                      {project.title}
-                    </option>
-                  ))}
-                </select>
+                <div className="relative" ref={projectFilterRef}>
+                  <button
+                    type="button"
+                    onClick={() => setIsProjectFilterOpen(!isProjectFilterOpen)}
+                    className="w-full max-w-sm px-4 py-2.5 text-left border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white flex items-center justify-between"
+                  >
+                    <span className="truncate block">
+                      {selectedProject
+                        ? (() => {
+                          const p = projectsData?.find(p => p.id === selectedProject);
+                          if (!p) return 'Proyecto no encontrado';
+                          return (
+                            <>
+                              {p.code && <span className="font-mono text-xs text-indigo-500 mr-1">[{p.code}]</span>}
+                              {p.title}
+                            </>
+                          );
+                        })()
+                        : 'Todos los proyectos'}
+                    </span>
+                    <svg className={`w-4 h-4 text-gray-500 transition-transform ${isProjectFilterOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </button>
+
+                  {isProjectFilterOpen && (
+                    <div className="absolute top-full left-0 mt-1 w-full max-w-sm bg-white rounded-lg shadow-xl border border-gray-200 z-50 max-h-80 overflow-y-auto">
+                      <div className="p-2 border-b border-gray-100 sticky top-0 bg-white z-10">
+                        <input
+                          type="text"
+                          placeholder="Buscar proyecto..."
+                          className="w-full px-3 py-2 text-sm border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                          value={projectSearchTerm}
+                          onChange={(e) => setProjectSearchTerm(e.target.value)}
+                          onClick={(e) => e.stopPropagation()}
+                          autoFocus
+                        />
+                      </div>
+                      <div className="p-1">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSelectedProject('');
+                            setIsProjectFilterOpen(false);
+                          }}
+                          className={`w-full text-left px-3 py-2 rounded-md text-sm hover:bg-gray-50 flex items-center ${selectedProject === '' ? 'bg-indigo-50 text-indigo-700 font-medium' : 'text-gray-700'}`}
+                        >
+                          Todos los proyectos
+                        </button>
+                        {projectsData
+                          ?.filter(project => {
+                            if (!projectSearchTerm) return true;
+                            const term = projectSearchTerm.toLowerCase();
+                            return project.title.toLowerCase().includes(term) || project.code?.toLowerCase().includes(term);
+                          })
+                          .map((project) => (
+                            <button
+                              key={project.id}
+                              type="button"
+                              onClick={() => {
+                                setSelectedProject(project.id);
+                                setIsProjectFilterOpen(false);
+                              }}
+                              className={`w-full text-left px-3 py-2 rounded-md text-sm hover:bg-gray-50 flex items-center truncate ${selectedProject === project.id ? 'bg-indigo-50 text-indigo-700 font-medium' : 'text-gray-700'}`}
+                            >
+                              <span className="truncate">
+                                {project.code && <span className="font-mono text-xs text-indigo-500 mr-1">[{project.code}]</span>}
+                                {project.title}
+                              </span>
+                            </button>
+                          ))}
+                        {projectsData && projectsData.filter(p => {
+                          if (!projectSearchTerm) return true;
+                          const term = projectSearchTerm.toLowerCase();
+                          return p.title.toLowerCase().includes(term) || p.code?.toLowerCase().includes(term);
+                        }).length === 0 && (
+                            <div className="px-3 py-4 text-center text-sm text-gray-400">
+                              No se encontraron proyectos
+                            </div>
+                          )}
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
 
               <div className="flex-1 space-y-3">
