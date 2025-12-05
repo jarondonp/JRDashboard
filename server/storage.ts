@@ -1,5 +1,5 @@
 import { db } from './db';
-import { and, desc, eq, gte, lte, sql, like } from 'drizzle-orm';
+import { and, desc, eq, gte, lte, sql, like, getTableColumns } from 'drizzle-orm';
 import { areas, goals, tasks, progress_logs, documents, reports, projects } from '../shared/schema';
 import { randomUUID } from 'crypto';
 
@@ -140,6 +140,17 @@ export async function getGoalById(id: string) {
     updated_at: goals.updated_at
   }).from(goals).where(eq(goals.id, id)).limit(1);
 }
+
+export async function getGoalsByProject(projectId: string) {
+  return db.select({
+    id: goals.id,
+    title: goals.title,
+    description: goals.description,
+    status: goals.status,
+    priority: goals.priority
+  }).from(goals).where(eq(goals.project_id, projectId));
+}
+
 export async function createGoal(data: any) {
   return db.insert(goals).values(data).returning();
 }
@@ -175,11 +186,31 @@ export async function getTasks() {
     tags: tasks.tags,
     created_at: tasks.created_at,
     updated_at: tasks.updated_at,
-    project_status: projects.status
+    project_status: projects.status,
+    // Planner fields
+    impact: tasks.impact,
+    effort: tasks.effort,
+    calculated_priority: tasks.calculated_priority,
+    estimated_duration: tasks.estimated_duration,
+    dependencies: tasks.dependencies,
+    planner_meta: tasks.planner_meta
   }).from(tasks)
     .leftJoin(projects, eq(tasks.project_id, projects.id));
   console.log('Storage getTasks - Sample task:', result[0]);
   return result;
+}
+
+export async function getTasksByProject(projectId: string) {
+  const result = await db.select()
+    .from(tasks)
+    .leftJoin(goals, eq(tasks.goal_id, goals.id))
+    .where(eq(tasks.project_id, projectId));
+
+  return result.map(row => ({
+    ...row.tasks,
+    goal_title: row.goals?.title,
+    goal_id: row.tasks.goal_id
+  }));
 }
 export async function getTaskById(id: string) {
   return db.select({
@@ -1053,3 +1084,76 @@ export async function getAreaMetrics(areaId: string) {
     throw err;
   }
 }
+// Planner State Persistence (Scenarios)
+import { projectPlannerState } from '../shared/plannerSchema';
+
+export async function getProjectPlans(projectId: string) {
+  return db.select().from(projectPlannerState)
+    .where(eq(projectPlannerState.project_id, projectId))
+    .orderBy(desc(projectPlannerState.updated_at));
+}
+
+export async function getPlanById(planId: string) {
+  const [plan] = await db.select().from(projectPlannerState).where(eq(projectPlannerState.id, planId));
+  return plan;
+}
+
+export async function createPlan(projectId: string, name: string, description: string | undefined, phase: string, stateData: any) {
+  return db.insert(projectPlannerState)
+    .values({
+      project_id: projectId,
+      name,
+      description,
+      current_phase: phase,
+      state_data: stateData
+    })
+    .returning();
+}
+
+export async function updatePlan(planId: string, phase: string, stateData: any) {
+  return db.update(projectPlannerState)
+    .set({
+      current_phase: phase,
+      state_data: stateData,
+      updated_at: new Date()
+    })
+    .where(eq(projectPlannerState.id, planId))
+    .returning();
+}
+
+
+export async function deletePlan(planId: string) {
+  return db.delete(projectPlannerState).where(eq(projectPlannerState.id, planId));
+}
+
+export async function getPlanDeltas(planId: string) {
+  // 1. Get the plan
+  const plan = await getPlanById(planId);
+  if (!plan) throw new Error('Plan not found');
+
+  // 2. Get all project tasks
+  const allProjectTasks = await getTasksByProject(plan.project_id);
+
+  // 3. Extract IDs of tasks and goals already in the plan
+  const planState = plan.state_data as any;
+  const existingTaskIds = new Set((planState.tasks || []).map((t: any) => t.id));
+  const existingGoalIds = new Set((planState.tasks || []).map((t: any) => t.goal_id).filter(Boolean));
+
+  // 4. Filter for new tasks that belong to existing goals
+  const newTasks = allProjectTasks.filter(task => {
+    const isNew = !existingTaskIds.has(task.id);
+    // If task has no goal, we might want to include it if we have other no-goal tasks?
+    // For now, let's be strict: only include if goal matches.
+    // If the plan has tasks with NO goal (goal_id is null), should we include new tasks with NO goal?
+    // Let's assume yes if the set has 'null' or undefined, but Set(filter(Boolean)) removes them.
+    // Let's check if we have any task with no goal.
+    const hasNoGoalTasks = (planState.tasks || []).some((t: any) => !t.goal_id);
+
+    const isRelevantGoal = task.goal_id ? existingGoalIds.has(task.goal_id) : hasNoGoalTasks;
+
+    return isNew && isRelevantGoal;
+  });
+
+  return newTasks;
+}
+

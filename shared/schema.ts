@@ -1,4 +1,4 @@
-import { pgTable, uuid, text, varchar, timestamp, date, integer, smallint } from 'drizzle-orm/pg-core';
+import { pgTable, uuid, text, varchar, timestamp, date, integer, smallint, jsonb } from 'drizzle-orm/pg-core';
 import { z } from 'zod';
 
 // Areas
@@ -89,6 +89,13 @@ export const tasks = pgTable('tasks', {
   tags: text('tags').array(),
   created_at: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updated_at: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  // Flow Planner Fields
+  impact: integer('impact'),
+  effort: integer('effort'),
+  calculated_priority: varchar('calculated_priority', { length: 10 }),
+  estimated_duration: integer('estimated_duration'),
+  dependencies: jsonb('dependencies').$type<string[]>().default([]),
+  planner_meta: jsonb('planner_meta').$type<Record<string, any>>().default({}),
 });
 export const insertTaskSchema = z.object({
   area_id: z.string(),

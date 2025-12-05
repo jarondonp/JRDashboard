@@ -48,6 +48,12 @@ const MENU_SECTIONS: MenuSection[] = [
         to: '/projects',
       },
       {
+        id: 'planner',
+        label: 'Planificador',
+        icon: '📅', // Using a calendar icon
+        to: '/planner',
+      },
+      {
         id: 'goals',
         label: 'Metas',
         icon: '🎯',
@@ -283,7 +289,7 @@ function Sidebar() {
     return (
       <li key={item.id} className={`nav-item ${isChild ? 'nav-subitem' : ''}`}>
         <NavLink
-          to={item.to ?? '#'}
+          to={item.id === 'planner' && location.pathname.startsWith('/planner') ? '/planner?reset=true' : (item.to ?? '#')}
           className={({ isActive: routeActive }) =>
             `nav-link ${routeActive || isActive(item.to) ? 'active' : ''} ${isChild ? 'nav-link-sub' : ''
             }`

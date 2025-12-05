@@ -28,6 +28,8 @@ import { QuickActionProvider } from './hooks'
 import { GlobalModalProvider } from './context/GlobalModalContext'
 import { GlobalModal } from './components/GlobalModal'
 
+import { FlowPlannerPage } from './pages/FlowPlannerPage'
+
 function App() {
   return (
     <BrowserRouter>
@@ -44,6 +46,7 @@ function App() {
                 <Route path="/areas/:areaId/panel" element={<AreaPanelPage />} />
                 <Route path="/projects" element={<ProjectsPage />} />
                 <Route path="/projects/:id" element={<ProjectDetailPage />} />
+                <Route path="/planner/:projectId?" element={<FlowPlannerPage />} />
                 <Route path="/goals" element={<GoalsPage />} />
                 <Route path="/goals/by-area" element={<GoalsByAreaPage />} />
                 <Route path="/tasks" element={<TasksPage />} />
