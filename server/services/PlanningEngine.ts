@@ -20,9 +20,12 @@ export interface ScheduleResult {
     critical_path: string[];
     warnings: string[];
     suggestions: string[];
+    debug_logs?: string[];
 }
 
 export class PlanningEngine {
+    // ... (detectCycles, topologicalSort, calculateCriticalPath remain unchanged)
+
     /**
      * Detectar ciclos en dependencias
      */
@@ -59,6 +62,7 @@ export class PlanningEngine {
     ): ScheduleResult {
         const warnings: string[] = [];
         const suggestions: string[] = [];
+        let debugLogs: string[] = [];
 
         // Detectar ciclos
         const { has_cycle, cycle } = this.detectCycles(tasks);
@@ -76,7 +80,9 @@ export class PlanningEngine {
         // Programar tareas
         let scheduledTasks;
         try {
-            scheduledTasks = scheduleTasks(tasks, projectStartDate);
+            const result = scheduleTasks(tasks, projectStartDate);
+            scheduledTasks = result.tasks;
+            debugLogs = result.logs;
         } catch (error: any) {
             return { tasks, critical_path: [], warnings: [error.message], suggestions };
         }
@@ -97,7 +103,8 @@ export class PlanningEngine {
             tasks: scheduledTasks,
             critical_path,
             warnings,
-            suggestions
+            suggestions,
+            debug_logs: debugLogs
         };
     }
 }

@@ -22,7 +22,7 @@ interface PlannerContextValue {
     setPhase: (phase: PlannerPhase) => void;
     nextPhase: () => void;
     previousPhase: () => void;
-    saveProgress: () => Promise<void>;
+    saveProgress: () => Promise<boolean>;
     loadPlan: (planId: string) => Promise<boolean>;
     loadPlanAtSavedPhase: (planId: string) => Promise<boolean>;
     createPlan: (name: string, description?: string) => Promise<string | null>;
@@ -61,10 +61,18 @@ export function PlannerProvider({ children }: { children: ReactNode }) {
     // ============ TASK OPERATIONS ============
 
     const updateTask = (taskId: string, updates: Partial<PlannerTask>) => {
-        setState(prev => ({
-            ...prev,
-            tasks: updateTaskInArray(prev.tasks, taskId, updates)
-        }));
+        console.log('📝 [PlannerContext] updateTask called:', taskId, updates);
+        setState(prev => {
+            const newTasks = updateTaskInArray(prev.tasks, taskId, updates);
+            const updatedTask = newTasks.find(t => t.id === taskId);
+            console.log('📝 [PlannerContext] Updated task now has:', {
+                id: updatedTask?.id,
+                title: updatedTask?.title?.substring(0, 30),
+                start_date: updatedTask?.start_date,
+                due_date: updatedTask?.due_date
+            });
+            return { ...prev, tasks: newTasks };
+        });
     };
 
     const importTasks = (newTasks: any[]) => {
@@ -128,6 +136,13 @@ export function PlannerProvider({ children }: { children: ReactNode }) {
             console.warn('⚠️ Cannot save progress: No plan ID set');
             return false;
         }
+
+        // Log what we're saving
+        const tasksWithDates = state.tasks.filter(t => t.start_date);
+        console.log(`💾 [PlannerContext] Saving progress. ${tasksWithDates.length} tasks have manual dates.`);
+        tasksWithDates.forEach(t => {
+            console.log(`   - ${t.title?.substring(0, 30)}: ${t.start_date} to ${t.due_date}`);
+        });
 
         const success = await updatePlanInBackend(currentPlanId, state.current_phase, state);
 

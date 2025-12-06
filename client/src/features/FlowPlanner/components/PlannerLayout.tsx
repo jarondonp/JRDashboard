@@ -8,7 +8,7 @@ import { TimeEstimator } from './TimeEstimator';
 import { SyncModal } from './SyncModal';
 import { ActivePlanModal } from './ActivePlanModal';
 import { PlannerPhase } from '../types';
-// import { PlanPreview } from './PlanPreview';
+import { PlanPreview } from './PlanPreview';
 
 const STEPS = [
     { id: 'ingestion', label: 'Cargar Tareas', icon: '📥' },
@@ -103,7 +103,7 @@ export function PlannerLayout() {
             case 'prioritization': return <EisenhowerMatrix />;
             case 'dependencies': return <DependencyBuilder />;
             case 'estimation': return <TimeEstimator />;
-            case 'preview': return <div className="p-8 text-center text-gray-500">Vista Previa del Plan (Próximamente)</div>; // <PlanPreview />;
+            case 'preview': return <PlanPreview />;
             default: return null;
         }
     };

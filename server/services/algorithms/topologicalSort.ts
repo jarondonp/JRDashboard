@@ -45,7 +45,7 @@ export function topologicalSort(tasks: PlannerTask[]): TopologicalSortResult {
         }
 
         recursionStack.delete(taskId);
-        sorted.unshift(task); // Agregar al inicio para orden correcto
+        sorted.push(task); // Agregar al final para orden correcto (dependencias primero)
         return false;
     }
 
