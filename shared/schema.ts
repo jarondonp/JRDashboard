@@ -83,6 +83,7 @@ export const tasks = pgTable('tasks', {
   title: text('title').notNull(),
   description: text('description'),
   status: text('status').notNull(),
+  start_date: date('start_date'),
   due_date: date('due_date'),
   estimated_effort: integer('estimated_effort'),
   progress_percentage: integer('progress_percentage').default(0),

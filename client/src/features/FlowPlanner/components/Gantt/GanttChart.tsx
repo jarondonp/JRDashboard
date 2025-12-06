@@ -13,6 +13,36 @@ export const GanttChart: React.FC<GanttChartProps> = ({ tasks, startDate, onTask
     const [sidebarWidth, setSidebarWidth] = useState(250);
     const [isResizing, setIsResizing] = useState(false);
 
+    // Control visible timeline start date
+    const [viewStartDate, setViewStartDate] = useState<Date>(startDate || new Date());
+
+    // Initialize viewStartDate based on tasks or prop
+    useEffect(() => {
+        if (startDate) {
+            setViewStartDate(startDate);
+        } else if (tasks.length > 0) {
+            // Find earliest task
+            const minTaskDate = new Date(Math.min(...tasks.map(t => new Date(t.start_date).getTime())));
+            // Start few days before
+            minTaskDate.setDate(minTaskDate.getDate() - 2);
+            setViewStartDate(minTaskDate);
+        }
+    }, [startDate, tasks.length === 0]); // Only reset if startDate changes explicitly or tasks initiate
+
+    const handleNavigate = (direction: 'prev' | 'next') => {
+        setViewStartDate(prev => {
+            const newDate = new Date(prev);
+            newDate.setDate(newDate.getDate() + (direction === 'next' ? 7 : -7));
+            return newDate;
+        });
+    };
+
+    const handleNavigateToday = () => {
+        const today = new Date();
+        today.setDate(today.getDate() - 2); // Little buffer
+        setViewStartDate(today);
+    };
+
     // Drag state for bars
     const [dragState, setDragState] = useState<{
         taskId: string;
@@ -20,31 +50,28 @@ export const GanttChart: React.FC<GanttChartProps> = ({ tasks, startDate, onTask
         currentX: number;
         originalStart: Date;
         originalEnd: Date;
+        isResize: boolean; // New: Distinguish move vs resize
     } | null>(null);
 
-    // Calculate timeline bounds
+    // Calculate timeline bounds based on viewStartDate
     const { minDate, maxDate, totalDays } = useMemo(() => {
-        if (tasks.length === 0) return { minDate: new Date(), maxDate: new Date(), totalDays: 0 };
+        const min = new Date(viewStartDate);
 
-        const dates = tasks.flatMap(t => [new Date(t.start_date), new Date(t.due_date)]);
-        if (startDate) dates.push(startDate);
+        // Custom window size (e.g., 45 days)
+        const daysToShow = 45;
+        const max = new Date(min);
+        max.setDate(max.getDate() + daysToShow);
 
-        const min = new Date(Math.min(...dates.map(d => d.getTime())));
-        const max = new Date(Math.max(...dates.map(d => d.getTime())));
-
-        // Add buffer
-        max.setDate(max.getDate() + 5);
-
-        const diffTime = Math.abs(max.getTime() - min.getTime());
-        const days = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-
-        return { minDate: min, maxDate: max, totalDays: days };
-    }, [tasks, startDate]);
+        return { minDate: min, maxDate: max, totalDays: daysToShow };
+    }, [viewStartDate]);
 
     // Generate calendar headers
     const calendarHeaders = useMemo(() => {
         const headers = [];
         const current = new Date(minDate);
+        // Normalize time
+        current.setHours(0, 0, 0, 0);
+
         for (let i = 0; i <= totalDays; i++) {
             headers.push(new Date(current));
             current.setDate(current.getDate() + 1);
@@ -56,10 +83,15 @@ export const GanttChart: React.FC<GanttChartProps> = ({ tasks, startDate, onTask
         const s = new Date(start);
         const e = new Date(end);
 
-        const startOffset = Math.ceil((s.getTime() - minDate.getTime()) / (1000 * 60 * 60 * 24));
+        // Normalize
+        s.setHours(0, 0, 0, 0);
+        e.setHours(0, 0, 0, 0);
+        const min = new Date(minDate);
+        min.setHours(0, 0, 0, 0);
+
+        const startOffset = Math.ceil((s.getTime() - min.getTime()) / (1000 * 60 * 60 * 24));
         const duration = Math.ceil((e.getTime() - s.getTime()) / (1000 * 60 * 60 * 24));
 
-        // +2 because grid lines start at 1, and column 1 is Task Name
         return {
             gridColumnStart: startOffset + 2,
             gridColumnEnd: startOffset + 2 + (duration || 1)
@@ -76,13 +108,29 @@ export const GanttChart: React.FC<GanttChartProps> = ({ tasks, startDate, onTask
     const handleBarMouseDown = (e: React.MouseEvent, task: GanttTask) => {
         if (!onTaskUpdate) return;
         e.preventDefault();
-        e.stopPropagation(); // Prevent sidebar resizing or other events
+        e.stopPropagation();
         setDragState({
             taskId: task.id,
             startX: e.clientX,
             currentX: e.clientX,
             originalStart: new Date(task.start_date),
-            originalEnd: new Date(task.due_date)
+            originalEnd: new Date(task.due_date),
+            isResize: false
+        });
+    };
+
+    // Resize logic (Gripper)
+    const handleResizeMouseDown = (e: React.MouseEvent, task: GanttTask) => {
+        if (!onTaskUpdate) return;
+        e.preventDefault();
+        e.stopPropagation();
+        setDragState({
+            taskId: task.id,
+            startX: e.clientX,
+            currentX: e.clientX,
+            originalStart: new Date(task.start_date),
+            originalEnd: new Date(task.due_date),
+            isResize: true // RESIZE MODE
         });
     };
 
@@ -111,20 +159,8 @@ export const GanttChart: React.FC<GanttChartProps> = ({ tasks, startDate, onTask
                 if (deltaDays !== 0) {
                     // Use UTC methods to avoid timezone issues
                     const origStart = dragState.originalStart;
-                    const newStartMs = Date.UTC(
-                        origStart.getUTCFullYear(),
-                        origStart.getUTCMonth(),
-                        origStart.getUTCDate() + deltaDays
-                    );
-
                     const origEnd = dragState.originalEnd;
-                    const newEndMs = Date.UTC(
-                        origEnd.getUTCFullYear(),
-                        origEnd.getUTCMonth(),
-                        origEnd.getUTCDate() + deltaDays
-                    );
 
-                    // Format as YYYY-MM-DD using UTC
                     const formatUTC = (ms: number) => {
                         const d = new Date(ms);
                         const year = d.getUTCFullYear();
@@ -133,10 +169,43 @@ export const GanttChart: React.FC<GanttChartProps> = ({ tasks, startDate, onTask
                         return `${year}-${month}-${day}`;
                     };
 
-                    const newStartStr = formatUTC(newStartMs);
-                    const newEndStr = formatUTC(newEndMs);
+                    let newStartStr, newEndStr;
 
-                    console.log(`📅 [GanttChart] Drag update: ${dragState.taskId} -> ${newStartStr} to ${newEndStr}`);
+                    if (dragState.isResize) {
+                        // RESIZE: Keep Start, Transform End
+                        const newEndMs = Date.UTC(
+                            origEnd.getUTCFullYear(),
+                            origEnd.getUTCMonth(),
+                            origEnd.getUTCDate() + deltaDays
+                        );
+
+                        // Prevent end before start
+                        if (newEndMs < origStart.getTime()) {
+                            setDragState(null);
+                            return;
+                        }
+
+                        newStartStr = formatUTC(Date.UTC(origStart.getUTCFullYear(), origStart.getUTCMonth(), origStart.getUTCDate()));
+                        newEndStr = formatUTC(newEndMs);
+
+                        console.log(`📏 [GanttChart] Resize update: ${dragState.taskId} -> End at ${newEndStr}`);
+
+                    } else {
+                        // MOVE: Shift Both
+                        const newStartMs = Date.UTC(
+                            origStart.getUTCFullYear(),
+                            origStart.getUTCMonth(),
+                            origStart.getUTCDate() + deltaDays
+                        );
+                        const newEndMs = Date.UTC(
+                            origEnd.getUTCFullYear(),
+                            origEnd.getUTCMonth(),
+                            origEnd.getUTCDate() + deltaDays
+                        );
+                        newStartStr = formatUTC(newStartMs);
+                        newEndStr = formatUTC(newEndMs);
+                        console.log(`📅 [GanttChart] Drag update: ${dragState.taskId} -> ${newStartStr} to ${newEndStr}`);
+                    }
 
                     onTaskUpdate?.(dragState.taskId, newStartStr, newEndStr);
                 }
@@ -147,7 +216,7 @@ export const GanttChart: React.FC<GanttChartProps> = ({ tasks, startDate, onTask
         if (isResizing || dragState) {
             window.addEventListener('mousemove', handleMouseMove);
             window.addEventListener('mouseup', handleMouseUp);
-            document.body.style.cursor = isResizing ? 'col-resize' : 'grabbing';
+            document.body.style.cursor = isResizing ? 'col-resize' : (dragState?.isResize ? 'ew-resize' : 'grabbing');
             document.body.style.userSelect = 'none';
         } else {
             document.body.style.cursor = 'default';
@@ -167,6 +236,34 @@ export const GanttChart: React.FC<GanttChartProps> = ({ tasks, startDate, onTask
             {/* Controls */}
             <div className="p-4 border-b border-gray-200 flex justify-between items-center bg-gray-50 shrink-0">
                 <h3 className="font-semibold text-gray-700">Cronograma del Proyecto</h3>
+
+                {/* Navigation Controls */}
+                <div className="flex items-center gap-2">
+                    <button
+                        onClick={() => handleNavigate('prev')}
+                        className="p-1 rounded hover:bg-gray-100 text-gray-600"
+                        title="Semana anterior"
+                    >
+                        ◀️
+                    </button>
+                    <span className="text-sm font-medium text-gray-600 w-32 text-center">
+                        {viewStartDate.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' })}
+                    </span>
+                    <button
+                        onClick={() => handleNavigate('next')}
+                        className="p-1 rounded hover:bg-gray-100 text-gray-600"
+                        title="Semana siguiente"
+                    >
+                        ▶️
+                    </button>
+                    <button
+                        onClick={handleNavigateToday}
+                        className="ml-2 px-2 py-1 text-xs text-indigo-600 bg-indigo-50 rounded hover:bg-indigo-100"
+                    >
+                        Hoy
+                    </button>
+                </div>
+
                 <div className="flex gap-2">
                     <button className="px-3 py-1 text-xs font-medium bg-white border rounded hover:bg-gray-50">Día</button>
                     <button className="px-3 py-1 text-xs font-medium bg-white border rounded hover:bg-gray-50 opacity-50 cursor-not-allowed">Semana</button>
@@ -195,9 +292,9 @@ export const GanttChart: React.FC<GanttChartProps> = ({ tasks, startDate, onTask
                         ></div>
                     </div>
                     {calendarHeaders.map((date, i) => (
-                        <div key={i} className="sticky top-0 z-20 bg-gray-100 border-b border-gray-200 border-l border-gray-200 p-1 text-xs text-center text-gray-500 flex flex-col justify-center">
-                            <span className="font-bold">{date.getDate()}</span>
-                            <span className="text-[10px]">{date.toLocaleDateString('es-ES', { month: 'short' })}</span>
+                        <div key={i} className={`sticky top-0 z-20 bg-gray-100 border-b border-gray-200 border-l border-gray-200 p-1 text-xs text-center flex flex-col justify-center ${date.getDay() === 0 || date.getDay() === 6 ? 'bg-gray-50' : ''}`}>
+                            <span className="font-bold text-gray-700">{date.getDate()}</span>
+                            <span className="text-[10px] text-gray-500">{date.toLocaleDateString('es-ES', { month: 'short', weekday: 'short' })}</span>
                         </div>
                     ))}
 
@@ -205,6 +302,21 @@ export const GanttChart: React.FC<GanttChartProps> = ({ tasks, startDate, onTask
                     {tasks.map((task, i) => {
                         const isDragging = dragState?.taskId === task.id;
                         const dragOffset = isDragging ? dragState.currentX - dragState.startX : 0;
+                        const isResize = dragState?.taskId === task.id && dragState?.isResize;
+
+                        // Calculate visual styles based on drag/resize
+                        let transformStyle = {};
+                        let widthStyle = {};
+
+                        if (isDragging) {
+                            if (isResize) {
+                                // Resizing: width changes
+                                widthStyle = { width: `calc(100% + ${dragOffset}px)` };
+                            } else {
+                                // Moving: position changes
+                                transformStyle = { transform: `translateX(${dragOffset}px)` };
+                            }
+                        }
 
                         return (
                             <React.Fragment key={task.id}>
@@ -229,8 +341,8 @@ export const GanttChart: React.FC<GanttChartProps> = ({ tasks, startDate, onTask
                                 </div>
 
                                 {/* Timeline Cells (Background Grid) */}
-                                {calendarHeaders.map((_, j) => (
-                                    <div key={j} className={`border-b border-gray-100 border-l border-gray-100 ${i % 2 === 0 ? 'bg-white' : 'bg-gray-50'}`}></div>
+                                {calendarHeaders.map((date, j) => (
+                                    <div key={j} className={`border-b border-gray-100 border-l border-gray-100 ${i % 2 === 0 ? 'bg-white' : 'bg-gray-50'} ${date.getDay() === 0 || date.getDay() === 6 ? 'bg-gray-50' : ''}`}></div>
                                 ))}
 
                                 {/* Task Bar (Overlay) */}
@@ -239,7 +351,7 @@ export const GanttChart: React.FC<GanttChartProps> = ({ tasks, startDate, onTask
                                         rounded-md shadow-sm text-xs text-white flex items-center justify-center px-2 relative
                                         ${task.critical ? 'bg-red-500' : 'bg-indigo-500'}
                                         hover:opacity-90 transition-opacity cursor-pointer group
-                                        ${isDragging ? 'shadow-lg ring-2 ring-indigo-300' : ''}
+                                        ${isDragging ? 'shadow-lg ring-2 ring-indigo-300 z-50' : 'z-10'}
                                     `}
                                     style={{
                                         gridRow: i + 2, // +2 because header is row 1
@@ -247,14 +359,15 @@ export const GanttChart: React.FC<GanttChartProps> = ({ tasks, startDate, onTask
                                         marginTop: '8px',
                                         marginBottom: '8px',
                                         height: '24px',
-                                        transform: `translateX(${dragOffset}px)`,
-                                        zIndex: isDragging ? 50 : 10,
-                                        cursor: isDragging ? 'grabbing' : 'grab'
+                                        ...transformStyle,
+                                        ...widthStyle,
+                                        cursor: isDragging && !isResize ? 'grabbing' : 'grab'
                                     }}
                                     title={`${task.title} (${task.start_date} - ${task.due_date})`}
                                     onMouseDown={(e) => handleBarMouseDown(e, task)}
                                 >
                                     {task.critical && <span className="mr-1">🔥</span>}
+
                                     {/* Tooltip on hover (hide when dragging) */}
                                     {!isDragging && (
                                         <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-gray-800 text-white text-xs rounded opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap z-50 transition-opacity shadow-lg">
@@ -262,6 +375,14 @@ export const GanttChart: React.FC<GanttChartProps> = ({ tasks, startDate, onTask
                                             <span className="text-gray-300 text-[10px]">{task.start_date} - {task.due_date}</span>
                                         </div>
                                     )}
+
+                                    {/* RESIZE HANDLE (Right Grip) */}
+                                    <div
+                                        className="absolute right-0 top-0 bottom-0 w-3 cursor-ew-resize flex items-center justify-center opacity-0 group-hover:opacity-100 hover:bg-white/20 transition-all rounded-r"
+                                        onMouseDown={(e) => handleResizeMouseDown(e, task)}
+                                    >
+                                        <div className="w-1 h-3 bg-white/50 rounded-sm"></div>
+                                    </div>
                                 </div>
                             </React.Fragment>
                         );

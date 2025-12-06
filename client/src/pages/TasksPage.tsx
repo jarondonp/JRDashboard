@@ -504,6 +504,7 @@ function TasksPage() {
                                   ) : (
                                     <p className="text-gray-400">Aún no hay avances registrados para esta tarea.</p>
                                   )}
+                                  {task.start_date && <p>Inicio: {formatDate(task.start_date)}</p>}
                                   {task.due_date && <p>Vence: {formatDate(task.due_date)}</p>}
                                   {task.estimated_effort && <p>Esfuerzo: {task.estimated_effort}h</p>}
                                 </div>
@@ -532,7 +533,8 @@ function TasksPage() {
                           <th className="px-4 py-3">Proyecto</th>
                           <th className="px-4 py-3">Estado</th>
                           <th className="px-4 py-3">Progreso</th>
-                          <th className="px-4 py-3">Fechas</th>
+                          <th className="px-4 py-3">Inicio</th>
+                          <th className="px-4 py-3">Vencimiento</th>
                           <th className="px-4 py-3">Etiquetas</th>
                           <th className="px-4 py-3">Último avance</th>
                           <th className="px-4 py-3 text-right">Acciones</th>
@@ -585,9 +587,11 @@ function TasksPage() {
                                     />
                                   </div>
                                   <span className="text-xs text-gray-600">
-                                    {task.progress_percentage ?? 0}%
                                   </span>
                                 </div>
+                              </td>
+                              <td className="px-4 py-3 text-xs text-gray-600">
+                                {task.start_date ? formatDate(task.start_date) : '—'}
                               </td>
                               <td className="px-4 py-3 text-xs text-gray-600">
                                 <div className="flex flex-col gap-1">
@@ -748,8 +752,10 @@ function TasksPage() {
                               )}
 
                               <div className="flex items-center justify-between text-[11px] text-gray-500">
+                                <span className={task.start_date ? 'text-indigo-600' : ''}>
+                                  {task.start_date ? `Ini: ${formatDate(task.start_date)}` : ''}
+                                </span>
                                 <span>Vence: {task.due_date ? formatDate(task.due_date) : '—'}</span>
-                                <span>Esfuerzo: {task.estimated_effort ?? '—'}</span>
                               </div>
 
                               <div>

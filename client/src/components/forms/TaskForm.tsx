@@ -23,6 +23,7 @@ export const createEmptyTaskInput = (): TaskInput => ({
     title: '',
     description: '',
     status: 'pendiente',
+    start_date: '',
     due_date: '',
     estimated_effort: 0,
     progress_percentage: 0,
@@ -52,6 +53,7 @@ export function TaskForm({
                 title: initialData.title || '',
                 description: initialData.description || '',
                 status: initialData.status || 'pendiente',
+                start_date: initialData.start_date || '',
                 due_date: initialData.due_date || '',
                 estimated_effort: initialData.estimated_effort || 0,
                 progress_percentage: initialData.progress_percentage || 0,
@@ -72,6 +74,7 @@ export function TaskForm({
             project_id: formData.project_id || null,
             goal_id: formData.goal_id || null,
             description: formData.description || null,
+            start_date: formData.start_date || null,
             due_date: formData.due_date || null,
             estimated_effort: formData.estimated_effort || null,
             progress_percentage: formData.progress_percentage || 0,
@@ -228,6 +231,18 @@ export function TaskForm({
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Fecha Inicio
+                    </label>
+                    <input
+                        type="date"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-shadow"
+                        value={formData.start_date || ''}
+                        onChange={(e) => setFormData({ ...formData, start_date: e.target.value })}
+                    />
+                </div>
+
+                <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
                         Fecha Límite
                     </label>
                     <input
@@ -237,7 +252,9 @@ export function TaskForm({
                         onChange={(e) => setFormData({ ...formData, due_date: e.target.value })}
                     />
                 </div>
+            </div>
 
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                         Esfuerzo (horas)

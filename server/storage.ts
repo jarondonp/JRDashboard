@@ -180,6 +180,7 @@ export async function getTasks() {
     title: tasks.title,
     description: tasks.description,
     status: tasks.status,
+    start_date: tasks.start_date,
     due_date: tasks.due_date,
     estimated_effort: tasks.estimated_effort,
     progress_percentage: tasks.progress_percentage,
@@ -221,6 +222,7 @@ export async function getTaskById(id: string) {
     title: tasks.title,
     description: tasks.description,
     status: tasks.status,
+    start_date: tasks.start_date,
     due_date: tasks.due_date,
     estimated_effort: tasks.estimated_effort,
     progress_percentage: tasks.progress_percentage,
@@ -1155,5 +1157,25 @@ export async function getPlanDeltas(planId: string) {
   });
 
   return newTasks;
+}
+
+// Baselines
+import { projectBaselines, baselineTasks } from '../shared/plannerSchema';
+
+export async function createProjectBaseline(data: any) {
+  return db.insert(projectBaselines).values(data).returning();
+}
+
+export async function createBaselineTasks(data: any[]) {
+  if (data.length === 0) return [];
+  return db.insert(baselineTasks).values(data).returning();
+}
+
+export async function getProjectBaselines(projectId: string) {
+  return db.select().from(projectBaselines).where(eq(projectBaselines.project_id, projectId)).orderBy(desc(projectBaselines.created_at));
+}
+
+export async function getBaselineTasks(baselineId: string) {
+  return db.select().from(baselineTasks).where(eq(baselineTasks.baseline_id, baselineId));
 }
 

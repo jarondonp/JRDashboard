@@ -142,16 +142,51 @@ router.post('/generate', async (req, res) => {
 // Aplicar plan a las tareas reales
 router.post('/apply', async (req, res) => {
     try {
-        const { project_id, tasks, create_baseline, baseline_name } = req.body;
+        const { project_id, tasks: plannedTasks, create_baseline, baseline_name } = req.body;
 
-        // Crear baseline si se solicita
-        if (create_baseline) {
-            // TODO: Implementar en Fase 5
+        if (!project_id || !plannedTasks) {
+            return res.status(400).json({ error: 'Missing project_id or tasks' });
         }
 
-        // Actualizar tareas
+        console.log(`🚀 [API] Applying plan for project ${project_id}. Create Baseline: ${create_baseline}`);
+
+        // 1. Create Baseline (Snapshot) if requested
+        // 1. Create Baseline (Snapshot) if requested
+        if (create_baseline) {
+            const currentTasks = await storage.getTasksByProject(project_id);
+            console.log(`📸 [API] Creating baseline with ${currentTasks.length} existing tasks`);
+
+            const [baseline] = await storage.createProjectBaseline({
+                project_id,
+                version_name: baseline_name || `Baseline - ${new Date().toLocaleDateString()}`,
+                created_by: 'System' // TODO: Get from auth
+            });
+
+            if (baseline) {
+                const snapshotData = currentTasks.map(t => ({
+                    baseline_id: baseline.id,
+                    task_id: t.id,
+                    original_start_date: t.start_date,
+                    original_due_date: t.due_date,
+                    original_priority: t.calculated_priority || t.status, // Fallback if no calculated priority
+                    original_status: t.status,
+                    original_impact: t.impact,
+                    original_effort: t.effort,
+                    original_dependencies: t.dependencies,
+                    snapshot_data: t
+                }));
+
+                if (snapshotData.length > 0) {
+                    await storage.createBaselineTasks(snapshotData);
+                }
+                console.log(`✅ [API] Baseline "${baseline.version_name}" created successfully`);
+            }
+        }
+
+        // 2. Update Tasks
+        console.log(`📝 [API] Updating ${plannedTasks.length} tasks with new plan data`);
         let updatedCount = 0;
-        for (const task of tasks) {
+        for (const task of plannedTasks) {
             await storage.updateTask(task.id, {
                 start_date: task.start_date,
                 due_date: task.due_date,

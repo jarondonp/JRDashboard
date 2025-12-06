@@ -7,6 +7,7 @@ export type TaskInput = {
   title: string;
   description?: string | null;
   status: string;
+  start_date?: string | null; // Added start_date
   due_date?: string | null;
   estimated_effort?: number | null;
   progress_percentage?: number | null;
@@ -18,6 +19,11 @@ export type Task = TaskInput & {
   created_at?: string;
   updated_at?: string;
   project_status?: string;
+  // Planner fields (readonly in UI mostly)
+  calculated_priority?: string;
+  impact?: number;
+  effort?: number;
+  estimated_duration?: number;
 };
 
 export async function fetchTasks(): Promise<Task[]> {
