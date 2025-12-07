@@ -19,7 +19,8 @@ export interface DependencySuggestion {
     reason: string;
 }
 
-const openai = new OpenAI({
+// Lazy init to ensure env is loaded
+const getOpenAI = () => new OpenAI({
     apiKey: process.env.OPENAI_API_KEY || '',
 });
 
@@ -78,7 +79,7 @@ Si no hay sugerencias: {"suggestions": []}`;
 
         console.log('\n📤 Enviando prompt a OpenAI GPT-4...');
 
-        const completion = await openai.chat.completions.create({
+        const completion = await getOpenAI().chat.completions.create({
             model: 'gpt-4o-mini',
             messages: [
                 { role: 'system', content: systemPrompt },

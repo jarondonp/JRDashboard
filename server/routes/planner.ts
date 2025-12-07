@@ -222,7 +222,8 @@ router.post('/apply', async (req, res) => {
             const [baseline] = await storage.createProjectBaseline({
                 project_id,
                 version_name: baseline_name || `Baseline - ${new Date().toLocaleDateString()}`,
-                created_by: 'System' // TODO: Get from auth
+                created_by: 'System', // TODO: Get from auth
+                notes: req.body.baseline_notes // Support Notes
             });
 
             if (baseline) {

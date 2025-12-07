@@ -29,7 +29,8 @@ export interface AnalysisResult {
     recommendations: Recommendation[];
 }
 
-const openai = new OpenAI({
+// Lazy init to ensure env is loaded
+const getOpenAI = () => new OpenAI({
     apiKey: process.env.OPENAI_API_KEY || '',
 });
 
@@ -77,7 +78,7 @@ INSTRUCCIONES:
 4. Genera 3 recomendaciones concretas para recuperar el tiempo (Fast-tracking, Crashing, Recorte de alcance).
 5. Sé directo y profesional.`;
 
-        const completion = await openai.chat.completions.create({
+        const completion = await getOpenAI().chat.completions.create({
             model: 'gpt-4o-mini',
             messages: [
                 { role: 'system', content: systemPrompt },

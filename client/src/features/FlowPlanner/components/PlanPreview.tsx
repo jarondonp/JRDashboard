@@ -176,10 +176,15 @@ export const PlanPreview: React.FC = () => {
         console.log('✅ [Frontend] Task updated successfully with new duration');
     };
 
-    // Date adjustment state
+    // Date adjustment state (Existing)
     const [isDateModalOpen, setIsDateModalOpen] = useState(false);
     const [tempStartDate, setTempStartDate] = useState('');
     const { setProjectStartDate } = usePlanner();
+
+    // Confirmation Modal State
+    const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
+    const [confirmName, setConfirmName] = useState('');
+    const [confirmDesc, setConfirmDesc] = useState('');
 
     const openDateModal = () => {
         setTempStartDate(state.project_start_date || new Date().toISOString().split('T')[0]);
@@ -235,15 +240,16 @@ export const PlanPreview: React.FC = () => {
     // Let's use window.location.href = '/dashboard' for simplicity as verification step, 
     // OR try to inject the import. The file is small enough (300 lines).
 
-    const handleConfirmPlan = async () => {
-        if (!confirm('¿Estás seguro de confirmar este plan? Esto actualizará las fechas de todas las tareas en el sistema.')) {
-            return;
-        }
+    const handleOpenConfirmModal = () => {
+        setConfirmName(`Plan Confirmado - ${new Date().toLocaleDateString()}`);
+        setConfirmDesc('');
+        setIsConfirmModalOpen(true);
+    };
 
+    const handleConfirmPlan = async () => {
+        setIsConfirmModalOpen(false); // Close modal first
         try {
             setLoading(true);
-            console.log('🏁 [Frontend] Confirming plan...');
-
             // Prepare payload
             // implementation_plan says: { project_id, tasks, create_baseline: true }
             // state.tasks has the current planned data (updated via updateTask context)
@@ -275,7 +281,8 @@ export const PlanPreview: React.FC = () => {
                 project_id: state.project_id,
                 tasks: plannedTasksPayload, // Use the merged tasks with calculated dates!
                 create_baseline: true,
-                baseline_name: `Plan Confirmado - ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}`
+                baseline_name: confirmName, // Use user provided name
+                baseline_notes: confirmDesc // Send description too (need to ensure backend handles it)
             };
 
             const response = await fetch('/api/planner/apply', {
@@ -297,9 +304,63 @@ export const PlanPreview: React.FC = () => {
         }
     };
 
+
+
     return (
         <div className="space-y-6 animate-fade-in relative">
-            {/* Date Adjustment Modal */}
+            {/* Confirmation Modal */}
+            {isConfirmModalOpen && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+                    <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-md">
+                        <h3 className="text-xl font-bold text-gray-900 mb-2">Confirmar y Aplicar Plan</h3>
+                        <p className="text-sm text-gray-600 mb-4">
+                            Al confirmar, se actualizarán las fechas de todas las tareas en el sistema.
+                            Se creará una copia de seguridad (Línea Base) con este nombre:
+                        </p>
+
+                        <div className="space-y-4 mb-6">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Nombre de la Versión</label>
+                                <input
+                                    type="text"
+                                    value={confirmName}
+                                    onChange={(e) => setConfirmName(e.target.value)}
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-green-500 focus:border-green-500"
+                                    placeholder="Ej: Plan Inicial Aprobado"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Notas (Opcional)</label>
+                                <textarea
+                                    value={confirmDesc}
+                                    onChange={(e) => setConfirmDesc(e.target.value)}
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-green-500 focus:border-green-500"
+                                    rows={3}
+                                    placeholder="Describe los cambios principales o la razón de esta versión..."
+                                />
+                            </div>
+                        </div>
+
+                        <div className="flex justify-end gap-3">
+                            <button
+                                onClick={() => setIsConfirmModalOpen(false)}
+                                className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-md"
+                            >
+                                Cancelar
+                            </button>
+                            <button
+                                onClick={handleConfirmPlan}
+                                disabled={!confirmName.trim()}
+                                className="px-4 py-2 bg-green-600 text-white font-medium rounded-md hover:bg-green-700 disabled:opacity-50"
+                            >
+                                Confirmar y Guardar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Date Adjustment Modal (Existing logic continues below) */}
             {isDateModalOpen && (
                 <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
                     <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-sm">
@@ -354,7 +415,7 @@ export const PlanPreview: React.FC = () => {
                             Ajustar Fechas
                         </button>
                         <button
-                            onClick={handleConfirmPlan}
+                            onClick={handleOpenConfirmModal}
                             className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 shadow-md transition-colors flex items-center gap-2"
                         >
                             <span>✅</span> Confirmar Plan

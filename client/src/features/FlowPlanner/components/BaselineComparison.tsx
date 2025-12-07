@@ -37,9 +37,11 @@ export const BaselineComparison: React.FC<BaselineComparisonProps> = ({ projectI
                 if (res.ok) {
                     const data = await res.json();
                     console.log('✅ [BaselineComparison] Baselines fetched:', data.length);
-                    setBaselines(data);
-                    if (data.length > 0) {
-                        setSelectedBaselineId(data[0].id);
+                    // Sort descending by date
+                    const sorted = data.sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+                    setBaselines(sorted);
+                    if (sorted.length > 0) {
+                        setSelectedBaselineId(sorted[0].id);
                     }
                 } else {
                     console.error('❌ [BaselineComparison] Fetch failed:', res.status);
