@@ -1,14 +1,15 @@
 
 import React, { useMemo, useState, useRef, useEffect } from 'react';
-import { GanttTask, ViewMode } from './types';
+import { GanttTask, ViewMode, BaselineTask } from './types';
 
 interface GanttChartProps {
     tasks: GanttTask[];
+    baselineTasks?: BaselineTask[];
     startDate?: Date; // Project start date
     onTaskUpdate?: (taskId: string, newStartDate: string, newDueDate: string) => void;
 }
 
-export const GanttChart: React.FC<GanttChartProps> = ({ tasks, startDate, onTaskUpdate }) => {
+export const GanttChart: React.FC<GanttChartProps> = ({ tasks, baselineTasks, startDate, onTaskUpdate }) => {
     const [viewMode, setViewMode] = useState<ViewMode>('Day');
     const [sidebarWidth, setSidebarWidth] = useState(250);
     const [isResizing, setIsResizing] = useState(false);
@@ -344,6 +345,36 @@ export const GanttChart: React.FC<GanttChartProps> = ({ tasks, startDate, onTask
                                 {calendarHeaders.map((date, j) => (
                                     <div key={j} className={`border-b border-gray-100 border-l border-gray-100 ${i % 2 === 0 ? 'bg-white' : 'bg-gray-50'} ${date.getDay() === 0 || date.getDay() === 6 ? 'bg-gray-50' : ''}`}></div>
                                 ))}
+
+                                {/* GHOST BAR (Baseline) implementation */}
+                                {baselineTasks?.map((b) => {
+                                    if (b.task_id === task.id) {
+                                        return (
+                                            <div
+                                                key={`baseline-${task.id}`}
+                                                className="rounded-md bg-gray-300 border border-gray-400 opacity-60 z-0 relative"
+                                                style={{
+                                                    gridRow: i + 2,
+                                                    ...getGridPosition(b.start_date, b.due_date),
+                                                    marginTop: '4px', // Shift up slightly or keeping generic?
+                                                    // Let's place it "behind" by stacking or offsetting.
+                                                    // If we want it "shadow" style, let's put it slightly offset or full height but behind.
+                                                    // Let's make it thinner and at the bottom of the row?
+                                                    // Or full height behind? Full height behind is clear.
+                                                    // But main bar is z-10. This is z-0.
+                                                    marginBottom: '8px',
+                                                    height: '24px', // Same height but behind
+                                                    // Add top hatch pattern?
+                                                    pointerEvents: 'none'
+                                                }}
+                                                title={`Plan original: ${b.start_date} - ${b.due_date}`}
+                                            >
+                                            </div>
+                                        );
+                                    }
+                                    return null;
+                                })}
+
 
                                 {/* Task Bar (Overlay) */}
                                 <div

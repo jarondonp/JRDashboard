@@ -9,8 +9,15 @@ import {
 import {
     importTasksToState,
     mergeTasksWithPreservation,
-    updateTaskInArray
+    updateTaskInArray,
+    updateTasksWithRealData
 } from './utils/taskHelpers';
+
+interface SyncData {
+    newTasks: any[];
+    existingTasksUpdates: any[];
+}
+
 
 interface PlannerContextValue {
     state: PlannerState;
@@ -28,7 +35,8 @@ interface PlannerContextValue {
     createPlan: (name: string, description?: string) => Promise<string | null>;
     currentPlanId: string | null;
     lastSavedPhase: PlannerPhase | null;
-    checkForUpdates: () => Promise<any[]>;
+    checkForUpdates: () => Promise<{ newTasks: any[], existingTasksUpdates: any[] }>;
+    syncProjectData: (options: { importNew: boolean; updateReal: boolean }, data: any, selectedNewTasks: any[]) => void;
     importTasks: (tasks: any[]) => void;
     mergeTasks: (tasks: any[]) => void;
     resetPlanner: () => void;
@@ -36,7 +44,7 @@ interface PlannerContextValue {
 
 const PlannerContext = createContext<PlannerContextValue | undefined>(undefined);
 
-const PHASE_ORDER: PlannerPhase[] = ['ingestion', 'prioritization', 'dependencies', 'estimation', 'preview'];
+const PHASE_ORDER: PlannerPhase[] = ['ingestion', 'prioritization', 'dependencies', 'estimation', 'preview', 'analysis'];
 
 export function PlannerProvider({ children }: { children: ReactNode }) {
     const [state, setState] = useState<PlannerState>({
@@ -189,12 +197,52 @@ export function PlannerProvider({ children }: { children: ReactNode }) {
         return true;
     };
 
-    const checkForUpdates = async (): Promise<any[]> => {
+
+
+    interface PlannerContextValue {
+        // ... existing ...
+        checkForUpdates: () => Promise<SyncData>; // Changed return type
+        syncProjectData: (options: { importNew: boolean; updateReal: boolean }, data: SyncData, selectedNewTasks: any[]) => void;
+    }
+
+    // ... inside Provider ...
+
+    const checkForUpdates = async (): Promise<SyncData> => {
         if (!currentPlanId) {
-            return [];
+            return { newTasks: [], existingTasksUpdates: [] };
         }
-        return await checkForTaskDeltas(currentPlanId);
+        try {
+            const res = await fetch(`/api/planner/plans/${currentPlanId}/sync-data`);
+            if (res.ok) {
+                return await res.json();
+            }
+        } catch (err) {
+            console.error('Error checking for updates:', err);
+        }
+        return { newTasks: [], existingTasksUpdates: [] };
     };
+
+    const syncProjectData = (options: { importNew: boolean; updateReal: boolean }, data: SyncData, selectedNewTasks: any[]) => {
+        setState(prev => {
+            let nextTasks = [...prev.tasks];
+
+            // 1. Import New Tasks
+            if (options.importNew && selectedNewTasks.length > 0) {
+                nextTasks = importTasksToState(nextTasks, selectedNewTasks);
+            }
+
+            // 2. Update Real Status (Existing Tasks)
+            if (options.updateReal && data.existingTasksUpdates.length > 0) {
+                nextTasks = updateTasksWithRealData(nextTasks, data.existingTasksUpdates);
+            }
+
+            return {
+                ...prev,
+                tasks: nextTasks
+            };
+        });
+    };
+
 
     // ============ RESET ============
 

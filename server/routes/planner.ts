@@ -2,8 +2,31 @@ import { Router } from 'express';
 import { PlanningEngine } from '../services/PlanningEngine';
 import { suggestDependencies } from '../services/GeminiDependencySuggester';
 import * as storage from '../storage';
+import { analyzeDeviation } from '../services/AnalysisService';
+import { sql } from 'drizzle-orm';
+import { db } from '../db';
 
 const router = Router();
+
+// DEBUG ROUTE
+router.get('/debug-hello', (req, res) => {
+    console.log('🔍 [API] Debug Hello Hit');
+    res.json({ message: 'Hello from Planner Routes' });
+});
+
+// GET /api/planner/project-baselines/:projectId
+// Listar líneas base de un proyecto
+router.get('/project-baselines/:projectId', async (req, res) => {
+    console.log('🔍 [API] Route hit: GET /baselines/:projectId with param:', req.params.projectId);
+    try {
+        const baselines = await storage.getBaselinesByProject(req.params.projectId);
+        console.log(`✅ [API] Found ${baselines.length} baselines for project ${req.params.projectId}`);
+        res.json(baselines);
+    } catch (err) {
+        console.error('Error loading baselines:', err);
+        res.status(500).json({ error: 'Error loading baselines' });
+    }
+});
 
 // GET /api/planner/projects/:projectId/plans
 // Listar todos los planes de un proyecto
@@ -17,22 +40,6 @@ router.get('/projects/:projectId/plans', async (req, res) => {
     }
 });
 
-// GET /api/planner/plans/:planId
-// Obtener un plan específico
-router.get('/plans/:planId', async (req, res) => {
-    try {
-        const plan = await storage.getPlanById(req.params.planId);
-        if (plan) {
-            res.json(plan);
-        } else {
-            res.status(404).json({ error: 'Plan not found' });
-        }
-    } catch (err) {
-        console.error('Error loading plan:', err);
-        res.status(500).json({ error: 'Error loading plan' });
-    }
-});
-
 // POST /api/planner/plans
 // Crear un nuevo plan
 router.post('/plans', async (req, res) => {
@@ -43,6 +50,22 @@ router.post('/plans', async (req, res) => {
     } catch (err) {
         console.error('Error creating plan:', err);
         res.status(500).json({ error: 'Error creating plan' });
+    }
+});
+
+
+// GET /api/planner/plans/:planId
+// Obtener detalles de un plan
+router.get('/plans/:planId', async (req, res) => {
+    try {
+        const plan = await storage.getPlanById(req.params.planId);
+        if (!plan) {
+            return res.status(404).json({ error: 'Plan not found' });
+        }
+        res.json(plan);
+    } catch (err) {
+        console.error('Error loading plan:', err);
+        res.status(500).json({ error: 'Error loading plan' });
     }
 });
 
@@ -68,6 +91,46 @@ router.get('/plans/:planId/deltas', async (req, res) => {
     } catch (err) {
         console.error('Error getting plan deltas:', err);
         res.status(500).json({ error: 'Error getting plan deltas' });
+    }
+});
+
+// GET /api/planner/plans/:planId/sync-data
+// Obtener datos completos de sincronización (nuevas y actualizaciones)
+router.get('/plans/:planId/sync-data', async (req, res) => {
+    try {
+        const planId = req.params.planId;
+        // 1. Get new tasks (deltas)
+        const newTasks = await storage.getPlanDeltas(planId);
+
+        // 2. Get all current project tasks to compare updates
+        const plan = await storage.getPlanById(planId);
+        if (!plan) return res.status(404).json({ error: 'Plan not found' });
+
+        const allProjectTasks = await storage.getTasksByProject(plan.project_id);
+
+        // Filter tasks that ARE in the plan (by ID) to check for status updates
+        // We will return ALL project tasks that are already in the plan so frontend can diff them.
+        // Optimally, we could diff here, but frontend has the "Draft" state which might be different from DB.
+        // So we just return the "Source of Truth" (allProjectTasks) and let frontend decide what to update.
+        // But to save bandwidth, let's filter only those that match IDs present in the plan?
+        // Actually, returning allProjectTasks is easiest and covers both cases if we wanted to.
+        // But let's separate:
+        // - newTasks: Tasks NOT in plan.
+        // - existingTasks: Tasks in plan (matches ID).
+
+        const planState = plan.state_data as any;
+        const planTaskIds = new Set((planState.tasks || []).map((t: any) => t.id));
+
+        const existingTasksUpdates = allProjectTasks.filter(t => planTaskIds.has(t.id));
+
+        res.json({
+            newTasks,
+            existingTasksUpdates
+        });
+
+    } catch (err) {
+        console.error('Error getting sync data:', err);
+        res.status(500).json({ error: 'Error getting sync data' });
     }
 });
 
@@ -203,6 +266,102 @@ router.post('/apply', async (req, res) => {
     } catch (err) {
         console.error('Error applying plan:', err);
         res.status(500).json({ error: 'Error applying plan' });
+    }
+});
+
+
+// GET /api/planner/baselines/:projectId
+// Listar líneas base de un proyecto
+// Route moved to top
+
+// GET /api/planner/baselines/:baselineId/compare
+// Comparar línea base con estado actual
+router.get('/baselines/:baselineId/compare', async (req, res) => {
+    try {
+        const baselineTasks = await storage.getBaselineTasks(req.params.baselineId);
+        const projectId = req.query.projectId as string;
+
+        if (!projectId) {
+            return res.status(400).json({ error: 'projectId query param required' });
+        }
+
+        const currentTasks = await storage.getTasksByProject(projectId);
+
+        if (baselineTasks.length === 0) {
+            return res.json({ comparison: [], meta: { total_current: currentTasks.length, total_baseline: 0, deleted: 0 } });
+        }
+
+        // Comparison Logic
+        const comparison = currentTasks.map(current => {
+            const baseline = baselineTasks.find(b => b.task_id === current.id);
+            if (!baseline) return { ...current, _status: 'new' }; // New task added after baseline
+
+            // Calculate delay
+            const currentStart = current.start_date ? new Date(current.start_date).getTime() : 0;
+            const baselineStart = baseline.original_start_date ? new Date(baseline.original_start_date).getTime() : 0;
+
+            let delayDays = 0;
+            if (currentStart && baselineStart) {
+                const diffTime = currentStart - baselineStart;
+                delayDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+            }
+
+            return {
+                ...current,
+                baseline_start: baseline.original_start_date,
+                baseline_end: baseline.original_due_date,
+                delay_days: delayDays,
+                _status: 'existing'
+            };
+        });
+
+        // Identify deleted tasks (in baseline but not in current)
+        const deletedTasks = baselineTasks.filter(b => !currentTasks.find(c => c.id === b.task_id))
+            .map(b => ({
+                id: b.task_id,
+                title: (b.snapshot_data as any)?.title || 'Tarea Eliminada',
+                baseline_start: b.original_start_date,
+                baseline_end: b.original_due_date,
+                _status: 'deleted'
+            }));
+
+        res.json({
+            comparison: [...comparison, ...deletedTasks],
+            meta: {
+                total_current: currentTasks.length,
+                total_baseline: baselineTasks.length,
+                deleted: deletedTasks.length
+            }
+        });
+
+    } catch (err) {
+        console.error('Error comparing baseline:', err);
+        res.status(500).json({ error: 'Error comparing baseline' });
+    }
+});
+
+// ... (removed import)
+
+// POST /api/planner/analyze
+// Analizar desviaciones con IA
+router.post('/analyze', async (req, res) => {
+    try {
+        const { projectTitle, baselineTasks, currentTasks } = req.body;
+
+        if (!projectTitle || !currentTasks) {
+            return res.status(400).json({ error: 'Missing analysis data' });
+        }
+
+        const analysis = await analyzeDeviation({
+            projectTitle,
+            baselineTasks: baselineTasks || [],
+            currentTasks
+        });
+
+        res.json(analysis);
+    } catch (err) {
+        console.error('Error in analyze endpoint:', err);
+        res.status(500).json({ error: 'Error analyzing plan' });
     }
 });
 

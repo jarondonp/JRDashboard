@@ -4,12 +4,23 @@ import { PlannerTask } from '../types';
 interface SyncModalProps {
     isOpen: boolean;
     onClose: () => void;
-    newTasks: any[];
-    onImport: (selectedTasks: any[]) => void;
+    syncData: {
+        newTasks: any[];
+        existingTasksUpdates: any[];
+    } | null;
+    onConfirmSync: (options: { importNew: boolean; updateReal: boolean }, selectedNewTasks: any[]) => void;
 }
 
-export function SyncModal({ isOpen, onClose, newTasks, onImport }: SyncModalProps) {
+export function SyncModal({ isOpen, onClose, syncData, onConfirmSync }: SyncModalProps) {
+    const newTasks = syncData?.newTasks || [];
+    const existingUpdates = syncData?.existingTasksUpdates || [];
+
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set(newTasks.map(t => t.id)));
+    const [importNew, setImportNew] = useState(true);
+    const [updateReal, setUpdateReal] = useState(false);
+
+    // Initial effect to default check "Update Real" if only updates are available? 
+    // Or let user decide. Defaulting New to true is standard.
 
     if (!isOpen) return null;
 
@@ -23,9 +34,11 @@ export function SyncModal({ isOpen, onClose, newTasks, onImport }: SyncModalProp
         setSelectedIds(newSet);
     };
 
-    const handleImport = () => {
+    const handleConfirm = () => {
+        if (!importNew && !updateReal) return;
+
         const tasksToImport = newTasks.filter(t => selectedIds.has(t.id));
-        onImport(tasksToImport);
+        onConfirmSync({ importNew, updateReal }, tasksToImport);
         onClose();
     };
 
@@ -33,45 +46,71 @@ export function SyncModal({ isOpen, onClose, newTasks, onImport }: SyncModalProp
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
             <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[80vh] flex flex-col">
                 <div className="p-6 border-b border-gray-200">
-                    <h2 className="text-xl font-semibold text-gray-900">Actualizaciones Disponibles</h2>
+                    <h2 className="text-xl font-semibold text-gray-900">Sincronización de Proyecto</h2>
                     <p className="text-sm text-gray-500 mt-1">
-                        Se han encontrado {newTasks.length} nuevas tareas en el proyecto que no están en este plan.
+                        Elige qué datos deseas traer de la ejecución real a tu plan.
                     </p>
                 </div>
 
-                <div className="flex-1 overflow-y-auto p-6">
-                    <div className="space-y-3">
-                        {newTasks.map(task => (
-                            <div
-                                key={task.id}
-                                onClick={() => toggleTask(task.id)}
-                                className={`p-4 rounded-lg border cursor-pointer transition-all ${selectedIds.has(task.id)
-                                        ? 'border-indigo-500 bg-indigo-50'
-                                        : 'border-gray-200 hover:border-gray-300'
-                                    }`}
-                            >
-                                <div className="flex items-start gap-3">
-                                    <div className={`mt-1 w-5 h-5 rounded border flex items-center justify-center ${selectedIds.has(task.id)
-                                            ? 'bg-indigo-600 border-indigo-600'
-                                            : 'border-gray-300 bg-white'
-                                        }`}>
-                                        {selectedIds.has(task.id) && (
-                                            <span className="text-white text-xs">✓</span>
-                                        )}
-                                    </div>
-                                    <div>
-                                        <h3 className={`font-medium ${selectedIds.has(task.id) ? 'text-indigo-900' : 'text-gray-900'}`}>
-                                            {task.title}
-                                        </h3>
-                                        <div className="flex gap-2 mt-2">
-                                            <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-600">
-                                                {task.status}
-                                            </span>
+                <div className="p-6 space-y-6">
+                    {/* Option 1: Import New Tasks */}
+                    <div className={`p-4 rounded-lg border transition-colors ${importNew ? 'border-indigo-500 bg-indigo-50' : 'border-gray-200'}`}>
+                        <label className="flex items-start gap-3 cursor-pointer">
+                            <input
+                                type="checkbox"
+                                className="mt-1 w-5 h-5 text-indigo-600 rounded"
+                                checked={importNew}
+                                onChange={(e) => setImportNew(e.target.checked)}
+                                disabled={newTasks.length === 0}
+                            />
+                            <div>
+                                <h3 className="font-medium text-gray-900">Importar Tareas Nuevas</h3>
+                                <p className="text-sm text-gray-500">
+                                    {newTasks.length > 0
+                                        ? `Se encontraron ${newTasks.length} tareas nuevas creadas fuera del plan.`
+                                        : 'No hay tareas nuevas.'}
+                                </p>
+                            </div>
+                        </label>
+
+                        {/* Task List (Only visible if checked and has tasks) */}
+                        {importNew && newTasks.length > 0 && (
+                            <div className="mt-4 pl-8 max-h-40 overflow-y-auto pr-2">
+                                <div className="space-y-2">
+                                    {newTasks.map(task => (
+                                        <div key={task.id} className="flex items-center gap-2 text-sm bg-white p-2 rounded border border-gray-100">
+                                            <input
+                                                type="checkbox"
+                                                checked={selectedIds.has(task.id)}
+                                                onChange={() => toggleTask(task.id)}
+                                                className="rounded text-indigo-600"
+                                            />
+                                            <span className="truncate">{task.title}</span>
                                         </div>
-                                    </div>
+                                    ))}
                                 </div>
                             </div>
-                        ))}
+                        )}
+                    </div>
+
+                    {/* Option 2: Update Real Status */}
+                    <div className={`p-4 rounded-lg border transition-colors ${updateReal ? 'border-amber-500 bg-amber-50' : 'border-gray-200'}`}>
+                        <label className="flex items-start gap-3 cursor-pointer">
+                            <input
+                                type="checkbox"
+                                className="mt-1 w-5 h-5 text-amber-600 rounded"
+                                checked={updateReal}
+                                onChange={(e) => setUpdateReal(e.target.checked)}
+                            />
+                            <div>
+                                <h3 className="font-medium text-gray-900">Actualizar Estado Real (Reset)</h3>
+                                <p className="text-sm text-gray-500">
+                                    Sobrescribir las fechas y estados de tu plan con la realidad actual de la base de datos.
+                                    <br />
+                                    <span className="text-xs font-semibold text-amber-700">⚠️ Esto reemplazará tus simulaciones no guardadas.</span>
+                                </p>
+                            </div>
+                        </label>
                     </div>
                 </div>
 
@@ -83,11 +122,11 @@ export function SyncModal({ isOpen, onClose, newTasks, onImport }: SyncModalProp
                         Cancelar
                     </button>
                     <button
-                        onClick={handleImport}
-                        disabled={selectedIds.size === 0}
-                        className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:opacity-50"
+                        onClick={handleConfirm}
+                        disabled={!importNew && !updateReal}
+                        className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:opacity-50 shadow-sm"
                     >
-                        Importar {selectedIds.size} Tareas
+                        Confirmar Sincronización
                     </button>
                 </div>
             </div>

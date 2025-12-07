@@ -1,4 +1,4 @@
-export type PlannerPhase = 'ingestion' | 'prioritization' | 'dependencies' | 'estimation' | 'preview';
+export type PlannerPhase = 'ingestion' | 'prioritization' | 'dependencies' | 'estimation' | 'preview' | 'analysis';
 
 export interface PlannerTask {
     id: string;
@@ -31,4 +31,19 @@ export interface PlannerState {
     current_phase: PlannerPhase;
     generated_schedule?: ScheduleResult;
     name?: string;
+}
+
+export interface Baseline {
+    id: string;
+    version_name: string;
+    created_at: string;
+}
+
+export interface ComparisonData {
+    comparison: any[]; // refine if possible
+    meta: {
+        total_current: number;
+        total_baseline: number;
+        deleted: number;
+    }
 }

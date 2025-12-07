@@ -5,7 +5,7 @@ import { GanttChart } from './Gantt/GanttChart';
 import { GanttTask } from './Gantt/types';
 
 export const PlanPreview: React.FC = () => {
-    const { state, updateTask } = usePlanner();
+    const { state, updateTask, setPhase } = usePlanner();
     const [scheduledTasks, setScheduledTasks] = useState<GanttTask[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -286,14 +286,8 @@ export const PlanPreview: React.FC = () => {
 
             if (!response.ok) throw new Error('Error al confirmar el plan');
 
-            const result = await response.json();
-            console.log('✅ [Frontend] Plan confirmed!', result);
-
-            // Show success (simple alert for now or existing toast if available)
-            alert(' Plan aplicado correctamente. Redirigiendo al Dashboard...');
-
-            // Redirect
-            window.location.href = `/projects/${state.project_id}`; // Fixed: Removed /dashboard suffix which caused 404/blank page
+            // Switch to Analysis Phase
+            setPhase('analysis');
 
         } catch (err) {
             console.error(err);

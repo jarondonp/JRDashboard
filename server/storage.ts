@@ -1,6 +1,7 @@
 import { db } from './db';
 import { and, desc, eq, gte, lte, sql, like, getTableColumns } from 'drizzle-orm';
 import { areas, goals, tasks, progress_logs, documents, reports, projects } from '../shared/schema';
+import { projectBaselines, baselineTasks } from '../shared/plannerSchema';
 import { randomUUID } from 'crypto';
 
 export const TIMELINE_EVENT_TYPES = ['progress_log', 'task_completed', 'goal_completed', 'document_added'] as const;
@@ -1159,23 +1160,35 @@ export async function getPlanDeltas(planId: string) {
   return newTasks;
 }
 
-// Baselines
-import { projectBaselines, baselineTasks } from '../shared/plannerSchema';
 
+
+
+// Baselines
 export async function createProjectBaseline(data: any) {
-  return db.insert(projectBaselines).values(data).returning();
+  console.log('📦 [Storage] Creating baseline:', data);
+  const result = await db.insert(projectBaselines).values(data).returning();
+  console.log('✅ [Storage] Baseline created:', result[0]?.id);
+  return result;
 }
 
 export async function createBaselineTasks(data: any[]) {
   if (data.length === 0) return [];
+  console.log(`📦 [Storage] Creating ${data.length} baseline tasks`);
   return db.insert(baselineTasks).values(data).returning();
 }
 
-export async function getProjectBaselines(projectId: string) {
-  return db.select().from(projectBaselines).where(eq(projectBaselines.project_id, projectId)).orderBy(desc(projectBaselines.created_at));
+export async function getBaselinesByProject(projectId: string) {
+  return db.select()
+    .from(projectBaselines)
+    .where(eq(projectBaselines.project_id, projectId))
+    .orderBy(desc(projectBaselines.created_at));
 }
 
 export async function getBaselineTasks(baselineId: string) {
-  return db.select().from(baselineTasks).where(eq(baselineTasks.baseline_id, baselineId));
+  return db.select()
+    .from(baselineTasks)
+    .where(eq(baselineTasks.baseline_id, baselineId));
 }
+
+
 

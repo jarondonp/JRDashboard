@@ -9,13 +9,15 @@ import { SyncModal } from './SyncModal';
 import { ActivePlanModal } from './ActivePlanModal';
 import { PlannerPhase } from '../types';
 import { PlanPreview } from './PlanPreview';
+import { BaselineComparison } from './BaselineComparison';
 
 const STEPS = [
     { id: 'ingestion', label: 'Cargar Tareas', icon: '📥' },
     { id: 'prioritization', label: 'Priorizar', icon: '🎯' },
     { id: 'dependencies', label: 'Dependencias', icon: '🔗' },
     { id: 'estimation', label: 'Estimación', icon: '⏱️' },
-    { id: 'preview', label: 'Revisión', icon: '👁️' }
+    { id: 'preview', label: 'Revisión', icon: '👁️' },
+    { id: 'analysis', label: 'Control', icon: '📊' }
 ];
 
 export function PlannerLayout() {
@@ -27,10 +29,11 @@ export function PlannerLayout() {
         currentPlanId,
         lastSavedPhase,
         checkForUpdates,
-        importTasks,
         setPhase,
         resetPlanner,
-        loadPlanAtSavedPhase
+        loadPlanAtSavedPhase,
+        syncProjectData,
+        setProjectId
     } = usePlanner();
 
     const { projectId: urlProjectId } = useParams();
@@ -38,7 +41,7 @@ export function PlannerLayout() {
     const [isSyncModalOpen, setIsSyncModalOpen] = useState(false);
     const [isActivePlanModalOpen, setIsActivePlanModalOpen] = useState(false);
     const [loadedPlanInfo, setLoadedPlanInfo] = useState<any>(null);
-    const [newTasks, setNewTasks] = useState<any[]>([]);
+    const [syncData, setSyncData] = useState<{ newTasks: any[], existingTasksUpdates: any[] } | null>(null);
     const [isChecking, setIsChecking] = useState(false);
     const [hasCheckedActivePlan, setHasCheckedActivePlan] = useState(false);
 
@@ -63,6 +66,16 @@ export function PlannerLayout() {
 
         checkForActivePlan();
     }, [currentPlanId, urlProjectId, hasCheckedActivePlan]);
+
+    // Ensure state.project_id is set if URL has it
+    useEffect(() => {
+        if (urlProjectId && !state.project_id) {
+            console.log('🔄 [PlannerLayout] Setting project ID from URL:', urlProjectId);
+            setProjectId(urlProjectId);
+        }
+    }, [urlProjectId, state.project_id, setProjectId]);
+
+
 
     // Reset planner if URL is empty and user explicitly changed plans
     useEffect(() => {
@@ -104,6 +117,7 @@ export function PlannerLayout() {
             case 'dependencies': return <DependencyBuilder />;
             case 'estimation': return <TimeEstimator />;
             case 'preview': return <PlanPreview />;
+            case 'analysis': return <BaselineComparison projectId={state.project_id || ''} currentTasks={state.tasks} />;
             default: return null;
         }
     };
@@ -117,18 +131,27 @@ export function PlannerLayout() {
         }
     };
 
+
     const handleSync = async () => {
         setIsChecking(true);
-        const updates = await checkForUpdates();
+        const data = await checkForUpdates();
         setIsChecking(false);
 
-        if (updates.length > 0) {
-            setNewTasks(updates);
+        const hasNew = data.newTasks.length > 0;
+        const hasUpdates = data.existingTasksUpdates.length > 0; // In reality this is always true if plan has tasks, better if we checked diff.
+        // For now, we always show modal if there is ANY task in the project, to allow "Reset to Real" even if no obvious diff?
+        // Or strictly if new tasks.
+        // Let's show if either hasNew OR (hasUpdates and we want to allow reset).
+        // Let's just show it.
+
+        if (hasNew || hasUpdates) {
+            setSyncData(data);
             setIsSyncModalOpen(true);
         } else {
-            alert('No hay nuevas tareas para sincronizar.');
+            alert('No se encontraron datos para sincronizar.');
         }
     };
+
 
     const handleStepClick = async (stepId: string) => {
         // Always allow navigation if a plan is loaded
@@ -243,8 +266,12 @@ export function PlannerLayout() {
             <SyncModal
                 isOpen={isSyncModalOpen}
                 onClose={() => setIsSyncModalOpen(false)}
-                newTasks={newTasks}
-                onImport={importTasks}
+                syncData={syncData}
+                onConfirmSync={(options, selectedTasks) => {
+                    if (syncData) {
+                        syncProjectData(options, syncData, selectedTasks);
+                    }
+                }}
             />
 
             <ActivePlanModal
@@ -256,6 +283,7 @@ export function PlannerLayout() {
                 onContinue={handleContinuePlan}
                 onChangePlan={handleChangePlan}
             />
+
         </div>
     );
 }
